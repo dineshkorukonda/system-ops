@@ -5,9 +5,14 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 
 const { requireAuth, handleLogin, handleLogout, generateSessionToken } = require('./middleware/auth');
-const { apiLimiter, chatTestLimiter } = require('./middleware/rateLimiter');
+const { apiLimiter, chatTestLimiter, logTailLimiter } = require('./middleware/rateLimiter');
 const { getServiceStatus, checkPortListener, getJournalLogs, getHostMetrics } = require('./services/systemService');
 const { checkApiHealth, runQuickChatTest, getCliModelList } = require('./services/ollamaService');
+
+// v2 Collectors
+const { getPm2Snapshot, getPm2Logs } = require('./collectors/pm2');
+const { getSystemSnapshot } = require('./collectors/system');
+const { getLogSourcesList, getLogSourceTail } = require('./collectors/logSources');
 
 const app = express();
 
@@ -160,15 +165,53 @@ app.post('/api/test-chat', chatTestLimiter, async (req, res) => {
 });
 
 /**
- * Future v2 Stubs
+ * v2 API Endpoints: PM2, System Health, PostgreSQL & Backup Logs
  */
-app.get('/api/v2/pm2/status', (req, res) => {
-  return res.status(501).json({
-    status: 'coming_soon',
-    version: 'v2',
-    target: ['cte-backend-dev', 'cte-backend'],
-    message: 'PM2 process monitoring is reserved for v2 ops release.'
-  });
+app.get('/api/v2/pm2/snapshot', async (req, res) => {
+  try {
+    const data = await getPm2Snapshot();
+    return res.json(data);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch PM2 snapshot', details: error.message });
+  }
+});
+
+app.get('/api/v2/pm2/logs', logTailLimiter, async (req, res) => {
+  try {
+    const { user, app: appName, lines } = req.query;
+    const data = await getPm2Logs(user, appName, lines);
+    return res.json(data);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch PM2 logs', details: error.message });
+  }
+});
+
+app.get('/api/v2/system/snapshot', async (req, res) => {
+  try {
+    const data = await getSystemSnapshot();
+    return res.json(data);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch system snapshot', details: error.message });
+  }
+});
+
+app.get('/api/v2/logs/sources', (req, res) => {
+  try {
+    const sources = getLogSourcesList();
+    return res.json({ sources });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch log sources list', details: error.message });
+  }
+});
+
+app.get('/api/v2/logs/tail', logTailLimiter, async (req, res) => {
+  try {
+    const { id, lines } = req.query;
+    const data = await getLogSourceTail(id, lines);
+    return res.json(data);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch log source tail', details: error.message });
+  }
 });
 
 /**

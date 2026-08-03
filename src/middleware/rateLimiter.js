@@ -24,7 +24,20 @@ const chatTestLimiter = rateLimit({
   }
 });
 
+// Rate Limiter for Log Endpoints (v2 PM2 & Backup log tails)
+const logTailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.LOG_TAIL_RATE_LIMIT_MAX, 10) || 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Rate Limit Exceeded',
+    message: 'Log tail rate limit exceeded (max 30 requests / 15 min). Please wait before retrying.'
+  }
+});
+
 module.exports = {
   apiLimiter,
-  chatTestLimiter
+  chatTestLimiter,
+  logTailLimiter
 };

@@ -209,9 +209,66 @@ sudo systemctl reload nginx
 
 ---
 
+## v2 Features & Monitoring Collectors
+
+### 1. PM2 Multi-User Status & Log Tailing (`src/collectors/pm2.js`)
+- **Environment**: `PM2_USERS=deploy` (comma-separated list, e.g. `deploy,root`).
+- **Read-Only Inspection**:
+  - `GET /api/v2/pm2/snapshot`: Executes `sudo -u <user> -H pm2 jlist` to parse app name, status, PID, CPU %, memory usage, uptime, restart count, and script path.
+  - `GET /api/v2/pm2/logs?user=deploy&app=cte-backend-dev&lines=80`: Tails on-demand app logs via `sudo -u <user> -H pm2 logs <app> --nostream --lines N` (max 500 lines).
+
+### 2. General System Status (`src/collectors/system.js`)
+- **API**: `GET /api/v2/system/snapshot`
+- **Uptime & Load**: Formatted uptime text, CPU core count, 1m/5m/15m load average.
+- **Memory & Swap**: Visual progress bars and byte statistics parsed from `/proc/meminfo` or `free -b`.
+- **Disk Usage**: Configured mount points (`DISK_PATHS=/,/var,/root/backups`).
+- **Key Services**: Status check for systemd units (`SYSTEMD_UNITS=nginx,ollama,system-ops,postgresql`).
+- **Listening Ports**: Sanity check for loopback TCP ports (11434, 9080, 8100).
+- **TLS Expiry**: Checks certificate expiration dates for configured domains (`TLS_HOSTS=system-health.iskconcommunity`).
+
+### 3. PostgreSQL Backup Logs (`src/collectors/logSources.js`)
+- **Environment**: `LOG_SOURCES=pg-backup:/var/log/pg-backup.log:200,journal:postgresql:100`
+- **Source Types**:
+  - `file`: Tails log file (e.g. `/var/log/pg-backup.log` or `/root/backups/*.log`). Gracefully outputs a `WARN` banner if file is missing.
+  - `journal`: Tails systemd unit journalctl logs.
+- **Heuristic Analysis**: Automatically scans log lines for patterns like `BACKUP OK`, `SUCCESS`, `pg_dump`, `ERROR`, or `FAILED` to report status badge (`[SUCCESS]`, `[FAILURE]`, or `[UNKNOWN]`) and timestamps.
+
+---
+
+## Deploy & Update Guide (v2)
+
+### Automated Deployment Script
+To pull updates, rebuild, update permissions, apply narrow sudoers, and restart the service:
+
+```bash
+sudo bash scripts/deploy.sh
+```
+
+### Manual Deployment Steps
+
+```bash
+# 1. Pull latest code & install dependencies as deploy user
+su - deploy -c 'cd /opt/system-ops && git pull origin main && npm ci --omit=dev'
+
+# 2. Set strict file ownership and permissions
+chown -R ops:ops /opt/system-ops
+chmod 750 /opt/system-ops
+chmod 600 /opt/system-ops/.env
+
+# 3. Update narrow sudoers policy
+sudo cp /opt/system-ops/sudoers/system-ops-sudoers /etc/sudoers.d/system-ops
+sudo chmod 0440 /etc/sudoers.d/system-ops
+
+# 4. Restart service
+sudo systemctl daemon-reload
+sudo systemctl restart system-ops.service
+```
+
+---
+
 ## Verification & Testing
 
-To test the ops site locally before setting up Nginx:
+To test the ops site endpoints locally:
 
 ```bash
 # Start server in dev mode
@@ -219,14 +276,15 @@ npm start
 
 # Verify leak-free public health check
 curl -i http://127.0.0.1:9080/health
-# Response: HTTP/1.1 200 OK -> {"ok":true}
 
-# Verify unauthorized API access is blocked
-curl -i http://127.0.0.1:9080/api/status
-# Response: HTTP/1.1 401 Unauthorized -> {"error":"Unauthorized"}
+# Verify PM2 snapshot endpoint (requires Auth)
+curl -i -H "Authorization: Bearer admin-password-change-me" http://127.0.0.1:9080/api/v2/pm2/snapshot
 
-# Verify authorized access with Bearer header
-curl -i -H "Authorization: Bearer admin-password-change-me" http://127.0.0.1:9080/api/status
+# Verify System snapshot endpoint (requires Auth)
+curl -i -H "Authorization: Bearer admin-password-change-me" http://127.0.0.1:9080/api/v2/system/snapshot
+
+# Verify Log sources tail endpoint (requires Auth)
+curl -i -H "Authorization: Bearer admin-password-change-me" "http://127.0.0.1:9080/api/v2/logs/tail?id=pg-backup&lines=100"
 ```
 
 ---

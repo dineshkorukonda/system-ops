@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>system ops</title>
+  <title>system ops // dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -12,8 +12,14 @@
 <body>
   <!-- Top Bar -->
   <header class="top-bar">
-    <div class="brand">
-      <span>system-ops</span>
+    <div class="top-bar-left">
+      <div class="brand"><span>system-ops</span> <small class="text-dim">v2</small></div>
+      <nav class="nav-tabs">
+        <button class="nav-tab active" data-tab="tab-ollama">Ollama</button>
+        <button class="nav-tab" data-tab="tab-pm2">PM2</button>
+        <button class="nav-tab" data-tab="tab-system">System</button>
+        <button class="nav-tab" data-tab="tab-backups">Backups</button>
+      </nav>
     </div>
     <div class="top-actions">
       <span id="globalStateTag" class="status-tag ok">[ OK ]</span>
@@ -29,128 +35,360 @@
     </div>
   </header>
 
-  <!-- 2-Column Split Screen -->
-  <div class="main-layout">
-    <!-- Left Column: API & Service Info -->
-    <div class="col-info">
-      <!-- Section 1: Service Status -->
-      <div>
-        <div class="section-title">Service Status</div>
-        <table class="kv-table">
-          <tr>
-            <td>systemctl unit:</td>
-            <td><code>ollama.service</code> <span id="serviceStateTag" class="status-tag ok">[ACTIVE]</span></td>
-          </tr>
-          <tr>
-            <td>substate:</td>
-            <td><span id="subStateVal">running</span> (PID: <code id="pidVal">--</code>)</td>
-          </tr>
-          <tr>
-            <td>process user:</td>
-            <td><code id="userVal">ollama</code></td>
-          </tr>
-          <tr>
-            <td>listen socket:</td>
-            <td><code>127.0.0.1:11434</code> <span id="listenTag" class="status-tag ok">[BOUND]</span></td>
-          </tr>
-          <tr>
-            <td>public check:</td>
-            <td><span class="text-green">0.0.0.0 NOT BOUND (Safe)</span></td>
-          </tr>
-          <tr>
-            <td>api health:</td>
-            <td>GET /api/tags <span id="apiHealthTag" class="status-tag ok">[HTTP 200]</span> (<span id="apiLatencyVal">-- ms</span>)</td>
-          </tr>
-        </table>
-      </div>
-
-      <!-- Section 2: Host Metrics -->
-      <div>
-        <div class="section-title">Host Resources (Ubuntu 24.04)</div>
-        <table class="kv-table">
-          <tr>
-            <td>hostname:</td>
-            <td><span id="hostVal">ubuntu-24-vps</span></td>
-          </tr>
-          <tr>
-            <td>memory:</td>
-            <td><span id="ramVal">-- / --</span></td>
-          </tr>
-          <tr>
-            <td>swap:</td>
-            <td><span id="swapVal">-- / --</span></td>
-          </tr>
-        </table>
-      </div>
-
-      <!-- Section 3: Quick Chat Probe -->
-      <div>
-        <div class="section-title">Quick Chat Probe (/api/chat)</div>
-        <div class="probe-box">
-          <div class="probe-row">
-            <select id="chatModelSelect" class="select-min" style="flex: 1;">
-              <option value="llama3.2:3b">llama3.2:3b</option>
-            </select>
-            <input type="text" id="chatPromptInput" class="input-min" value="OK" style="flex: 2;">
-            <button id="runChatTestBtn" class="btn-min btn-accent">Test</button>
+  <!-- Main View Container -->
+  <main class="content-wrap">
+    
+    <!-- TAB 1: OLLAMA (v1 split layout preserved) -->
+    <div id="tab-ollama" class="tab-page active">
+      <div class="main-layout">
+        <!-- Left Column: API & Service Info -->
+        <div class="col-info">
+          <!-- Section 1: Service Status -->
+          <div>
+            <div class="section-title">Ollama Service Status</div>
+            <table class="kv-table">
+              <tr>
+                <td>systemctl unit:</td>
+                <td><code>ollama.service</code> <span id="serviceStateTag" class="status-tag ok">[ACTIVE]</span></td>
+              </tr>
+              <tr>
+                <td>substate:</td>
+                <td><span id="subStateVal">running</span> (PID: <code id="pidVal">--</code>)</td>
+              </tr>
+              <tr>
+                <td>process user:</td>
+                <td><code id="userVal">ollama</code></td>
+              </tr>
+              <tr>
+                <td>listen socket:</td>
+                <td><code>127.0.0.1:11434</code> <span id="listenTag" class="status-tag ok">[BOUND]</span></td>
+              </tr>
+              <tr>
+                <td>public check:</td>
+                <td><span class="text-green">0.0.0.0 NOT BOUND (Safe)</span></td>
+              </tr>
+              <tr>
+                <td>api health:</td>
+                <td>GET /api/tags <span id="apiHealthTag" class="status-tag ok">[HTTP 200]</span> (<span id="apiLatencyVal">-- ms</span>)</td>
+              </tr>
+            </table>
           </div>
-          <div id="chatResultBox" class="probe-result hidden">
-            <div>Status: <span id="chatResultTag" class="status-tag ok">[PASS]</span> | Latency: <span id="chatLatencyVal">-- ms</span></div>
-            <div style="margin-top: 0.35rem; color: var(--text-dim);">Response:</div>
-            <pre id="chatResponseContent" style="margin-top: 0.2rem; color: var(--text);">--</pre>
+
+          <!-- Section 2: Host Metrics -->
+          <div>
+            <div class="section-title">Host Resources (Ubuntu 24.04)</div>
+            <table class="kv-table">
+              <tr>
+                <td>hostname:</td>
+                <td><span id="hostVal">ubuntu-24-vps</span></td>
+              </tr>
+              <tr>
+                <td>memory:</td>
+                <td><span id="ramVal">-- / --</span></td>
+              </tr>
+              <tr>
+                <td>swap:</td>
+                <td><span id="swapVal">-- / --</span></td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Section 3: Quick Chat Probe -->
+          <div>
+            <div class="section-title">Quick Chat Probe (/api/chat)</div>
+            <div class="probe-box">
+              <div class="probe-row">
+                <select id="chatModelSelect" class="select-min" style="flex: 1;">
+                  <option value="llama3.2:3b">llama3.2:3b</option>
+                </select>
+                <input type="text" id="chatPromptInput" class="input-min" value="OK" style="flex: 2;">
+                <button id="runChatTestBtn" class="btn-min btn-accent">Test</button>
+              </div>
+              <div id="chatResultBox" class="probe-result hidden">
+                <div>Status: <span id="chatResultTag" class="status-tag ok">[PASS]</span> | Latency: <span id="chatLatencyVal">-- ms</span></div>
+                <div style="margin-top: 0.35rem; color: var(--text-dim);">Response:</div>
+                <pre id="chatResponseContent" style="margin-top: 0.2rem; color: var(--text);">--</pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 4: Models List -->
+          <div>
+            <div class="section-title">Installed Models (ollama list)</div>
+            <table class="models-table">
+              <thead>
+                <tr>
+                  <th>Model</th>
+                  <th>Size</th>
+                  <th>Modified</th>
+                </tr>
+              </thead>
+              <tbody id="modelsTableBody">
+                <tr>
+                  <td colspan="3" class="text-dim">Loading models...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Right Column: Live Ollama Service Logs -->
+        <div class="col-logs">
+          <div class="logs-header">
+            <div style="font-weight: 600;">Journal Logs (journalctl -u ollama)</div>
+            <div class="logs-controls">
+              <select id="logLinesSelect" class="select-min">
+                <option value="50">50 lines</option>
+                <option value="100" selected>100 lines</option>
+                <option value="200">200 lines</option>
+                <option value="500">500 lines</option>
+              </select>
+              <input type="text" id="logFilterInput" class="input-min" placeholder="Filter logs..." style="width: 140px;">
+              <label style="display: flex; align-items: center; gap: 0.3rem; font-size: 12px;" title="Auto scroll">
+                <input type="checkbox" id="autoScrollCheck" checked> Scroll
+              </label>
+              <button id="copyLogsBtn" class="btn-min">Copy</button>
+            </div>
+          </div>
+          <div class="logs-body">
+            <pre id="logTerminal">Fetching journalctl logs...</pre>
           </div>
         </div>
       </div>
-
-      <!-- Section 4: Models List -->
-      <div>
-        <div class="section-title">Installed Models (ollama list)</div>
-        <table class="models-table">
-          <thead>
-            <tr>
-              <th>Model</th>
-              <th>Size</th>
-              <th>Modified</th>
-            </tr>
-          </thead>
-          <tbody id="modelsTableBody">
-            <tr>
-              <td colspan="3" class="text-dim">Loading models...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Section 5: Future v2 Stub -->
-      <div>
-        <div class="section-title">CoverTheEarth & PM2 Ops</div>
-        <div class="text-dim">[PM2 & Log Tails Integration - Coming Soon in v2]</div>
-      </div>
     </div>
 
-    <!-- Right Column: Live Service Logs -->
-    <div class="col-logs">
-      <div class="logs-header">
-        <div style="font-weight: 700;">Journal Logs (journalctl -u ollama)</div>
-        <div class="logs-controls">
-          <select id="logLinesSelect" class="select-min">
-            <option value="50">50 lines</option>
-            <option value="100" selected>100 lines</option>
-            <option value="200">200 lines</option>
-            <option value="500">500 lines</option>
-          </select>
-          <input type="text" id="logFilterInput" class="input-min" placeholder="Filter logs..." style="width: 140px;">
-          <label style="display: flex; align-items: center; gap: 0.3rem; font-size: 12px;" title="Auto scroll">
-            <input type="checkbox" id="autoScrollCheck" checked> Scroll
-          </label>
-          <button id="copyLogsBtn" class="btn-min">Copy</button>
+    <!-- TAB 2: PM2 PROCESS MONITORING (v2) -->
+    <div id="tab-pm2" class="tab-page">
+      <div class="v2-layout">
+        <div class="v2-card">
+          <div class="v2-card-header">
+            <div class="v2-card-title">PM2 Multi-User Process List</div>
+            <div class="logs-controls">
+              <button id="pm2RefreshBtn" class="btn-min">Refresh PM2</button>
+            </div>
+          </div>
+          <div id="pm2UserTablesContainer" class="v2-card-body">
+            <div class="text-dim">Loading PM2 snapshot...</div>
+          </div>
+        </div>
+
+        <!-- PM2 Log Tail Drawer / Panel -->
+        <div id="pm2LogDrawer" class="v2-card hidden" style="margin-top: 1.25rem;">
+          <div class="v2-card-header">
+            <div class="v2-card-title">
+              PM2 Log Tail: <span id="pm2LogAppTitle" class="text-green">--</span>
+              <span id="pm2LogUserTag" class="text-dim" style="font-size: 11px; margin-left: 0.5rem;">user: --</span>
+            </div>
+            <div class="logs-controls">
+              <select id="pm2LogLinesSelect" class="select-min">
+                <option value="50">50 lines</option>
+                <option value="80" selected>80 lines</option>
+                <option value="150">150 lines</option>
+                <option value="300">300 lines</option>
+                <option value="500">500 lines</option>
+              </select>
+              <button id="pm2LogFetchBtn" class="btn-min">Fetch</button>
+              <button id="pm2LogCloseBtn" class="btn-min">Close</button>
+            </div>
+          </div>
+          <div class="v2-card-body p-0">
+            <div class="logs-body" style="max-height: 380px;">
+              <pre id="pm2LogTerminal">Select an app and click 'Logs' to inspect standard output and error tails.</pre>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="logs-body">
-        <pre id="logTerminal">Fetching journalctl logs...</pre>
+    </div>
+
+    <!-- TAB 3: GENERAL SYSTEM HEALTH (v2) -->
+    <div id="tab-system" class="tab-page">
+      <div class="v2-grid">
+        
+        <!-- Card 1: Uptime & Load -->
+        <div class="v2-card">
+          <div class="v2-card-header">
+            <div class="v2-card-title">Uptime & Load Average</div>
+          </div>
+          <div class="v2-card-body">
+            <table class="kv-table">
+              <tr>
+                <td>system uptime:</td>
+                <td><strong id="sysUptimeVal">--</strong></td>
+              </tr>
+              <tr>
+                <td>cpu cores:</td>
+                <td><span id="sysCpusVal">--</span> Cores</td>
+              </tr>
+              <tr>
+                <td>load average:</td>
+                <td>
+                  1m: <span id="sysLoad1m" class="text-green">--</span> | 
+                  5m: <span id="sysLoad5m">--</span> | 
+                  15m: <span id="sysLoad15m">--</span>
+                </td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        <!-- Card 2: Memory & Swap -->
+        <div class="v2-card">
+          <div class="v2-card-header">
+            <div class="v2-card-title">Memory & Swap</div>
+          </div>
+          <div class="v2-card-body">
+            <div style="margin-bottom: 0.75rem;">
+              <div class="progress-label">
+                <span>RAM Usage</span>
+                <span id="sysRamText">-- / --</span>
+              </div>
+              <div class="progress-bar-wrap">
+                <div id="sysRamBar" class="progress-bar" style="width: 0%;"></div>
+              </div>
+            </div>
+            <div>
+              <div class="progress-label">
+                <span>Swap Usage</span>
+                <span id="sysSwapText">-- / --</span>
+              </div>
+              <div class="progress-bar-wrap">
+                <div id="sysSwapBar" class="progress-bar warn" style="width: 0%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3: Key Systemd Services -->
+        <div class="v2-card">
+          <div class="v2-card-header">
+            <div class="v2-card-title">Key Systemd Services</div>
+          </div>
+          <div class="v2-card-body p-0">
+            <table class="models-table" style="margin: 0;">
+              <thead>
+                <tr>
+                  <th style="padding-left: 1rem;">Service Unit</th>
+                  <th>Active State</th>
+                  <th>Memory</th>
+                  <th style="padding-right: 1rem;">PID</th>
+                </tr>
+              </thead>
+              <tbody id="sysServicesTableBody">
+                <tr><td colspan="4" class="text-dim" style="padding-left: 1rem;">Loading services...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Card 4: Disk Usage -->
+        <div class="v2-card">
+          <div class="v2-card-header">
+            <div class="v2-card-title">Disk Usage (Configured Mounts)</div>
+          </div>
+          <div id="sysDiskContainer" class="v2-card-body">
+            <div class="text-dim">Loading disk mounts...</div>
+          </div>
+        </div>
+
+        <!-- Card 5: Listening Ports Sanity Check -->
+        <div class="v2-card">
+          <div class="v2-card-header">
+            <div class="v2-card-title">Loopback Listening Ports</div>
+          </div>
+          <div class="v2-card-body p-0">
+            <table class="models-table" style="margin: 0;">
+              <thead>
+                <tr>
+                  <th style="padding-left: 1rem;">Service</th>
+                  <th>Port</th>
+                  <th style="padding-right: 1rem;">Status</th>
+                </tr>
+              </thead>
+              <tbody id="sysPortsTableBody">
+                <tr><td colspan="3" class="text-dim" style="padding-left: 1rem;">Checking ports...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Card 6: TLS Certificate Validity -->
+        <div class="v2-card">
+          <div class="v2-card-header">
+            <div class="v2-card-title">TLS Certificate Validity</div>
+          </div>
+          <div class="v2-card-body p-0">
+            <table class="models-table" style="margin: 0;">
+              <thead>
+                <tr>
+                  <th style="padding-left: 1rem;">Hostname / Cert</th>
+                  <th>Expiry Date</th>
+                  <th style="padding-right: 1rem;">Status</th>
+                </tr>
+              </thead>
+              <tbody id="sysTlsTableBody">
+                <tr><td colspan="3" class="text-dim" style="padding-left: 1rem;">Checking TLS certificates...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
     </div>
-  </div>
+
+    <!-- TAB 4: POSTGRESQL BACKUP LOGS (v2) -->
+    <div id="tab-backups" class="tab-page">
+      <div class="v2-layout">
+        <!-- Status Card -->
+        <div class="v2-card">
+          <div class="v2-card-header">
+            <div class="v2-card-title">PostgreSQL & Backup Log Sources</div>
+            <div class="logs-controls">
+              <select id="backupSourceSelect" class="select-min" style="min-width: 180px;">
+                <option value="">Loading sources...</option>
+              </select>
+              <select id="backupLinesSelect" class="select-min">
+                <option value="50">50 lines</option>
+                <option value="100">100 lines</option>
+                <option value="200" selected>200 lines</option>
+                <option value="500">500 lines</option>
+              </select>
+              <button id="backupFetchBtn" class="btn-min btn-accent">Fetch Tail</button>
+            </div>
+          </div>
+          <div class="v2-card-body">
+            <div id="backupStatusCard" class="backup-status-banner">
+              <div>
+                <span style="font-weight: 600;">Backup Status:</span>
+                <span id="backupBadgeTag" class="status-tag warn">[UNKNOWN]</span>
+                <span id="backupStatusMsg" class="text-dim" style="margin-left: 0.5rem;">Select a source to inspect logs</span>
+              </div>
+              <div id="backupTimesRow" class="text-dim" style="font-size: 11px; margin-top: 0.35rem;">
+                Target: <code id="backupTargetVal">--</code>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Log Tail Terminal -->
+        <div class="v2-card" style="margin-top: 1.25rem;">
+          <div class="v2-card-header">
+            <div class="v2-card-title">Log Tail Terminal</div>
+            <div class="logs-controls">
+              <input type="text" id="backupFilterInput" class="input-min" placeholder="Search in logs..." style="width: 180px;">
+              <button id="backupCopyBtn" class="btn-min">Copy</button>
+            </div>
+          </div>
+          <div class="v2-card-body p-0">
+            <div class="logs-body" style="min-height: 420px; max-height: 550px;">
+              <pre id="backupLogTerminal">Click 'Fetch Tail' or select a log source above.</pre>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
 
   <script src="/js/app.js"></script>
 </body>
