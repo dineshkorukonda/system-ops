@@ -15,7 +15,7 @@ function requireAuth(req, res, next) {
   const expectedToken = generateSessionToken(appPassword, sessionSecret);
 
   // 1. Check Session Cookie
-  const sessionCookie = req.cookies ? req.cookies.ollama_ops_session : null;
+  const sessionCookie = req.cookies ? req.cookies.system_ops_session : null;
   if (sessionCookie && sessionCookie === expectedToken) {
     return next();
   }
@@ -72,7 +72,7 @@ function handleLogin(req, res) {
   const token = generateSessionToken(appPassword, sessionSecret);
 
   // Set HTTP-Only session cookie
-  res.cookie('ollama_ops_session', token, {
+  res.cookie('system_ops_session', token, {
     httpOnly: true,
     sameSite: 'strict',
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
@@ -85,7 +85,7 @@ function handleLogin(req, res) {
  * Log out handler to clear session cookie
  */
 function handleLogout(req, res) {
-  res.clearCookie('ollama_ops_session');
+  res.clearCookie('system_ops_session');
   return res.json({ success: true, message: 'Logged out successfully' });
 }
 

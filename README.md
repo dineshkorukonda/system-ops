@@ -1,4 +1,4 @@
-# Ollama Ops Mini-Site (v1)
+# System Ops Mini-Site (v1)
 
 A lightweight, self-hosted operations web application designed for a single Ubuntu 24.04 VPS running **Ollama** (`llama3.2:3b`). Provides real-time infrastructure visibility into Ollama service state, listen status, model inventory, API health, quick chat probe verification, and systemd journal logs.
 
@@ -33,7 +33,7 @@ Browser (HTTPS)
 └───────────────────────────┬────────────────────────────┘
                             │ (http://127.0.0.1:9080)
 ┌───────────────────────────▼────────────────────────────┐
-│ Ollama Ops Express App (User: ops, Port: 9080)         │
+│ System Ops Express App (User: ops, Port: 9080)         │
 │  - Session Auth & Password Protection                  │
 │  - Rate Limiter (Max 10 chat probes / 15m)            │
 │  - Public Leak-Free /health Endpoint                   │
@@ -50,7 +50,7 @@ Browser (HTTPS)
 - **Loopback Binding**: App binds exclusively to `127.0.0.1:9080`.
 - **Zero Public Port Exposure**: Ollama's port 11434 is restricted to loopback (`127.0.0.1`).
 - **Unprivileged Execution**: Runs under a dedicated `ops` user (or `deploy`).
-- **Minimal Sudo Rule**: Narrow `/etc/sudoers.d/ollama-ops` rule strictly granting read-only journalctl/systemctl checks.
+- **Minimal Sudo Rule**: Narrow `/etc/sudoers.d/system-ops` rule strictly granting read-only journalctl/systemctl checks.
 - **Authentication**: Double-layer protection using Express Session cookie auth and optional Nginx HTTP Basic Auth / IP allowlist.
 - **Rate Limiting**: Express rate limiter protects API and chat probe endpoints from CPU exhaustion.
 - **No Database / No Secrets Leakage**: Secrets are loaded from `.env` and excluded from API responses.
@@ -68,9 +68,9 @@ Browser (HTTPS)
 - `public/login.html`: Glassmorphism authentication login interface.
 - `public/css/style.css`: Custom CSS design system with light/dark themes.
 - `public/js/app.js`: Frontend dynamic rendering, polling, search filtering, and state management.
-- `systemd/ollama-ops.service`: Production systemd service unit.
-- `nginx/ollama-ops.conf`: Nginx server block with SSL, rate limiting, and Basic Auth options.
-- `sudoers/ollama-ops-sudoers`: Sudoers policy for `journalctl` & `systemctl`.
+- `systemd/system-ops.service`: Production systemd service unit.
+- `nginx/system-ops.conf`: Nginx server block with SSL, rate limiting, and Basic Auth options.
+- `sudoers/system-ops-sudoers`: Sudoers policy for `journalctl` & `systemctl`.
 - `scripts/install.sh`: Automated installation script for Ubuntu 24.04 LTS.
 - `.env.example`: Template for environment settings.
 
@@ -81,9 +81,9 @@ Browser (HTTPS)
 ### Quick Automated Installation
 
 ```bash
-# Clone or place repository into /opt/ollama-ops
-sudo git clone https://github.com/dineshkorukonda/monarx-server.git /opt/ollama-ops
-cd /opt/ollama-ops
+# Clone or place repository into /opt/system-ops
+sudo git clone https://github.com/dineshkorukonda/monarx-server.git /opt/system-ops
+cd /opt/system-ops
 
 # Run automated installer
 sudo bash scripts/install.sh
@@ -93,41 +93,41 @@ sudo bash scripts/install.sh
 
 #### 1. Create Dedicated Unprivileged User
 ```bash
-sudo useradd -r -s /bin/false -d /opt/ollama-ops ops
+sudo useradd -r -s /bin/false -d /opt/system-ops ops
 sudo usermod -aG systemd-journal,adm ops
 ```
 
 #### 2. Install Dependencies & Build
 ```bash
-cd /opt/ollama-ops
+cd /opt/system-ops
 sudo npm ci --only=production
 sudo cp .env.example .env
 ```
 
 Edit `.env` to configure your `APP_PASSWORD` and `SESSION_SECRET`:
 ```bash
-sudo nano /opt/ollama-ops/.env
+sudo nano /opt/system-ops/.env
 ```
 
 Set file permissions:
 ```bash
-sudo chown -R ops:ops /opt/ollama-ops
-sudo chmod 750 /opt/ollama-ops
-sudo chmod 600 /opt/ollama-ops/.env
+sudo chown -R ops:ops /opt/system-ops
+sudo chmod 750 /opt/system-ops
+sudo chmod 600 /opt/system-ops/.env
 ```
 
 #### 3. Install Narrow Sudoers Rules
 ```bash
-sudo cp sudoers/ollama-ops-sudoers /etc/sudoers.d/ollama-ops
-sudo chmod 0440 /etc/sudoers.d/ollama-ops
+sudo cp sudoers/system-ops-sudoers /etc/sudoers.d/system-ops
+sudo chmod 0440 /etc/sudoers.d/system-ops
 ```
 
 #### 4. Register & Enable systemd Unit
 ```bash
-sudo cp systemd/ollama-ops.service /etc/systemd/system/
+sudo cp systemd/system-ops.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now ollama-ops.service
-sudo systemctl status ollama-ops.service
+sudo systemctl enable --now system-ops.service
+sudo systemctl status system-ops.service
 ```
 
 ---
@@ -136,10 +136,10 @@ sudo systemctl status ollama-ops.service
 
 #### 1. Link Nginx Virtual Host
 ```bash
-sudo cp nginx/ollama-ops.conf /etc/nginx/sites-available/ollama-ops.conf
+sudo cp nginx/system-ops.conf /etc/nginx/sites-available/system-ops.conf
 # Edit subdomain domain name
-sudo nano /etc/nginx/sites-available/ollama-ops.conf
-sudo ln -s /etc/nginx/sites-available/ollama-ops.conf /etc/nginx/sites-enabled/
+sudo nano /etc/nginx/sites-available/system-ops.conf
+sudo ln -s /etc/nginx/sites-available/system-ops.conf /etc/nginx/sites-enabled/
 ```
 
 #### 2. Generate SSL Certificate with Certbot
@@ -175,7 +175,7 @@ sudo systemctl reload nginx
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ OLLAMA OPS v1.0 // Ubuntu 24.04 LTS          [Ollama Healthy] [Auto-refresh: 30s] 🌙   │
+│ SYSTEM OPS v1.0 // Ubuntu 24.04 LTS          [Ollama Healthy] [Auto-refresh: 30s] 🌙   │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
 │ Last Updated: 07:05:00 AM  │ Process User: ollama  │ Host: ubuntu-24-vps               │
 ├───────────────────────────────────┬────────────────────────────────────────────────────┤

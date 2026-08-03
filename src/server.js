@@ -53,7 +53,7 @@ app.get('/api/auth/status', (req, res) => {
   const appPassword = process.env.APP_PASSWORD || 'admin-password-change-me';
   const sessionSecret = process.env.SESSION_SECRET || 'dev-secret-session-key-12345';
   const expectedToken = generateSessionToken(appPassword, sessionSecret);
-  const sessionCookie = req.cookies ? req.cookies.ollama_ops_session : null;
+  const sessionCookie = req.cookies ? req.cookies.system_ops_session : null;
 
   if (sessionCookie && sessionCookie === expectedToken) {
     return res.json({ authenticated: true });
@@ -186,7 +186,7 @@ app.get('*', requireAuth, (req, res) => {
 // Start Server bound strictly to loopback IP
 app.listen(PORT, HOST, () => {
   console.log(`=======================================================`);
-  console.log(`  Ollama Ops Mini-Site v1.0.0 is running!`);
+  console.log(`  System Ops Mini-Site v1.0.0 is running!`);
   console.log(`  Listening on: http://${HOST}:${PORT}`);
   console.log(`  Health Check: http://${HOST}:${PORT}/health`);
   console.log(`  Target Ollama: ${OLLAMA_URL}`);

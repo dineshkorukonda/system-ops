@@ -1,5 +1,5 @@
 [Unit]
-Description=Ollama Ops Dashboard (Subdomain Ops Mini-Site)
+Description=System Ops Dashboard (Subdomain Ops Mini-Site)
 After=network.target ollama.service
 Wants=ollama.service
 
@@ -7,13 +7,13 @@ Wants=ollama.service
 Type=simple
 User=ops
 Group=ops
-WorkingDirectory=/opt/ollama-ops
-ExecStart=/usr/bin/node /opt/ollama-ops/src/server.js
+WorkingDirectory=/opt/system-ops
+ExecStart=/usr/bin/node /opt/system-ops/src/server.js
 Restart=always
 RestartSec=5s
 
 # Security Hardening & Resource Caps
-EnvironmentFile=/opt/ollama-ops/.env
+EnvironmentFile=/opt/system-ops/.env
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=true

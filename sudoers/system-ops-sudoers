@@ -1,6 +1,6 @@
-# Sudoers configuration snippet for Ollama Ops Dashboard
-# Install location: /etc/sudoers.d/ollama-ops
-# Permissions: 0440 (sudo chmod 0440 /etc/sudoers.d/ollama-ops)
+# Sudoers configuration snippet for System Ops Dashboard
+# Install location: /etc/sudoers.d/system-ops
+# Permissions: 0440 (sudo chmod 0440 /etc/sudoers.d/system-ops)
 
 # Allow 'ops' user to read journalctl logs for ollama.service without password prompt
 ops ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u ollama -n [0-9]* --no-pager -o short-iso

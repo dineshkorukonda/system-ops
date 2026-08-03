@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 #
-# Ollama Ops Mini-Site Installation Script for Ubuntu 24.04 LTS
+# System Ops Mini-Site Installation Script for Ubuntu 24.04 LTS
 # Run with sudo: sudo bash scripts/install.sh
 #
 
 set -e
 
-INSTALL_DIR="/opt/ollama-ops"
+INSTALL_DIR="/opt/system-ops"
 OPS_USER="ops"
 
 echo "========================================================"
-echo "  Installing Ollama Ops Mini-Site on Ubuntu 24.04 LTS   "
+echo "  Installing System Ops Mini-Site on Ubuntu 24.04 LTS   "
 echo "========================================================"
 
 if [ "$EUID" -ne 0 ]; then
@@ -29,7 +29,7 @@ fi
 # Add ops user to systemd-journal and adm groups for log access
 usermod -aG systemd-journal,adm "$OPS_USER" || true
 
-# 2. Copy source code to /opt/ollama-ops
+# 2. Copy source code to /opt/system-ops
 echo "[2/6] Setting up installation directory at $INSTALL_DIR..."
 mkdir -p "$INSTALL_DIR"
 cp -r package*.json src public systemd nginx sudoers .env.example "$INSTALL_DIR/"
@@ -60,24 +60,24 @@ chmod 600 "$INSTALL_DIR/.env"
 
 # 5. Install Sudoers Rule
 echo "[5/6] Installing narrow sudoers rules for journalctl & systemctl..."
-cp "$INSTALL_DIR/sudoers/ollama-ops-sudoers" /etc/sudoers.d/ollama-ops
-chmod 0440 /etc/sudoers.d/ollama-ops
+cp "$INSTALL_DIR/sudoers/system-ops-sudoers" /etc/sudoers.d/system-ops
+chmod 0440 /etc/sudoers.d/system-ops
 
 # 6. Install and Enable Systemd Service
-echo "[6/6] Registering and starting systemd unit (ollama-ops.service)..."
-cp "$INSTALL_DIR/systemd/ollama-ops.service" /etc/systemd/system/ollama-ops.service
+echo "[6/6] Registering and starting systemd unit (system-ops.service)..."
+cp "$INSTALL_DIR/systemd/system-ops.service" /etc/systemd/system/system-ops.service
 systemctl daemon-reload
-systemctl enable ollama-ops.service
-systemctl restart ollama-ops.service
+systemctl enable system-ops.service
+systemctl restart system-ops.service
 
 echo "========================================================"
 echo "  Installation Complete!"
-echo "  - Service Status: sudo systemctl status ollama-ops"
+echo "  - Service Status: sudo systemctl status system-ops"
 echo "  - Local Endpoint: http://127.0.0.1:9080"
-echo "  - Nginx Config:   /opt/ollama-ops/nginx/ollama-ops.conf"
+echo "  - Nginx Config:   /opt/system-ops/nginx/system-ops.conf"
 echo ""
 echo "  NEXT STEPS:"
-echo "  1. Edit /opt/ollama-ops/.env to set your APP_PASSWORD"
-echo "  2. Link Nginx config: sudo cp /opt/ollama-ops/nginx/ollama-ops.conf /etc/nginx/sites-available/"
+echo "  1. Edit /opt/system-ops/.env to set your APP_PASSWORD"
+echo "  2. Link Nginx config: sudo cp /opt/system-ops/nginx/system-ops.conf /etc/nginx/sites-available/"
 echo "  3. Update server_name and run: sudo certbot --nginx -d your-subdomain.com"
 echo "========================================================"

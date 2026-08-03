@@ -1,5 +1,5 @@
 {
-  "name": "ollama-ops-site",
+  "name": "system-ops-site",
   "version": "1.0.0",
   "description": "Self-hosted operations web app for single Ubuntu VPS - Ollama status, health, models, and service logs",
   "main": "src/server.js",
