@@ -82,7 +82,7 @@ Browser (HTTPS)
 
 ```bash
 # Clone or place repository into /opt/system-ops
-sudo git clone https://github.com/dineshkorukonda/monarx-server.git /opt/system-ops
+sudo git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops
 cd /opt/system-ops
 
 # Run automated installer
