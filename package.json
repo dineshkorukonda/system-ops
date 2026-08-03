@@ -1,0 +1,26 @@
+{
+  "name": "ollama-ops-site",
+  "version": "1.0.0",
+  "description": "Self-hosted operations web app for single Ubuntu VPS - Ollama status, health, models, and service logs",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "keywords": [
+    "ollama",
+    "ops",
+    "dashboard",
+    "systemd",
+    "monitoring",
+    "ubuntu"
+  ],
+  "author": "Antigravity AI",
+  "license": "MIT",
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0"
+  }
+}

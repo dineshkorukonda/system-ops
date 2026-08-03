@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>monarx // ollama ops</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- Top Bar -->
+  <header class="top-bar">
+    <div class="brand">
+      monarx // <span>ollama-ops</span>
+    </div>
+    <div class="top-actions">
+      <span id="globalStateTag" class="status-tag ok">[ OK ]</span>
+      <span class="text-dim">Updated: <span id="lastUpdatedVal">--:--:--</span></span>
+      <select id="refreshSelect" class="select-min">
+        <option value="10">10s</option>
+        <option value="30" selected>30s</option>
+        <option value="60">60s</option>
+        <option value="0">Off</option>
+      </select>
+      <button id="refreshBtn" class="btn-min">Refresh</button>
+      <button id="logoutBtn" class="btn-min">Logout</button>
+    </div>
+  </header>
+
+  <!-- 2-Column Split Screen -->
+  <div class="main-layout">
+    <!-- Left Column: API & Service Info -->
+    <div class="col-info">
+      <!-- Section 1: Service Status -->
+      <div>
+        <div class="section-title">Service Status</div>
+        <table class="kv-table">
+          <tr>
+            <td>systemctl unit:</td>
+            <td><code>ollama.service</code> <span id="serviceStateTag" class="status-tag ok">[ACTIVE]</span></td>
+          </tr>
+          <tr>
+            <td>substate:</td>
+            <td><span id="subStateVal">running</span> (PID: <code id="pidVal">--</code>)</td>
+          </tr>
+          <tr>
+            <td>process user:</td>
+            <td><code id="userVal">ollama</code></td>
+          </tr>
+          <tr>
+            <td>listen socket:</td>
+            <td><code>127.0.0.1:11434</code> <span id="listenTag" class="status-tag ok">[BOUND]</span></td>
+          </tr>
+          <tr>
+            <td>public check:</td>
+            <td><span class="text-green">0.0.0.0 NOT BOUND (Safe)</span></td>
+          </tr>
+          <tr>
+            <td>api health:</td>
+            <td>GET /api/tags <span id="apiHealthTag" class="status-tag ok">[HTTP 200]</span> (<span id="apiLatencyVal">-- ms</span>)</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Section 2: Host Metrics -->
+      <div>
+        <div class="section-title">Host Resources (Ubuntu 24.04)</div>
+        <table class="kv-table">
+          <tr>
+            <td>hostname:</td>
+            <td><span id="hostVal">ubuntu-24-vps</span></td>
+          </tr>
+          <tr>
+            <td>memory:</td>
+            <td><span id="ramVal">-- / --</span></td>
+          </tr>
+          <tr>
+            <td>swap:</td>
+            <td><span id="swapVal">-- / --</span></td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Section 3: Quick Chat Probe -->
+      <div>
+        <div class="section-title">Quick Chat Probe (/api/chat)</div>
+        <div class="probe-box">
+          <div class="probe-row">
+            <select id="chatModelSelect" class="select-min" style="flex: 1;">
+              <option value="llama3.2:3b">llama3.2:3b</option>
+            </select>
+            <input type="text" id="chatPromptInput" class="input-min" value="OK" style="flex: 2;">
+            <button id="runChatTestBtn" class="btn-min btn-accent">Test</button>
+          </div>
+          <div id="chatResultBox" class="probe-result hidden">
+            <div>Status: <span id="chatResultTag" class="status-tag ok">[PASS]</span> | Latency: <span id="chatLatencyVal">-- ms</span></div>
+            <div style="margin-top: 0.35rem; color: var(--text-dim);">Response:</div>
+            <pre id="chatResponseContent" style="margin-top: 0.2rem; color: var(--text);">--</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4: Models List -->
+      <div>
+        <div class="section-title">Installed Models (ollama list)</div>
+        <table class="models-table">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Size</th>
+              <th>Modified</th>
+            </tr>
+          </thead>
+          <tbody id="modelsTableBody">
+            <tr>
+              <td colspan="3" class="text-dim">Loading models...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Section 5: Future v2 Stub -->
+      <div>
+        <div class="section-title">CoverTheEarth & PM2 Ops</div>
+        <div class="text-dim">[PM2 & Log Tails Integration - Coming Soon in v2]</div>
+      </div>
+    </div>
+
+    <!-- Right Column: Live Service Logs -->
+    <div class="col-logs">
+      <div class="logs-header">
+        <div style="font-weight: 700;">Journal Logs (journalctl -u ollama)</div>
+        <div class="logs-controls">
+          <select id="logLinesSelect" class="select-min">
+            <option value="50">50 lines</option>
+            <option value="100" selected>100 lines</option>
+            <option value="200">200 lines</option>
+            <option value="500">500 lines</option>
+          </select>
+          <input type="text" id="logFilterInput" class="input-min" placeholder="Filter logs..." style="width: 140px;">
+          <label style="display: flex; align-items: center; gap: 0.3rem; font-size: 12px;" title="Auto scroll">
+            <input type="checkbox" id="autoScrollCheck" checked> Scroll
+          </label>
+          <button id="copyLogsBtn" class="btn-min">Copy</button>
+        </div>
+      </div>
+      <div class="logs-body">
+        <pre id="logTerminal">Fetching journalctl logs...</pre>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

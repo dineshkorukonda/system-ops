@@ -1,0 +1,27 @@
+[Unit]
+Description=Ollama Ops Dashboard (Subdomain Ops Mini-Site)
+After=network.target ollama.service
+Wants=ollama.service
+
+[Service]
+Type=simple
+User=ops
+Group=ops
+WorkingDirectory=/opt/ollama-ops
+ExecStart=/usr/bin/node /opt/ollama-ops/src/server.js
+Restart=always
+RestartSec=5s
+
+# Security Hardening & Resource Caps
+EnvironmentFile=/opt/ollama-ops/.env
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+NoNewPrivileges=false
+
+# Memory cap to prevent runaway usage on 8GB VPS
+MemoryMax=300M
+MemoryHigh=250M
+
+[Install]
+WantedBy=multi-user.target
