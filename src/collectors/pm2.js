@@ -51,15 +51,20 @@ function formatUptime(uptimeMs) {
 const pm2BinaryCache = {};
 const PM2_CACHE_TTL_MS = 10 * 60 * 1000;
 
-/**
+/*
  * Resolve the absolute PM2 binary path for a user.
  *
- * Strategy: run `find` as ROOT (sudo -n without -u = runs as root).
- * Root can read ALL home directories including /home/deploy/.nvm
- * which is mode 700 and not accessible by the ops user.
+ * Uses: sudo -n -H -u <user> bash -c 'ls -t ~/.nvm/.../bin/pm2 ... 2>/dev/null | head -3'
  *
- * We search the user's home dir + common system/NVM locations.
- * Result is cached per user for 10 minutes.
+ * Why bash + ls glob (not find -type f):
+ *   NVM installs bin/pm2 as a SYMLINK. find -type f skips symlinks entirely.
+ *   ls with a glob handles both regular files and symlinks correctly.
+ *
+ * Why -H flag:
+ *   sudo env_reset strips HOME. -H sets HOME to the target user's home dir
+ *   so the tilde in ~/.nvm expands correctly inside bash -c.
+ *
+ * Result cached per user for 10 minutes to avoid repeated shell invocations.
  */
 async function resolvePm2Binary(user) {
   const cached = pm2BinaryCache[user];
@@ -67,21 +72,17 @@ async function resolvePm2Binary(user) {
     return cached.path;
   }
 
-  const homeDir = (user === 'root') ? '/root' : `/home/${user}`;
+  const homeDir = (user === 'root') ? '/root' : '/home/' + user;
 
-  // Run find as ROOT — root can read /home/deploy/.nvm regardless of permissions.
-  // sudo -n without -u defaults to root.
-  // -maxdepth 8 prevents runaway scanning of deeply nested node_modules.
+  // ls with glob finds symlinks (unlike find -type f).
+  // -t sorts newest NVM node version first.
+  // 2>/dev/null suppresses errors from non-existent paths.
+  const shellCmd = 'ls -t "' + homeDir + '/.nvm/versions/node/"*/bin/pm2 /usr/local/bin/pm2 /usr/bin/pm2 2>/dev/null | head -3';
+
   const findRes = await runCommand('sudo', [
-    '-n',
-    'find',
-    homeDir,           // scans entire home including .nvm/versions/node/*/bin/pm2
-    '/usr/local/bin',
-    '/usr/bin',
-    '-maxdepth', '8',
-    '-name', 'pm2',
-    '-type', 'f'
-  ], 12000);
+    '-n', '-H', '-u', user,
+    'bash', '-c', shellCmd
+  ], 8000);
 
   let pm2Path = null;
 
@@ -89,26 +90,26 @@ async function resolvePm2Binary(user) {
     const lines = findRes.stdout
       .trim()
       .split('\n')
-      .map(l => l.trim())
-      .filter(l => l && /\/bin\/pm2$/.test(l));
+      .map(function(l) { return l.trim(); })
+      .filter(function(l) { return l && l.endsWith('pm2'); });
 
     if (lines.length > 0) {
-      // Prefer NVM path (longer path = version-specific NVM install)
-      lines.sort((a, b) => b.length - a.length);
       pm2Path = lines[0];
     }
   }
 
   if (pm2Path) {
     pm2BinaryCache[user] = { path: pm2Path, ts: Date.now() };
-    console.log(`[pm2] Resolved binary for '${user}': ${pm2Path}`);
+    console.log('[pm2] Resolved binary for \'' + user + '\': ' + pm2Path);
   } else {
-    // Log all output to help diagnose if pm2 is in unexpected location
-    console.warn(`[pm2] Could not find PM2 binary for user '${user}'. find stdout: ${findRes.stdout.slice(0, 300)}`);
+    const outPreview = (findRes.stdout || '').slice(0, 200);
+    const errPreview = (findRes.stderr || '').slice(0, 200);
+    console.warn('[pm2] Binary not found for \'' + user + '\'. stdout: "' + outPreview + '" stderr: "' + errPreview + '"');
   }
 
   return pm2Path;
 }
+
 
 /**
  * Get configured PM2 users list from environment (e.g., 'deploy,root').
