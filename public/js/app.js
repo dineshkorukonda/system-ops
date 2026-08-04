@@ -636,10 +636,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     backupLogTerminal.textContent = lines.join('\n') || 'No matching lines found.';
 
-    // Auto-scroll to bottom so latest log entries are visible first
-    backupLogTerminal.scrollTop = backupLogTerminal.scrollHeight;
-    if (backupLogTerminal.parentElement) {
-      backupLogTerminal.parentElement.scrollTop = backupLogTerminal.parentElement.scrollHeight;
+    // Auto-scroll .logs-body container to bottom so latest log entries are visible first
+    const logsBody = backupLogTerminal.closest('.logs-body') || backupLogTerminal.parentElement;
+    if (logsBody) {
+      setTimeout(() => { logsBody.scrollTop = logsBody.scrollHeight; }, 50);
     }
   }
 
@@ -651,9 +651,9 @@ document.addEventListener('DOMContentLoaded', () => {
       lines = lines.filter(l => l.toLowerCase().includes(filter));
     }
     backupLogTerminal.textContent = lines.join('\n') || 'No matching lines found.';
-    backupLogTerminal.scrollTop = backupLogTerminal.scrollHeight;
-    if (backupLogTerminal.parentElement) {
-      backupLogTerminal.parentElement.scrollTop = backupLogTerminal.parentElement.scrollHeight;
+    const logsBody = backupLogTerminal.closest('.logs-body') || backupLogTerminal.parentElement;
+    if (logsBody) {
+      setTimeout(() => { logsBody.scrollTop = logsBody.scrollHeight; }, 50);
     }
   });
 
