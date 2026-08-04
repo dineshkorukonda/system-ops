@@ -61,23 +61,39 @@ async function resolvePm2Binary(user) {
     return cached.path;
   }
 
-  // The sudoers file allows these three paths.
-  // We'll test them by running a lightweight command: pm2 ping or pm2 jlist.
+  // 1. Check if user explicitly provided a path in .env
+  const envVarName = 'PM2_PATH_' + user.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+  if (process.env[envVarName]) {
+    pm2BinaryCache[user] = { path: process.env[envVarName], ts: Date.now() };
+    return process.env[envVarName];
+  }
+
+  const homeDir = (user === 'root') ? '/root' : '/home/' + user;
+
+  // 2. Discover NVM paths via glob
+  const nvmGlobCmd = 'ls -t "' + homeDir + '/.nvm/versions/node/"*/bin/pm2 2>/dev/null | head -5';
+  const nvmRes = await runCommand('sudo', ['-n', '-u', user, 'bash', '-c', nvmGlobCmd], 3000);
+  const nvmPaths = nvmRes.stdout ? nvmRes.stdout.split('\n').map(l => l.trim()).filter(Boolean) : [];
+
+  // 3. Compile all candidates
   const candidates = [
+    ...nvmPaths,
     '/usr/local/bin/pm2',
     '/usr/bin/pm2',
+    homeDir + '/.npm-global/bin/pm2',
+    homeDir + '/.yarn/bin/pm2',
+    '/opt/node/bin/pm2',
     '/usr/bin/env pm2'
   ];
 
   for (const candidate of candidates) {
     const args = ['-n', '-u', user];
-    // If candidate contains spaces (like /usr/bin/env pm2), split it.
     const cmdParts = candidate.split(' ');
     args.push(...cmdParts);
-    args.push('jlist'); // simple command that outputs JSON and verifies pm2 works
+    args.push('jlist');
 
+    // Run directly via sudo to avoid bash startup errors (like .bashrc permission denied)
     const res = await runCommand('sudo', args, 4000);
-    // If successful and stdout looks like JSON array (even empty []), it's valid!
     if (res.success && res.stdout.trim().startsWith('[')) {
       pm2BinaryCache[user] = { path: candidate, ts: Date.now() };
       console.log(`[pm2] Found working binary for '${user}': ${candidate}`);
@@ -85,7 +101,7 @@ async function resolvePm2Binary(user) {
     }
   }
 
-  console.warn(`[pm2] Exhausted all candidate paths for '${user}'.`);
+  console.warn(`[pm2] Exhausted all candidate paths for '${user}'. User can set ${envVarName} in .env`);
   return null;
 }
 
@@ -113,10 +129,11 @@ async function getPm2UserProcesses(user) {
   const pm2Path = await resolvePm2Binary(user);
 
   if (!pm2Path) {
+    const envVarName = 'PM2_PATH_' + user.toUpperCase().replace(/[^A-Z0-9]/g, '_');
     return {
       user,
       processes: [],
-      error: `PM2 binary not found for user '${user}'. Ensure PM2 is installed.`,
+      error: `PM2 binary not found. Set ${envVarName}='/path/to/pm2' in .env file and restart.`,
       pm2Path: null
     };
   }
@@ -216,9 +233,10 @@ async function getPm2Logs(user, appName, lines = 80) {
   const pm2Path = await resolvePm2Binary(user);
 
   if (!pm2Path) {
+    const envVarName = 'PM2_PATH_' + user.toUpperCase().replace(/[^A-Z0-9]/g, '_');
     return {
       user, app: appName, lines: sanitizedLines, output: '',
-      error: `PM2 binary not found for user '${user}'.`
+      error: `PM2 binary not found. Set ${envVarName} in .env file.`
     };
   }
 
