@@ -54,12 +54,12 @@ const PM2_CACHE_TTL_MS = 10 * 60 * 1000;
 /**
  * Resolve the absolute PM2 binary path for a user.
  *
- * KEY INSIGHT: We run `find` as the TARGET USER via `sudo -n -u <user>`.
- * This is required because `/home/deploy/.nvm` is owned by `deploy:deploy`
- * and not readable by `ops`. Running as the target user lets them scan
- * their own home directory for the NVM-managed PM2 binary.
+ * Strategy: run `find` as ROOT (sudo -n without -u = runs as root).
+ * Root can read ALL home directories including /home/deploy/.nvm
+ * which is mode 700 and not accessible by the ops user.
  *
- * Result is cached for 10 minutes per user.
+ * We search the user's home dir + common system/NVM locations.
+ * Result is cached per user for 10 minutes.
  */
 async function resolvePm2Binary(user) {
   const cached = pm2BinaryCache[user];
@@ -69,17 +69,19 @@ async function resolvePm2Binary(user) {
 
   const homeDir = (user === 'root') ? '/root' : `/home/${user}`;
 
-  // Run find AS the target user — they have read access to their own ~/.nvm
-  // Search their nvm dir first, then fall back to system locations
+  // Run find as ROOT — root can read /home/deploy/.nvm regardless of permissions.
+  // sudo -n without -u defaults to root.
+  // -maxdepth 8 prevents runaway scanning of deeply nested node_modules.
   const findRes = await runCommand('sudo', [
-    '-n', '-u', user,
+    '-n',
     'find',
-    `${homeDir}/.nvm`,
+    homeDir,           // scans entire home including .nvm/versions/node/*/bin/pm2
     '/usr/local/bin',
     '/usr/bin',
+    '-maxdepth', '8',
     '-name', 'pm2',
     '-type', 'f'
-  ], 10000);
+  ], 12000);
 
   let pm2Path = null;
 
@@ -91,7 +93,7 @@ async function resolvePm2Binary(user) {
       .filter(l => l && /\/bin\/pm2$/.test(l));
 
     if (lines.length > 0) {
-      // Prefer NVM path (longest path usually = most specific version)
+      // Prefer NVM path (longer path = version-specific NVM install)
       lines.sort((a, b) => b.length - a.length);
       pm2Path = lines[0];
     }
@@ -101,7 +103,8 @@ async function resolvePm2Binary(user) {
     pm2BinaryCache[user] = { path: pm2Path, ts: Date.now() };
     console.log(`[pm2] Resolved binary for '${user}': ${pm2Path}`);
   } else {
-    console.warn(`[pm2] Could not find PM2 binary for user '${user}'`);
+    // Log all output to help diagnose if pm2 is in unexpected location
+    console.warn(`[pm2] Could not find PM2 binary for user '${user}'. find stdout: ${findRes.stdout.slice(0, 300)}`);
   }
 
   return pm2Path;
