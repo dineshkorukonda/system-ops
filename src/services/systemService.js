@@ -147,9 +147,10 @@ async function getJournalLogs(serviceName = 'ollama', lineCount = 100) {
     'short-iso'
   ]);
 
-  // If direct failed (permission denied), attempt sudo journalctl
-  if (!result.success && result.stderr.includes('Permission denied')) {
+  // If direct failed (permission denied), attempt sudo -n journalctl
+  if (!result.success && (result.stderr.includes('Permission denied') || result.stderr.includes('No journal files'))) {
     result = await runCommand('sudo', [
+      '-n',
       'journalctl',
       '-u',
       serviceName,

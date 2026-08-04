@@ -172,20 +172,24 @@ async function getLogSourceTail(sourceId, requestedLines = null) {
   let errorMsg = null;
 
   if (source.type === 'file') {
-    if (!fs.existsSync(source.target)) {
-      // File missing
-      output = `[WARN] Log file '${source.target}' does not exist or is unreadable.`;
-      exists = false;
-    } else {
-      // Tail file using tail command or node fs
-      let tailRes = await runCommand('tail', ['-n', String(lines), source.target]);
-      if (!tailRes.success) {
-        // Try with sudo tail if ops user lacks direct read permissions on /var/log or /root/backups
-        tailRes = await runCommand('sudo', ['tail', '-n', String(lines), source.target]);
-      }
+    // 1. Try direct tail
+    let tailRes = await runCommand('tail', ['-n', String(lines), source.target]);
+    
+    // 2. Try with sudo -n tail if direct tail fails
+    if (!tailRes.success) {
+      tailRes = await runCommand('sudo', ['-n', 'tail', '-n', String(lines), source.target]);
+    }
 
-      if (tailRes.success) {
-        output = tailRes.stdout || 'Log file is empty.';
+    if (tailRes.success) {
+      output = tailRes.stdout || 'Log file is empty.';
+    } else {
+      const errLower = (tailRes.stderr || '').toLowerCase();
+      if (errLower.includes('no such file') || (!fs.existsSync(source.target) && !errLower.includes('permission denied') && !errLower.includes('password is required'))) {
+        output = `[WARN] Log file '${source.target}' does not exist or is unreadable.`;
+        exists = false;
+      } else if (errLower.includes('password is required') || errLower.includes('terminal is required')) {
+        output = `[WARN] Passwordless sudo required to read log file '${source.target}'.\nPlease check /etc/sudoers.d/system-ops permissions.`;
+        errorMsg = tailRes.stderr;
       } else {
         output = `[WARN] Permission denied or failed to read log file '${source.target}'.\nDetails: ${tailRes.stderr}`;
         errorMsg = tailRes.stderr;
@@ -202,6 +206,7 @@ async function getLogSourceTail(sourceId, requestedLines = null) {
 
     if (!journalRes.success) {
       journalRes = await runCommand('sudo', [
+        '-n',
         'journalctl',
         '-u', source.target,
         '-n', String(lines),
@@ -213,7 +218,12 @@ async function getLogSourceTail(sourceId, requestedLines = null) {
     if (journalRes.success) {
       output = journalRes.stdout || 'No journal entries found for unit.';
     } else {
-      output = `[WARN] Failed to fetch journalctl logs for unit '${source.target}'.\nDetails: ${journalRes.stderr}`;
+      const errLower = (journalRes.stderr || '').toLowerCase();
+      if (errLower.includes('password is required') || errLower.includes('terminal is required')) {
+        output = `[WARN] Passwordless sudo required for journalctl unit '${source.target}'.\nPlease check /etc/sudoers.d/system-ops permissions.`;
+      } else {
+        output = `[WARN] Failed to fetch journalctl logs for unit '${source.target}'.\nDetails: ${journalRes.stderr}`;
+      }
       errorMsg = journalRes.stderr;
     }
   }

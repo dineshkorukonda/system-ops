@@ -9,12 +9,13 @@ ops ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u * -n [0-9]* --no-pager -o short-i
 ops ALL=(ALL) NOPASSWD: /usr/bin/systemctl show *
 ops ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active *
 
-# 3. Allow 'ops' user to execute ollama list as ollama user
-ops ALL=(ALL) NOPASSWD: /usr/bin/sudo -u ollama -H /usr/local/bin/ollama list, /usr/bin/sudo -u ollama -H /usr/bin/ollama list
+# 3. Allow 'ops' user to execute ollama list as ollama user or root
+ops ALL=(ollama) NOPASSWD: /usr/local/bin/ollama list, /usr/bin/ollama list
+ops ALL=(ALL) NOPASSWD: /usr/local/bin/ollama list, /usr/bin/ollama list
 
-# 4. PM2 Read-Only Monitoring for configured users (e.g. 'deploy')
-ops ALL=(deploy) NOPASSWD: /usr/local/bin/pm2 jlist, /usr/bin/pm2 jlist
-ops ALL=(deploy) NOPASSWD: /usr/local/bin/pm2 logs * --nostream --lines [0-9]*, /usr/bin/pm2 logs * --nostream --lines [0-9]*
+# 4. PM2 Read-Only Monitoring for configured users (e.g. 'deploy' or 'ops')
+ops ALL=(ALL) NOPASSWD: /usr/local/bin/pm2 jlist, /usr/bin/pm2 jlist
+ops ALL=(ALL) NOPASSWD: /usr/local/bin/pm2 logs * --nostream --lines [0-9]*, /usr/bin/pm2 logs * --nostream --lines [0-9]*
 
 # 5. Allow 'ops' user to tail backup log files if owned by root or another user
-ops ALL=(ALL) NOPASSWD: /usr/bin/tail -n [0-9]* /var/log/*.log, /usr/bin/tail -n [0-9]* /root/backups/*.log
+ops ALL=(ALL) NOPASSWD: /usr/bin/tail -n [0-9]* /var/log/*, /usr/bin/tail -n [0-9]* /root/backups/*

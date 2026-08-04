@@ -61,8 +61,8 @@ async function getPm2UserProcesses(user) {
     return { user, processes: [], error: 'Invalid user name format' };
   }
 
-  // Execute sudo -u <user> -H pm2 jlist
-  const res = await runCommand('sudo', ['-u', user, '-H', 'pm2', 'jlist']);
+  // Execute sudo -n -u <user> -H pm2 jlist
+  const res = await runCommand('sudo', ['-n', '-u', user, '-H', 'pm2', 'jlist']);
 
   if (!res.success) {
     // Try without sudo if running as the same user
@@ -70,7 +70,10 @@ async function getPm2UserProcesses(user) {
     if (directRes.success) {
       return parsePm2Json(user, directRes.stdout);
     }
-    return { user, processes: [], error: res.stderr || 'Failed to execute PM2 for user' };
+    const errMsg = res.stderr.includes('password is required') || res.stderr.includes('terminal is required')
+      ? `Sudo password required for user '${user}'. Please verify /etc/sudoers.d/system-ops configuration.`
+      : (res.stderr || 'Failed to execute PM2 for user');
+    return { user, processes: [], error: errMsg };
   }
 
   return parsePm2Json(user, res.stdout);
@@ -141,8 +144,9 @@ async function getPm2Logs(user, appName, lines = 80) {
 
   const sanitizedLines = Math.min(Math.max(parseInt(lines, 10) || 80, 1), 500);
 
-  // Execute sudo -u <user> -H pm2 logs <name> --nostream --lines N
+  // Execute sudo -n -u <user> -H pm2 logs <name> --nostream --lines N
   const res = await runCommand('sudo', [
+    '-n',
     '-u', user,
     '-H', 'pm2',
     'logs', appName,
@@ -151,12 +155,15 @@ async function getPm2Logs(user, appName, lines = 80) {
   ], 8000);
 
   if (!res.success && !res.stdout) {
+    const errMsg = res.stderr.includes('password is required') || res.stderr.includes('terminal is required')
+      ? `Sudo password required for user '${user}'. Please verify /etc/sudoers.d/system-ops configuration.`
+      : (res.stderr || 'Failed to fetch PM2 logs');
     return {
       user,
       app: appName,
       lines: sanitizedLines,
       output: '',
-      error: res.stderr || 'Failed to fetch PM2 logs'
+      error: errMsg
     };
   }
 

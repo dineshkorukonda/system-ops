@@ -153,10 +153,10 @@ async function runQuickChatTest(ollamaUrl = 'http://127.0.0.1:11434', modelName 
  */
 function getCliModelList() {
   return new Promise((resolve) => {
-    // Try sudo -u ollama -H ollama list
-    execFile('sudo', ['-u', 'ollama', '-H', 'ollama', 'list'], { timeout: 4000 }, (err1, stdout1) => {
+    // Try sudo -n -u ollama -H ollama list
+    execFile('sudo', ['-n', '-u', 'ollama', '-H', 'ollama', 'list'], { timeout: 4000 }, (err1, stdout1) => {
       if (!err1 && stdout1) {
-        return resolve({ success: true, command: 'sudo -u ollama -H ollama list', output: stdout1.trim() });
+        return resolve({ success: true, command: 'sudo -n -u ollama -H ollama list', output: stdout1.trim() });
       }
 
       // Try plain ollama list
@@ -167,7 +167,7 @@ function getCliModelList() {
 
         resolve({
           success: false,
-          command: 'sudo -u ollama -H ollama list',
+          command: 'sudo -n -u ollama -H ollama list',
           output: 'CLI command returned no output or requires sudoers rule.'
         });
       });
