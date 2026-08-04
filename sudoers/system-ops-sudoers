@@ -18,4 +18,4 @@ ops ALL=(ALL) NOPASSWD: /usr/local/bin/pm2 jlist, /usr/bin/pm2 jlist
 ops ALL=(ALL) NOPASSWD: /usr/local/bin/pm2 logs * --nostream --lines [0-9]*, /usr/bin/pm2 logs * --nostream --lines [0-9]*
 
 # 5. Allow 'ops' user to tail backup log files if owned by root or another user
-ops ALL=(ALL) NOPASSWD: /usr/bin/tail -n [0-9]* /var/log/*, /usr/bin/tail -n [0-9]* /root/backups/*
+ops ALL=(ALL) NOPASSWD: /usr/bin/tail -n [0-9]* /var/log/*, /usr/bin/tail -n [0-9]* /root/backups/*, /usr/bin/tail -n [0-9]* /var/backups/*

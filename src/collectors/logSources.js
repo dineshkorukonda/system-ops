@@ -18,10 +18,10 @@ function runCommand(file, args, timeoutMs = 5000) {
 
 /**
  * Parse LOG_SOURCES from environment or fallback default.
- * Example format: LOG_SOURCES=pg-backup:/var/log/pg-backup.log:200,journal:postgresql:100
+ * Example format: LOG_SOURCES=pg-backup:/var/backups/postgres/logs/backup.log:200,journal:postgresql:100
  */
 function parseLogSourcesConfig() {
-  const envStr = process.env.LOG_SOURCES || 'pg-backup:/var/log/pg-backup.log:200,journal:postgresql:100';
+  const envStr = process.env.LOG_SOURCES || 'pg-backup:/var/backups/postgres/logs/backup.log:200,pg-log:/var/log/pg-backup.log:200,journal:postgresql:100';
   const entries = envStr.split(',').map(s => s.trim()).filter(Boolean);
 
   const sources = [];
@@ -33,7 +33,7 @@ function parseLogSourcesConfig() {
     let id, type, target, defaultLines;
 
     if (parts.length === 4) {
-      // Format: id:type:target:defaultLines (e.g. pg-backup:file:/var/log/pg-backup.log:200)
+      // Format: id:type:target:defaultLines (e.g. pg-backup:file:/var/backups/postgres/logs/backup.log:200)
       id = parts[0].trim();
       type = parts[1].trim();
       target = parts[2].trim();
@@ -72,7 +72,7 @@ function parseLogSourcesConfig() {
   if (sources.length === 0) {
     // Default fallback
     sources.push(
-      { id: 'pg-backup', name: 'PG BACKUP', type: 'file', target: '/var/log/pg-backup.log', defaultLines: 200 },
+      { id: 'pg-backup', name: 'PG BACKUP', type: 'file', target: '/var/backups/postgres/logs/backup.log', defaultLines: 200 },
       { id: 'postgresql', name: 'POSTGRESQL JOURNAL', type: 'journal', target: 'postgresql', defaultLines: 100 }
     );
   }
@@ -99,15 +99,15 @@ function analyzeBackupHeuristics(logContent) {
   let lastFailure = null;
 
   // Regex patterns for PostgreSQL backup analysis
-  const successRegex = /BACKUP OK|BACKUP SUCCESS|SUCCESS|completed|pg_dump.*completed|archive dump completed|backup completed/i;
-  const failureRegex = /ERROR|FAILED|FATAL|pg_dump: error|backup failed|permission denied/i;
-  const timestampRegex = /(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/;
+  const successRegex = /BACKUP OK|BACKUP SUCCESS|SUCCESS|completed|pg_dump.*completed|archive dump completed|backup completed|✓ Backup successful|Backup successful/i;
+  const failureRegex = /ERROR|FAILED|FATAL|pg_dump: error|backup failed|permission denied|✗ FAILED/i;
+  const timestampRegex = /(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})|([A-Z][a-z]{2}\s+[A-Z][a-z]{2}\s+\d+\s+\d{2}:\d{2}:\d{2})/;
 
   // Iterate backwards through recent lines
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
     const matchTime = line.match(timestampRegex);
-    const ts = matchTime ? matchTime[1] : null;
+    const ts = matchTime ? matchTime[0] : null;
 
     if (!lastSuccess && successRegex.test(line)) {
       lastSuccess = ts || 'Recent line matching success pattern';
