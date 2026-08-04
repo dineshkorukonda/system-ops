@@ -52,19 +52,8 @@ const pm2BinaryCache = {};
 const PM2_CACHE_TTL_MS = 10 * 60 * 1000;
 
 /*
- * Resolve the absolute PM2 binary path for a user.
- *
- * Uses: sudo -n -H -u <user> bash -c 'ls -t ~/.nvm/.../bin/pm2 ... 2>/dev/null | head -3'
- *
- * Why bash + ls glob (not find -type f):
- *   NVM installs bin/pm2 as a SYMLINK. find -type f skips symlinks entirely.
- *   ls with a glob handles both regular files and symlinks correctly.
- *
- * Why -H flag:
- *   sudo env_reset strips HOME. -H sets HOME to the target user's home dir
- *   so the tilde in ~/.nvm expands correctly inside bash -c.
- *
- * Result cached per user for 10 minutes to avoid repeated shell invocations.
+ * Find the working PM2 binary path by trying the allowed sudoers paths.
+ * We try them directly via sudo to avoid bash environment issues.
  */
 async function resolvePm2Binary(user) {
   const cached = pm2BinaryCache[user];
@@ -72,51 +61,32 @@ async function resolvePm2Binary(user) {
     return cached.path;
   }
 
-  const nvmDir = (user === 'root') ? '/root/.nvm' : '/home/' + user + '/.nvm';
-  const nvmSource = '[ -s "' + nvmDir + '/nvm.sh" ] && . "' + nvmDir + '/nvm.sh"';
-  const shellCmd = nvmSource + '; command -v pm2 || type -P pm2 || echo ""';
+  // The sudoers file allows these three paths.
+  // We'll test them by running a lightweight command: pm2 ping or pm2 jlist.
+  const candidates = [
+    '/usr/local/bin/pm2',
+    '/usr/bin/pm2',
+    '/usr/bin/env pm2'
+  ];
 
-  const findRes = await runCommand('sudo', [
-    '-n', '-H', '-u', user,
-    'bash', '-c', shellCmd
-  ], 8000);
+  for (const candidate of candidates) {
+    const args = ['-n', '-u', user];
+    // If candidate contains spaces (like /usr/bin/env pm2), split it.
+    const cmdParts = candidate.split(' ');
+    args.push(...cmdParts);
+    args.push('jlist'); // simple command that outputs JSON and verifies pm2 works
 
-  let pm2Path = null;
-
-  if (findRes.stdout) {
-    const lines = findRes.stdout
-      .trim()
-      .split('\n')
-      .map(function(l) { return l.trim(); })
-      .filter(function(l) { return l && l.endsWith('pm2'); });
-
-    if (lines.length > 0) {
-      pm2Path = lines[0];
+    const res = await runCommand('sudo', args, 4000);
+    // If successful and stdout looks like JSON array (even empty []), it's valid!
+    if (res.success && res.stdout.trim().startsWith('[')) {
+      pm2BinaryCache[user] = { path: candidate, ts: Date.now() };
+      console.log(`[pm2] Found working binary for '${user}': ${candidate}`);
+      return candidate;
     }
   }
 
-  // Fallback to globs and absolute paths if command -v fails
-  if (!pm2Path) {
-    const fallbackCmd = 'for p in "' + nvmDir + '"/versions/node/*/bin/pm2 /usr/local/bin/pm2 /usr/bin/pm2; do if [ -e "$p" ]; then echo "$p"; break; fi; done';
-    const fallbackRes = await runCommand('sudo', [
-      '-n', '-H', '-u', user,
-      'bash', '-c', fallbackCmd
-    ], 3000);
-    if (fallbackRes.stdout && fallbackRes.stdout.trim()) {
-      pm2Path = fallbackRes.stdout.trim();
-    }
-  }
-
-  if (pm2Path) {
-    pm2BinaryCache[user] = { path: pm2Path, ts: Date.now() };
-    console.log('[pm2] Resolved binary for \'' + user + '\': ' + pm2Path);
-  } else {
-    const outPreview = (findRes.stdout || '').slice(0, 200);
-    const errPreview = (findRes.stderr || '').slice(0, 200);
-    console.warn('[pm2] Binary not found for \'' + user + '\'. stdout: "' + outPreview + '" stderr: "' + errPreview + '"');
-  }
-
-  return pm2Path;
+  console.warn(`[pm2] Exhausted all candidate paths for '${user}'.`);
+  return null;
 }
 
 
@@ -142,13 +112,21 @@ async function getPm2UserProcesses(user) {
 
   const pm2Path = await resolvePm2Binary(user);
 
-  const resolvedPath = pm2Path || '/usr/bin/env pm2';
+  if (!pm2Path) {
+    return {
+      user,
+      processes: [],
+      error: `PM2 binary not found for user '${user}'. Ensure PM2 is installed.`,
+      pm2Path: null
+    };
+  }
 
-  // Step 2: Run pm2 jlist via bash with NVM sourced
-  const nvmDir = (user === 'root') ? '/root/.nvm' : '/home/' + user + '/.nvm';
-  const nvmSource = '[ -s "' + nvmDir + '/nvm.sh" ] && . "' + nvmDir + '/nvm.sh"';
-  const jlistShell = nvmSource + '; ' + resolvedPath + ' jlist 2>/dev/null';
-  const res = await runCommand('sudo', ['-n', '-H', '-u', user, 'bash', '-c', jlistShell], 10000);
+  // Step 2: Call pm2 jlist with the resolved working command
+  const args = ['-n', '-u', user];
+  args.push(...pm2Path.split(' '));
+  args.push('jlist');
+
+  const res = await runCommand('sudo', args, 10000);
 
 
   if (!res.success && !res.stdout) {
@@ -237,16 +215,18 @@ async function getPm2Logs(user, appName, lines = 80) {
 
   const pm2Path = await resolvePm2Binary(user);
 
-  const resolvedPath = pm2Path || '/usr/bin/env pm2';
+  if (!pm2Path) {
+    return {
+      user, app: appName, lines: sanitizedLines, output: '',
+      error: `PM2 binary not found for user '${user}'.`
+    };
+  }
 
-  // Use bash -c and source nvm.sh so node is on PATH for pm2's shebang.
-  const nvmDir = (user === 'root') ? '/root/.nvm' : '/home/' + user + '/.nvm';
-  const nvmSource = '[ -s "' + nvmDir + '/nvm.sh" ] && . "' + nvmDir + '/nvm.sh"';
-  const logCmd = nvmSource + '; ' + resolvedPath + ' logs ' + appName + ' --nostream --lines ' + String(sanitizedLines) + ' 2>&1';
-  const res = await runCommand('sudo', [
-    '-n', '-H', '-u', user,
-    'bash', '-c', logCmd
-  ], 14000);
+  const args = ['-n', '-u', user];
+  args.push(...pm2Path.split(' '));
+  args.push('logs', appName, '--nostream', '--lines', String(sanitizedLines));
+
+  const res = await runCommand('sudo', args, 14000);
 
   if (!res.success && !res.stdout) {
     const errStr = res.stderr || '';
