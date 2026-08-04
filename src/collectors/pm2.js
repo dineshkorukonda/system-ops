@@ -44,6 +44,35 @@ function formatUptime(uptimeMs) {
   return parts.join(' ');
 }
 
+const path = require('path');
+const fs = require('fs');
+
+/**
+ * Get candidate executable binary targets for PM2 under target user.
+ */
+function getPm2Candidates(user) {
+  const candidates = ['pm2', '/usr/local/bin/pm2', '/usr/bin/pm2'];
+  const homeDir = user === 'root' ? '/root' : `/home/${user}`;
+
+  try {
+    const nvmDir = path.join(homeDir, '.nvm/versions/node');
+    if (fs.existsSync(nvmDir)) {
+      const versions = fs.readdirSync(nvmDir);
+      versions.forEach(v => {
+        const p = path.join(nvmDir, v, 'bin/pm2');
+        if (fs.existsSync(p)) candidates.unshift(p);
+      });
+    }
+  } catch (e) {}
+
+  try {
+    const nvmAlias = path.join(homeDir, '.nvm/current/bin/pm2');
+    if (fs.existsSync(nvmAlias)) candidates.unshift(nvmAlias);
+  } catch (e) {}
+
+  return [...new Set(candidates)];
+}
+
 /**
  * Get configured PM2 users list from environment (e.g., 'deploy' or 'deploy,root').
  */
@@ -53,7 +82,7 @@ function getPm2Users() {
 }
 
 /**
- * Fetch PM2 process list for a single user via `sudo -u <user> -H pm2 jlist` or bash login shell fallback.
+ * Fetch PM2 process list for a single user via dynamic pm2 binary resolution.
  */
 async function getPm2UserProcesses(user) {
   // Validate username format (alphanumeric and dashes/underscores only)
@@ -61,28 +90,27 @@ async function getPm2UserProcesses(user) {
     return { user, processes: [], error: 'Invalid user name format' };
   }
 
-  // 1. Try standard sudo -n -u <user> -H pm2 jlist
-  let res = await runCommand('sudo', ['-n', '-u', user, '-H', 'pm2', 'jlist']);
+  const candidates = getPm2Candidates(user);
+  let lastErr = null;
 
-  // 2. If failed, try sudo -n -u <user> bash -lc "pm2 jlist" (loads NVM / shell environment)
-  if (!res.success) {
-    res = await runCommand('sudo', ['-n', '-u', user, 'bash', '-lc', 'pm2 jlist']);
-  }
-
-  // 3. If failed, try direct pm2 jlist (if running as the same user)
-  if (!res.success) {
-    const directRes = await runCommand('pm2', ['jlist']);
-    if (directRes.success) {
-      return parsePm2Json(user, directRes.stdout);
+  for (const pm2Bin of candidates) {
+    const res = await runCommand('sudo', ['-n', '-u', user, '-H', pm2Bin, 'jlist']);
+    if (res.success && res.stdout) {
+      return parsePm2Json(user, res.stdout);
     }
-
-    const errMsg = res.stderr.includes('password is required') || res.stderr.includes('terminal is required')
-      ? `Sudo password required for user '${user}'. Please verify /etc/sudoers.d/system-ops configuration.`
-      : (res.stderr || 'Failed to execute PM2 for user');
-    return { user, processes: [], error: errMsg };
+    if (res.stderr) lastErr = res.stderr;
   }
 
-  return parsePm2Json(user, res.stdout);
+  // Try direct pm2 jlist (if running as the same user)
+  const directRes = await runCommand('pm2', ['jlist']);
+  if (directRes.success && directRes.stdout) {
+    return parsePm2Json(user, directRes.stdout);
+  }
+
+  const errMsg = (lastErr || '').includes('password is required') || (lastErr || '').includes('terminal is required')
+    ? `Sudo password required for user '${user}'. Please verify /etc/sudoers.d/system-ops configuration.`
+    : (lastErr || 'Failed to execute PM2 for user');
+  return { user, processes: [], error: errMsg };
 }
 
 /**
@@ -149,46 +177,40 @@ async function getPm2Logs(user, appName, lines = 80) {
   }
 
   const sanitizedLines = Math.min(Math.max(parseInt(lines, 10) || 80, 1), 500);
+  const candidates = getPm2Candidates(user);
+  let lastRes = null;
 
-  // 1. Execute sudo -n -u <user> -H pm2 logs <name> --nostream --lines N
-  let res = await runCommand('sudo', [
-    '-n',
-    '-u', user,
-    '-H', 'pm2',
-    'logs', appName,
-    '--nostream',
-    '--lines', String(sanitizedLines)
-  ], 8000);
-
-  // 2. Fallback to bash login shell if pm2 isn't in default system PATH
-  if (!res.success && !res.stdout) {
-    res = await runCommand('sudo', [
+  for (const pm2Bin of candidates) {
+    const res = await runCommand('sudo', [
       '-n',
       '-u', user,
-      'bash',
-      '-lc',
-      `pm2 logs ${appName} --nostream --lines ${sanitizedLines}`
+      '-H', pm2Bin,
+      'logs', appName,
+      '--nostream',
+      '--lines', String(sanitizedLines)
     ], 8000);
+
+    if (res.success) {
+      return {
+        user,
+        app: appName,
+        lines: sanitizedLines,
+        output: res.stdout || res.stderr || 'No log lines returned.'
+      };
+    }
+    lastRes = res;
   }
 
-  if (!res.success && !res.stdout) {
-    const errMsg = res.stderr.includes('password is required') || res.stderr.includes('terminal is required')
-      ? `Sudo password required for user '${user}'. Please verify /etc/sudoers.d/system-ops configuration.`
-      : (res.stderr || 'Failed to fetch PM2 logs');
-    return {
-      user,
-      app: appName,
-      lines: sanitizedLines,
-      output: '',
-      error: errMsg
-    };
-  }
-
+  const lastErr = lastRes ? lastRes.stderr : '';
+  const errMsg = lastErr.includes('password is required') || lastErr.includes('terminal is required')
+    ? `Sudo password required for user '${user}'. Please verify /etc/sudoers.d/system-ops configuration.`
+    : (lastErr || 'Failed to fetch PM2 logs');
   return {
     user,
     app: appName,
     lines: sanitizedLines,
-    output: res.stdout || res.stderr || 'No log lines returned.'
+    output: '',
+    error: errMsg
   };
 }
 
