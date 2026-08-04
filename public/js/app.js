@@ -1,136 +1,181 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // ────────────────────────────────────────────────────────
+  // STATE
+  // ────────────────────────────────────────────────────────
   let autoRefreshTimer = null;
   let rawLogContent = '';
+  let rawBackupLogContent = '';
   let activeTab = 'tab-ollama';
   let activePm2User = null;
   let activePm2App = null;
-  let rawBackupLogContent = '';
 
-  // Elements - Header & Global
-  const globalStateTag = document.getElementById('globalStateTag');
-  const lastUpdatedVal = document.getElementById('lastUpdatedVal');
-  const refreshSelect = document.getElementById('refreshSelect');
-  const refreshBtn = document.getElementById('refreshBtn');
-  const logoutBtn = document.getElementById('logoutBtn');
-  const navTabs = document.querySelectorAll('.nav-tab');
+  // ────────────────────────────────────────────────────────
+  // ELEMENT REFS — Header
+  // ────────────────────────────────────────────────────────
+  const globalStateTag   = document.getElementById('globalStateTag');
+  const lastUpdatedVal   = document.getElementById('lastUpdatedVal');
+  const refreshSelect    = document.getElementById('refreshSelect');
+  const refreshBtn       = document.getElementById('refreshBtn');
+  const logoutBtn        = document.getElementById('logoutBtn');
+  const themeToggleBtn   = document.getElementById('themeToggleBtn');
+  const navTabs          = document.querySelectorAll('.nav-tab');
 
-  // Elements - Tab 1 (Ollama v1)
-  const serviceStateTag = document.getElementById('serviceStateTag');
-  const subStateVal = document.getElementById('subStateVal');
-  const pidVal = document.getElementById('pidVal');
-  const userVal = document.getElementById('userVal');
-  const listenTag = document.getElementById('listenTag');
-  const apiHealthTag = document.getElementById('apiHealthTag');
-  const apiLatencyVal = document.getElementById('apiLatencyVal');
-  const hostVal = document.getElementById('hostVal');
-  const ramVal = document.getElementById('ramVal');
-  const swapVal = document.getElementById('swapVal');
-  const chatModelSelect = document.getElementById('chatModelSelect');
-  const chatPromptInput = document.getElementById('chatPromptInput');
-  const runChatTestBtn = document.getElementById('runChatTestBtn');
-  const chatResultBox = document.getElementById('chatResultBox');
-  const chatResultTag = document.getElementById('chatResultTag');
-  const chatLatencyVal = document.getElementById('chatLatencyVal');
+  // ────────────────────────────────────────────────────────
+  // ELEMENT REFS — Tab 1: Ollama
+  // ────────────────────────────────────────────────────────
+  const serviceStateTag    = document.getElementById('serviceStateTag');
+  const subStateVal        = document.getElementById('subStateVal');
+  const pidVal             = document.getElementById('pidVal');
+  const userVal            = document.getElementById('userVal');
+  const listenTag          = document.getElementById('listenTag');
+  const apiHealthTag       = document.getElementById('apiHealthTag');
+  const apiLatencyVal      = document.getElementById('apiLatencyVal');
+  const hostVal            = document.getElementById('hostVal');
+  const ramVal             = document.getElementById('ramVal');
+  const swapVal            = document.getElementById('swapVal');
+  const chatModelSelect    = document.getElementById('chatModelSelect');
+  const chatPromptInput    = document.getElementById('chatPromptInput');
+  const runChatTestBtn     = document.getElementById('runChatTestBtn');
+  const chatResultBox      = document.getElementById('chatResultBox');
+  const chatResultTag      = document.getElementById('chatResultTag');
+  const chatLatencyVal     = document.getElementById('chatLatencyVal');
   const chatResponseContent = document.getElementById('chatResponseContent');
-  const modelsTableBody = document.getElementById('modelsTableBody');
-  const logTerminal = document.getElementById('logTerminal');
-  const logLinesSelect = document.getElementById('logLinesSelect');
-  const logFilterInput = document.getElementById('logFilterInput');
-  const autoScrollCheck = document.getElementById('autoScrollCheck');
-  const copyLogsBtn = document.getElementById('copyLogsBtn');
+  const modelsTableBody    = document.getElementById('modelsTableBody');
+  const logTerminal        = document.getElementById('logTerminal');
+  const logLinesSelect     = document.getElementById('logLinesSelect');
+  const logFilterInput     = document.getElementById('logFilterInput');
+  const autoScrollCheck    = document.getElementById('autoScrollCheck');
+  const copyLogsBtn        = document.getElementById('copyLogsBtn');
 
-  // Elements - Tab 2 (PM2)
+  // ────────────────────────────────────────────────────────
+  // ELEMENT REFS — Tab 2: PM2
+  // ────────────────────────────────────────────────────────
+  const pm2SummaryContainer  = document.getElementById('pm2SummaryContainer');
+  const pm2RefreshBtn        = document.getElementById('pm2RefreshBtn');
+  const pm2LastUpdated       = document.getElementById('pm2LastUpdated');
+  const pm2ProcessCount      = document.getElementById('pm2ProcessCount');
   const pm2UserTablesContainer = document.getElementById('pm2UserTablesContainer');
-  const pm2RefreshBtn = document.getElementById('pm2RefreshBtn');
-  const pm2LogDrawer = document.getElementById('pm2LogDrawer');
-  const pm2LogAppTitle = document.getElementById('pm2LogAppTitle');
-  const pm2LogUserTag = document.getElementById('pm2LogUserTag');
-  const pm2LogLinesSelect = document.getElementById('pm2LogLinesSelect');
-  const pm2LogFetchBtn = document.getElementById('pm2LogFetchBtn');
-  const pm2LogCloseBtn = document.getElementById('pm2LogCloseBtn');
-  const pm2LogTerminal = document.getElementById('pm2LogTerminal');
+  const pm2TableView         = document.getElementById('pm2TableView');
+  const pm2LogView           = document.getElementById('pm2LogView');
+  const pm2LogAppTitle       = document.getElementById('pm2LogAppTitle');
+  const pm2LogUserTag        = document.getElementById('pm2LogUserTag');
+  const pm2LogLinesSelect    = document.getElementById('pm2LogLinesSelect');
+  const pm2LogFetchBtn       = document.getElementById('pm2LogFetchBtn');
+  const pm2LogBackBtn        = document.getElementById('pm2LogBackBtn');
+  const pm2LogTerminal       = document.getElementById('pm2LogTerminal');
 
-  // Elements - Tab 3 (System)
-  const sysUptimeVal = document.getElementById('sysUptimeVal');
-  const sysCpusVal = document.getElementById('sysCpusVal');
-  const sysLoad1m = document.getElementById('sysLoad1m');
-  const sysLoad5m = document.getElementById('sysLoad5m');
-  const sysLoad15m = document.getElementById('sysLoad15m');
-  const sysRamText = document.getElementById('sysRamText');
-  const sysRamBar = document.getElementById('sysRamBar');
-  const sysSwapText = document.getElementById('sysSwapText');
-  const sysSwapBar = document.getElementById('sysSwapBar');
+  // ────────────────────────────────────────────────────────
+  // ELEMENT REFS — Tab 3: System
+  // ────────────────────────────────────────────────────────
+  const sysUptimeVal         = document.getElementById('sysUptimeVal');
+  const sysCpusVal           = document.getElementById('sysCpusVal');
+  const sysLoad1m            = document.getElementById('sysLoad1m');
+  const sysLoad5m            = document.getElementById('sysLoad5m');
+  const sysLoad15m           = document.getElementById('sysLoad15m');
+  const sysRamText           = document.getElementById('sysRamText');
+  const sysRamBar            = document.getElementById('sysRamBar');
+  const sysSwapText          = document.getElementById('sysSwapText');
+  const sysSwapBar           = document.getElementById('sysSwapBar');
   const sysServicesTableBody = document.getElementById('sysServicesTableBody');
-  const sysDiskContainer = document.getElementById('sysDiskContainer');
-  const sysPortsTableBody = document.getElementById('sysPortsTableBody');
-  const sysTlsTableBody = document.getElementById('sysTlsTableBody');
+  const sysDiskContainer     = document.getElementById('sysDiskContainer');
+  const sysPortsTableBody    = document.getElementById('sysPortsTableBody');
+  const sysTlsTableBody      = document.getElementById('sysTlsTableBody');
 
-  // Elements - Tab 4 (Backups)
-  const backupSourceSelect = document.getElementById('backupSourceSelect');
-  const backupLinesSelect = document.getElementById('backupLinesSelect');
-  const backupFetchBtn = document.getElementById('backupFetchBtn');
-  const backupBadgeTag = document.getElementById('backupBadgeTag');
-  const backupStatusMsg = document.getElementById('backupStatusMsg');
-  const backupTargetVal = document.getElementById('backupTargetVal');
-  const backupFilterInput = document.getElementById('backupFilterInput');
-  const backupCopyBtn = document.getElementById('backupCopyBtn');
-  const backupLogTerminal = document.getElementById('backupLogTerminal');
+  // ────────────────────────────────────────────────────────
+  // ELEMENT REFS — Tab 4: Backups
+  // ────────────────────────────────────────────────────────
+  const backupSourceSelect  = document.getElementById('backupSourceSelect');
+  const backupLinesSelect   = document.getElementById('backupLinesSelect');
+  const backupFetchBtn      = document.getElementById('backupFetchBtn');
+  const backupBadgeTag      = document.getElementById('backupBadgeTag');
+  const backupStatusMsg     = document.getElementById('backupStatusMsg');
+  const backupTargetVal     = document.getElementById('backupTargetVal');
+  const backupFilterInput   = document.getElementById('backupFilterInput');
+  const backupCopyBtn       = document.getElementById('backupCopyBtn');
+  const backupLogTerminal   = document.getElementById('backupLogTerminal');
+  const backupLogsBody      = document.getElementById('backupLogsBody');
+  const backupReverseCheck  = document.getElementById('backupReverseCheck');
 
-  // Logout
+  // ════════════════════════════════════════════════════════
+  // THEME TOGGLE
+  // ════════════════════════════════════════════════════════
+  function applyTheme(light) {
+    // Apply on <body> — more reliable than <html> for CSS var overrides
+    if (light) {
+      document.body.setAttribute('data-theme', 'light');
+      document.documentElement.setAttribute('data-theme', 'light');
+      themeToggleBtn.textContent = '○';
+      themeToggleBtn.title = 'Switch to dark mode';
+    } else {
+      document.body.removeAttribute('data-theme');
+      document.documentElement.removeAttribute('data-theme');
+      themeToggleBtn.textContent = '◐';
+      themeToggleBtn.title = 'Switch to light mode';
+    }
+    localStorage.setItem('theme', light ? 'light' : 'dark');
+  }
+
+  // Restore saved theme on load
+  applyTheme(localStorage.getItem('theme') === 'light');
+
+  themeToggleBtn.addEventListener('click', () => {
+    const isLight = document.body.getAttribute('data-theme') === 'light';
+    applyTheme(!isLight);
+  });
+
+  // ════════════════════════════════════════════════════════
+  // LOGOUT
+  // ════════════════════════════════════════════════════════
   logoutBtn.addEventListener('click', async () => {
     try { await fetch('/api/logout', { method: 'POST' }); } catch (e) {}
     window.location.href = '/login.html';
   });
 
-  // Tab Navigation Handling
+  // ════════════════════════════════════════════════════════
+  // TAB NAVIGATION
+  // ════════════════════════════════════════════════════════
   navTabs.forEach(tab => {
     tab.addEventListener('click', () => {
       navTabs.forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-page').forEach(page => page.classList.remove('active'));
-
+      document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
       tab.classList.add('active');
       activeTab = tab.getAttribute('data-tab');
       document.getElementById(activeTab).classList.add('active');
-
-      // Refresh data for selected tab immediately
       refreshActiveTabData();
     });
   });
 
   function refreshActiveTabData() {
-    if (activeTab === 'tab-ollama') {
-      fetchStatus();
-      fetchLogs();
-      fetchModels();
-    } else if (activeTab === 'tab-pm2') {
-      fetchPm2Snapshot();
-    } else if (activeTab === 'tab-system') {
-      fetchSystemSnapshot();
-    } else if (activeTab === 'tab-backups') {
-      fetchBackupLogTail();
+    if (activeTab === 'tab-ollama')  { fetchStatus(); fetchLogs(); fetchModels(); }
+    else if (activeTab === 'tab-pm2')     { fetchPm2Snapshot(); }
+    else if (activeTab === 'tab-system')  { fetchSystemSnapshot(); }
+    else if (activeTab === 'tab-backups') {
+      // Re-fetch sources if dropdown never populated (e.g. initial load failed)
+      if (!backupSourceSelect.value || backupSourceSelect.querySelector('option[value=""]')) {
+        fetchLogSourcesList();
+      } else {
+        fetchBackupLogTail();
+      }
     }
   }
 
-  // --- TAB 1: OLLAMA (v1) ---
+  // ════════════════════════════════════════════════════════
+  // TAB 1: OLLAMA
+  // ════════════════════════════════════════════════════════
   async function fetchStatus() {
     try {
       const res = await fetch('/api/status');
-      if (res.status === 401) {
-        window.location.href = '/login.html';
-        return;
-      }
+      if (res.status === 401) { window.location.href = '/login.html'; return; }
       const data = await res.json();
       renderStatus(data);
     } catch (err) {
       globalStateTag.className = 'status-tag err';
-      globalStateTag.textContent = '[ERR]';
+      globalStateTag.textContent = '[ ERR ]';
     }
   }
 
   function renderStatus(data) {
-    const now = new Date(data.timestamp || Date.now());
-    lastUpdatedVal.textContent = now.toLocaleTimeString();
-
+    lastUpdatedVal.textContent = new Date(data.timestamp || Date.now()).toLocaleTimeString();
     const sys = data.systemd || {};
     subStateVal.textContent = sys.subState || 'unknown';
     pidVal.textContent = sys.pid || '0';
@@ -145,13 +190,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const listener = data.listener || {};
-    if (listener.listening) {
-      listenTag.className = 'status-tag ok';
-      listenTag.textContent = '[BOUND]';
-    } else {
-      listenTag.className = 'status-tag err';
-      listenTag.textContent = '[UNBOUND]';
-    }
+    listenTag.className = listener.listening ? 'status-tag ok' : 'status-tag err';
+    listenTag.textContent = listener.listening ? '[BOUND]' : '[UNBOUND]';
 
     const api = data.ollamaApi || {};
     if (api.ok) {
@@ -168,23 +208,22 @@ document.addEventListener('DOMContentLoaded', () => {
       globalStateTag.className = 'status-tag ok';
       globalStateTag.textContent = '[ OK ]';
     } else {
-      globalStateTag.className = 'status-tag err';
+      globalStateTag.className = 'status-tag warn';
       globalStateTag.textContent = '[ WARN ]';
     }
 
     if (data.hostMetrics) {
-      hostVal.textContent = data.hostMetrics.hostname || 'ubuntu-24-vps';
-      const ram = data.hostMetrics.memory;
+      hostVal.textContent = data.hostMetrics.hostname || 'ubuntu-vps';
+      const ram  = data.hostMetrics.memory;
       const swap = data.hostMetrics.swap;
-      if (ram) ramVal.textContent = `${ram.formattedUsed} / ${ram.formattedTotal} (${ram.usagePercent}%)`;
+      if (ram)  ramVal.textContent  = `${ram.formattedUsed} / ${ram.formattedTotal} (${ram.usagePercent}%)`;
       if (swap) swapVal.textContent = `${swap.formattedUsed} / ${swap.formattedTotal} (${swap.usagePercent}%)`;
     }
   }
 
   async function fetchLogs() {
-    const lines = logLinesSelect.value;
     try {
-      const res = await fetch(`/api/logs?lines=${lines}`);
+      const res = await fetch(`/api/logs?lines=${logLinesSelect.value}`);
       if (res.ok) {
         const data = await res.json();
         rawLogContent = data.logs || '';
@@ -194,25 +233,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderLogs() {
-    if (!rawLogContent) {
-      logTerminal.textContent = 'No logs available.';
-      return;
-    }
-
+    if (!rawLogContent) { logTerminal.textContent = 'No logs available.'; return; }
     const filter = logFilterInput.value.toLowerCase().trim();
     let lines = rawLogContent.split('\n');
-
-    if (filter) {
-      lines = lines.filter(l => l.toLowerCase().includes(filter));
-    }
+    if (filter) lines = lines.filter(l => l.toLowerCase().includes(filter));
 
     const formatted = lines.map(line => {
-      let escaped = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      escaped = escaped.replace(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[^\s]*)/, '<span class="log-ts">$1</span>');
-      if (/error|failed|panic/i.test(escaped)) {
-        escaped = `<span class="log-err">${escaped}</span>`;
-      }
-      return escaped;
+      let esc = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      esc = esc.replace(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[^\s]*)/, '<span class="log-ts">$1</span>');
+      if (/error|failed|panic/i.test(esc)) esc = `<span class="log-err">${esc}</span>`;
+      return esc;
     }).join('\n');
 
     logTerminal.innerHTML = formatted || 'No matching log lines.';
@@ -244,56 +274,36 @@ document.addEventListener('DOMContentLoaded', () => {
     chatModelSelect.innerHTML = '';
     if (models.length === 0) {
       const opt = document.createElement('option');
-      opt.value = 'llama3.2:3b';
-      opt.textContent = 'llama3.2:3b';
+      opt.value = 'llama3.2:3b'; opt.textContent = 'llama3.2:3b';
       chatModelSelect.appendChild(opt);
       modelsTableBody.innerHTML = `<tr><td colspan="3" class="text-dim">No models found.</td></tr>`;
       return;
     }
-
     modelsTableBody.innerHTML = '';
     models.forEach(m => {
       const opt = document.createElement('option');
-      opt.value = m.name;
-      opt.textContent = m.name;
+      opt.value = m.name; opt.textContent = m.name;
       chatModelSelect.appendChild(opt);
 
       const tr = document.createElement('tr');
       const sizeMb = m.size ? (m.size / (1024 * 1024 * 1024)).toFixed(2) + ' GB' : 'N/A';
       const modDate = m.modified_at ? new Date(m.modified_at).toLocaleDateString() : 'N/A';
-
-      tr.innerHTML = `
-        <td><code>${m.name}</code></td>
-        <td>${sizeMb}</td>
-        <td><span class="text-dim">${modDate}</span></td>
-      `;
+      tr.innerHTML = `<td><code>${m.name}</code></td><td>${sizeMb}</td><td class="text-dim">${modDate}</td>`;
       modelsTableBody.appendChild(tr);
     });
   }
 
   runChatTestBtn.addEventListener('click', async () => {
-    const model = chatModelSelect.value;
+    const model  = chatModelSelect.value;
     const prompt = chatPromptInput.value.trim() || 'OK';
-
     runChatTestBtn.disabled = true;
     runChatTestBtn.textContent = 'Testing...';
     chatResultBox.classList.add('hidden');
-
-    const startTime = Date.now();
-
     try {
-      const res = await fetch('/api/test-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, prompt })
-      });
-
+      const res  = await fetch('/api/test-chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, prompt }) });
       const data = await res.json();
-      const latency = Date.now() - startTime;
-
       chatResultBox.classList.remove('hidden');
-      chatLatencyVal.textContent = `${data.latencyMs || latency} ms`;
-
+      chatLatencyVal.textContent = `${data.latencyMs || 0} ms`;
       if (data.success) {
         chatResultTag.className = 'status-tag ok';
         chatResultTag.textContent = '[PASS]';
@@ -301,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         chatResultTag.className = 'status-tag err';
         chatResultTag.textContent = '[FAIL]';
-        chatResponseContent.textContent = data.error || data.message || 'Chat test failed';
+        chatResponseContent.textContent = data.error || 'Chat test failed';
       }
     } catch (err) {
       chatResultBox.classList.remove('hidden');
@@ -314,255 +324,293 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // --- TAB 2: PM2 PROCESSES (v2) ---
+  logLinesSelect.addEventListener('change', fetchLogs);
+  logFilterInput.addEventListener('input', renderLogs);
+
+  // ════════════════════════════════════════════════════════
+  // TAB 2: PM2
+  // ════════════════════════════════════════════════════════
   pm2RefreshBtn.addEventListener('click', fetchPm2Snapshot);
 
   async function fetchPm2Snapshot() {
-    pm2UserTablesContainer.innerHTML = `<div class="text-dim">Fetching PM2 process snapshot...</div>`;
+    pm2SummaryContainer.innerHTML = `<div class="text-dim" style="font-size:12px;">Fetching...</div>`;
+    pm2UserTablesContainer.innerHTML = `<div style="padding:1rem;" class="text-dim">Loading PM2 snapshot...</div>`;
     try {
       const res = await fetch('/api/v2/pm2/snapshot');
-      if (res.status === 401) {
-        window.location.href = '/login.html';
+      if (res.status === 401) { window.location.href = '/login.html'; return; }
+      if (!res.ok) {
+        pm2UserTablesContainer.innerHTML = `<div style="padding:1rem;" class="text-red">Failed to fetch PM2 snapshot (HTTP ${res.status})</div>`;
         return;
       }
-      if (res.ok) {
-        const data = await res.json();
-        renderPm2Snapshot(data);
-      } else {
-        pm2UserTablesContainer.innerHTML = `<div class="text-red">Failed to fetch PM2 snapshot (${res.status})</div>`;
-      }
+      const data = await res.json();
+      renderPm2Snapshot(data);
     } catch (err) {
-      pm2UserTablesContainer.innerHTML = `<div class="text-red">Error: ${err.message}</div>`;
+      pm2UserTablesContainer.innerHTML = `<div style="padding:1rem;" class="text-red">Error: ${err.message}</div>`;
     }
   }
 
   function renderPm2Snapshot(data) {
     const users = data.users || [];
+    const ts = new Date(data.timestamp || Date.now()).toLocaleTimeString();
+    pm2LastUpdated.textContent = ts;
+    lastUpdatedVal.textContent = ts;
+
     if (users.length === 0) {
-      pm2UserTablesContainer.innerHTML = `<div class="text-dim">No PM2 users configured in PM2_USERS environment variable.</div>`;
+      pm2SummaryContainer.innerHTML = `<div class="text-dim" style="font-size:12px;">No PM2 users configured.</div>`;
+      pm2UserTablesContainer.innerHTML = `<div style="padding:1rem;" class="text-dim">No PM2 users configured in PM2_USERS environment variable.</div>`;
       return;
     }
 
-    lastUpdatedVal.textContent = new Date(data.timestamp || Date.now()).toLocaleTimeString();
+    // ── Left Col: Per-user summary cards
+    pm2SummaryContainer.innerHTML = '';
+    let totalProcesses = 0;
+
+    users.forEach(u => {
+      const online  = (u.processes || []).filter(p => p.status === 'online').length;
+      const stopped = (u.processes || []).filter(p => p.status === 'stopped').length;
+      const errored = (u.processes || []).filter(p => p.status !== 'online' && p.status !== 'stopped').length;
+      const total   = (u.processes || []).length;
+      totalProcesses += total;
+
+      const totalMem = (u.processes || []).reduce((s, p) => s + (p.memoryBytes || 0), 0);
+      const memStr = formatBytesClient(totalMem);
+
+      const card = document.createElement('div');
+      card.className = 'pm2-summary-card';
+
+      let statusBadge = '';
+      if (u.error) {
+        statusBadge = `<span class="status-tag warn">[WARN]</span>`;
+      } else if (errored > 0) {
+        statusBadge = `<span class="status-tag err">[${errored} ERR]</span>`;
+      } else if (total === 0) {
+        statusBadge = `<span class="status-tag warn">[NONE]</span>`;
+      } else {
+        statusBadge = `<span class="status-tag ok">[${online}/${total} UP]</span>`;
+      }
+
+      card.innerHTML = `
+        <div class="card-user">
+          <span>${u.user}</span>
+          ${statusBadge}
+        </div>
+        ${u.error
+          ? `<div style="font-size:11px;color:var(--yellow);font-family:var(--font-mono);">${u.error}</div>`
+          : `<div class="card-stats">
+               <span><span class="text-green">${online}</span> online</span>
+               <span>${stopped} stopped</span>
+               <span>${memStr} mem</span>
+             </div>`
+        }
+        ${u.pm2Path ? `<div class="card-path">${u.pm2Path}</div>` : ''}
+      `;
+      pm2SummaryContainer.appendChild(card);
+    });
+
+    pm2ProcessCount.textContent = `${totalProcesses} process${totalProcesses !== 1 ? 'es' : ''}`;
+
+    // ── Right Col: Process table
     pm2UserTablesContainer.innerHTML = '';
 
     users.forEach(u => {
-      const section = document.createElement('div');
-      section.style.marginBottom = '1.5rem';
-
-      const header = document.createElement('div');
-      header.className = 'section-title';
-      header.style.display = 'flex';
-      header.style.justifySpaceBetween = 'space-between';
-      header.style.alignItems = 'center';
-      header.innerHTML = `<span>User: <strong>${u.user}</strong></span>`;
-
-      section.appendChild(header);
+      // User section header
+      const userHeader = document.createElement('div');
+      userHeader.className = 'pm2-user-header';
+      userHeader.innerHTML = `
+        <span>User: <strong>${u.user}</strong></span>
+        ${u.pm2Path ? `<span class="pm2-path-dim">${u.pm2Path}</span>` : ''}
+      `;
+      pm2UserTablesContainer.appendChild(userHeader);
 
       if (u.error) {
-        const errDiv = document.createElement('div');
-        errDiv.className = 'text-dim';
-        errDiv.style.color = 'var(--yellow)';
-        errDiv.textContent = `Notice: ${u.error}`;
-        section.appendChild(errDiv);
-      } else if (!u.processes || u.processes.length === 0) {
-        const emptyDiv = document.createElement('div');
-        emptyDiv.className = 'text-dim';
-        emptyDiv.textContent = `No active PM2 processes found for user '${u.user}'.`;
-        section.appendChild(emptyDiv);
-      } else {
-        const table = document.createElement('table');
-        table.className = 'models-table';
-        table.innerHTML = `
-          <thead>
-            <tr>
-              <th>App Name</th>
-              <th>Status</th>
-              <th>PID</th>
-              <th>CPU</th>
-              <th>Memory</th>
-              <th>Uptime</th>
-              <th>Restarts</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${u.processes.map(p => {
-              const statusClass = p.status === 'online' ? 'ok' : (p.status === 'stopped' ? 'warn' : 'err');
-              return `
-                <tr>
-                  <td><code>${p.name}</code></td>
-                  <td><span class="status-tag ${statusClass}">[${p.status.toUpperCase()}]</span></td>
-                  <td><code>${p.pid}</code></td>
-                  <td>${p.cpu}</td>
-                  <td>${p.formattedMemory}</td>
-                  <td>${p.uptime}</td>
-                  <td>${p.restarts}</td>
-                  <td>
-                    <button class="btn-min pm2-log-btn" data-user="${u.user}" data-app="${p.name}">Logs</button>
-                  </td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        `;
-        section.appendChild(table);
+        const errRow = document.createElement('div');
+        errRow.className = 'pm2-user-error';
+        errRow.textContent = `⚠  ${u.error}`;
+        pm2UserTablesContainer.appendChild(errRow);
+        return;
       }
 
-      pm2UserTablesContainer.appendChild(section);
+      if (!u.processes || u.processes.length === 0) {
+        const emptyRow = document.createElement('div');
+        emptyRow.className = 'pm2-user-error';
+        emptyRow.style.color = 'var(--text-dim)';
+        emptyRow.textContent = `No active PM2 processes for user '${u.user}'.`;
+        pm2UserTablesContainer.appendChild(emptyRow);
+        return;
+      }
+
+      const table = document.createElement('table');
+      table.className = 'process-table';
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th>App</th>
+            <th>Status</th>
+            <th>PID</th>
+            <th>CPU</th>
+            <th>Memory</th>
+            <th>Uptime</th>
+            <th>↺</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${u.processes.map(p => {
+            const sc = p.status === 'online' ? 'ok' : (p.status === 'stopped' ? 'warn' : 'err');
+            return `
+              <tr>
+                <td><code>${p.name}</code></td>
+                <td><span class="status-tag ${sc}">[${p.status.toUpperCase()}]</span></td>
+                <td><code>${p.pid || '--'}</code></td>
+                <td>${p.cpu}</td>
+                <td>${p.formattedMemory}</td>
+                <td>${p.uptime}</td>
+                <td>${p.restarts}</td>
+                <td>
+                  <button class="btn-min pm2-log-btn" data-user="${u.user}" data-app="${p.name}"
+                    style="font-size:11px;padding:0.2rem 0.5rem;">Logs</button>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      `;
+      pm2UserTablesContainer.appendChild(table);
     });
 
     // Attach log button listeners
     document.querySelectorAll('.pm2-log-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const user = e.target.getAttribute('data-user');
-        const app = e.target.getAttribute('data-app');
-        openPm2Logs(user, app);
+      btn.addEventListener('click', e => {
+        const user = e.currentTarget.getAttribute('data-user');
+        const app  = e.currentTarget.getAttribute('data-app');
+        openPm2LogView(user, app);
       });
     });
   }
 
-  function openPm2Logs(user, app) {
+  function openPm2LogView(user, app) {
     activePm2User = user;
-    activePm2App = app;
+    activePm2App  = app;
     pm2LogAppTitle.textContent = app;
-    pm2LogUserTag.textContent = `user: ${user}`;
-    pm2LogDrawer.classList.remove('hidden');
+    pm2LogUserTag.textContent  = `@ ${user}`;
+    pm2TableView.classList.add('hidden');
+    pm2LogView.classList.remove('hidden');
     fetchPm2AppLogs();
   }
 
-  pm2LogFetchBtn.addEventListener('click', fetchPm2AppLogs);
-  pm2LogCloseBtn.addEventListener('click', () => {
-    pm2LogDrawer.classList.add('hidden');
+  pm2LogBackBtn.addEventListener('click', () => {
+    pm2LogView.classList.add('hidden');
+    pm2TableView.classList.remove('hidden');
   });
+
+  pm2LogFetchBtn.addEventListener('click', fetchPm2AppLogs);
 
   async function fetchPm2AppLogs() {
     if (!activePm2User || !activePm2App) return;
     const lines = pm2LogLinesSelect.value || 80;
-    pm2LogTerminal.textContent = `Tailing logs for ${activePm2App} (${lines} lines)...`;
-
+    pm2LogTerminal.textContent = `Fetching logs for ${activePm2App} (${lines} lines)...`;
     try {
-      const res = await fetch(`/api/v2/pm2/logs?user=${activePm2User}&app=${activePm2App}&lines=${lines}`);
-      if (res.ok) {
-        const data = await res.json();
-        pm2LogTerminal.textContent = data.output || 'No logs output returned.';
+      const res  = await fetch(`/api/v2/pm2/logs?user=${activePm2User}&app=${activePm2App}&lines=${lines}`);
+      const data = await res.json();
+      if (data.error) {
+        pm2LogTerminal.textContent = `Error: ${data.error}`;
       } else {
-        pm2LogTerminal.textContent = `Error fetching PM2 logs (HTTP ${res.status})`;
+        pm2LogTerminal.textContent = data.output || 'No log output returned.';
       }
     } catch (err) {
       pm2LogTerminal.textContent = `Error: ${err.message}`;
     }
   }
 
-  // --- TAB 3: SYSTEM HEALTH (v2) ---
+  // ════════════════════════════════════════════════════════
+  // TAB 3: SYSTEM HEALTH
+  // ════════════════════════════════════════════════════════
   async function fetchSystemSnapshot() {
     try {
       const res = await fetch('/api/v2/system/snapshot');
-      if (res.ok) {
-        const data = await res.json();
-        renderSystemSnapshot(data);
-      }
+      if (res.ok) renderSystemSnapshot(await res.json());
     } catch (err) {}
   }
 
   function renderSystemSnapshot(data) {
     lastUpdatedVal.textContent = new Date(data.timestamp || Date.now()).toLocaleTimeString();
 
-    // Uptime & Load
     const upt = data.uptime || {};
     sysUptimeVal.textContent = upt.uptimeText || '--';
-    sysCpusVal.textContent = upt.cpus || '--';
-    sysLoad1m.textContent = upt.load1m || '--';
-    sysLoad5m.textContent = upt.load5m || '--';
-    sysLoad15m.textContent = upt.load15m || '--';
+    sysCpusVal.textContent   = upt.cpus || '--';
+    sysLoad1m.textContent    = upt.load1m || '--';
+    sysLoad5m.textContent    = upt.load5m || '--';
+    sysLoad15m.textContent   = upt.load15m || '--';
 
-    // RAM & Swap Progress Bars
     const mem = data.memory || {};
     sysRamText.textContent = `${mem.formattedUsed || '--'} / ${mem.formattedTotal || '--'} (${mem.usagePercent || 0}%)`;
     sysRamBar.style.width = `${mem.usagePercent || 0}%`;
-    if (mem.usagePercent > 85) sysRamBar.className = 'progress-bar err';
-    else if (mem.usagePercent > 65) sysRamBar.className = 'progress-bar warn';
-    else sysRamBar.className = 'progress-bar green';
+    sysRamBar.className = `progress-bar ${mem.usagePercent > 85 ? 'err' : mem.usagePercent > 65 ? 'warn' : 'green'}`;
 
     const swap = data.swap || {};
     sysSwapText.textContent = `${swap.formattedUsed || '0 B'} / ${swap.formattedTotal || '0 B'} (${swap.usagePercent || 0}%)`;
     sysSwapBar.style.width = `${swap.usagePercent || 0}%`;
 
-    // Systemd Services Table
     const services = data.services || [];
-    if (services.length === 0) {
-      sysServicesTableBody.innerHTML = `<tr><td colspan="4" class="text-dim" style="padding-left: 1rem;">No services checked.</td></tr>`;
-    } else {
-      sysServicesTableBody.innerHTML = services.map(s => {
-        const statusClass = s.isActive ? 'ok' : 'err';
-        return `
+    sysServicesTableBody.innerHTML = services.length === 0
+      ? `<tr><td colspan="4" class="text-dim" style="padding-left:1rem;">No services checked.</td></tr>`
+      : services.map(s => `
           <tr>
-            <td style="padding-left: 1rem;"><code>${s.fullUnit}</code></td>
-            <td><span class="status-tag ${statusClass}">[${(s.activeState || 'UNKNOWN').toUpperCase()}]</span></td>
+            <td style="padding-left:1rem;"><code>${s.fullUnit}</code></td>
+            <td><span class="status-tag ${s.isActive ? 'ok' : 'err'}">[${(s.activeState || 'UNKNOWN').toUpperCase()}]</span></td>
             <td>${s.formattedMemory}</td>
-            <td style="padding-right: 1rem;"><code>${s.pid || '--'}</code></td>
-          </tr>
-        `;
-      }).join('');
-    }
+            <td style="padding-right:1rem;"><code>${s.pid || '--'}</code></td>
+          </tr>`).join('');
 
-    // Disk Usage Cards
     const disk = data.disk || [];
-    if (disk.length === 0) {
-      sysDiskContainer.innerHTML = `<div class="text-dim">No disk mounts configured.</div>`;
-    } else {
-      sysDiskContainer.innerHTML = disk.map(d => {
-        const barClass = d.percent > 85 ? 'err' : (d.percent > 70 ? 'warn' : 'green');
-        return `
-          <div style="margin-bottom: 0.75rem;">
+    sysDiskContainer.innerHTML = disk.length === 0
+      ? `<div class="text-dim">No disk mounts configured.</div>`
+      : disk.map(d => `
+          <div style="margin-bottom:0.75rem;">
             <div class="progress-label">
               <span><strong>${d.path}</strong> ${d.mountPoint ? '(' + d.mountPoint + ')' : ''}</span>
               <span>${d.formattedUsed || 'N/A'} / ${d.formattedTotal || 'N/A'} (${d.percent}%)</span>
             </div>
             <div class="progress-bar-wrap">
-              <div class="progress-bar ${barClass}" style="width: ${d.percent}%;"></div>
+              <div class="progress-bar ${d.percent > 85 ? 'err' : d.percent > 70 ? 'warn' : 'green'}" style="width:${d.percent}%"></div>
             </div>
-          </div>
-        `;
-      }).join('');
-    }
+          </div>`).join('');
 
-    // Ports Sanity Check Table
-    const ports = data.ports || [];
-    sysPortsTableBody.innerHTML = ports.map(p => {
-      const statusClass = p.listening ? 'ok' : 'err';
-      return `
-        <tr>
-          <td style="padding-left: 1rem;">${p.name}</td>
-          <td><code>${p.host}:${p.port}</code></td>
-          <td style="padding-right: 1rem;"><span class="status-tag ${statusClass}">[${p.listening ? 'BOUND' : 'NOT BOUND'}]</span></td>
-        </tr>
-      `;
-    }).join('');
+    sysPortsTableBody.innerHTML = (data.ports || []).map(p => `
+      <tr>
+        <td style="padding-left:1rem;">${p.name}</td>
+        <td><code>${p.host}:${p.port}</code></td>
+        <td style="padding-right:1rem;"><span class="status-tag ${p.listening ? 'ok' : 'err'}">[${p.listening ? 'BOUND' : 'NOT BOUND'}]</span></td>
+      </tr>`).join('');
 
-    // TLS Certificate Expiry Table
-    const tls = data.tls || [];
-    sysTlsTableBody.innerHTML = tls.map(t => {
-      const statusClass = t.valid ? 'ok' : 'err';
-      return `
-        <tr>
-          <td style="padding-left: 1rem;"><code>${t.target}</code></td>
-          <td>${t.formattedValidTo || 'N/A'}</td>
-          <td style="padding-right: 1rem;"><span class="status-tag ${statusClass}">[${t.statusText}]</span></td>
-        </tr>
-      `;
-    }).join('');
+    sysTlsTableBody.innerHTML = (data.tls || []).map(t => `
+      <tr>
+        <td style="padding-left:1rem;"><code>${t.target}</code></td>
+        <td>${t.formattedValidTo || 'N/A'}</td>
+        <td style="padding-right:1rem;"><span class="status-tag ${t.valid ? 'ok' : 'err'}">[${t.statusText}]</span></td>
+      </tr>`).join('');
   }
 
-  // --- TAB 4: POSTGRESQL & BACKUPS (v2) ---
+  // ════════════════════════════════════════════════════════
+  // TAB 4: BACKUPS
+  // ════════════════════════════════════════════════════════
   async function fetchLogSourcesList() {
     try {
       const res = await fetch('/api/v2/logs/sources');
-      if (res.ok) {
-        const data = await res.json();
-        renderLogSourcesSelect(data.sources || []);
+      if (!res.ok) {
+        backupSourceSelect.innerHTML = `<option value="">Error loading sources (HTTP ${res.status})</option>`;
+        return;
       }
-    } catch (err) {}
+      const data = await res.json();
+      const sources = data.sources || [];
+      if (sources.length === 0) {
+        backupSourceSelect.innerHTML = `<option value="">No log sources configured</option>`;
+        return;
+      }
+      renderLogSourcesSelect(sources);
+    } catch (err) {
+      backupSourceSelect.innerHTML = `<option value="">Error: ${err.message}</option>`;
+    }
   }
 
   function renderLogSourcesSelect(sources) {
@@ -571,91 +619,79 @@ document.addEventListener('DOMContentLoaded', () => {
       backupSourceSelect.innerHTML = `<option value="">No log sources configured</option>`;
       return;
     }
-
     sources.forEach(s => {
       const opt = document.createElement('option');
       opt.value = s.id;
       opt.textContent = `${s.name} (${s.type}: ${s.target})`;
       backupSourceSelect.appendChild(opt);
     });
-
-    // Auto fetch tail for first log source
     fetchBackupLogTail();
   }
 
   backupFetchBtn.addEventListener('click', fetchBackupLogTail);
   backupSourceSelect.addEventListener('change', fetchBackupLogTail);
+  backupReverseCheck.addEventListener('change', renderBackupLog);
 
   async function fetchBackupLogTail() {
     const id = backupSourceSelect.value;
     if (!id) return;
-
     const lines = backupLinesSelect.value || 200;
     backupLogTerminal.textContent = `Fetching log tail for '${id}' (${lines} lines)...`;
 
     try {
       const res = await fetch(`/api/v2/logs/tail?id=${id}&lines=${lines}`);
-      if (res.status === 401) {
-        window.location.href = '/login.html';
-        return;
-      }
-      if (res.ok) {
-        const data = await res.json();
-        rawBackupLogContent = data.output || '';
-        renderBackupLogTail(data);
-      } else {
-        backupLogTerminal.textContent = `Failed to fetch log tail (HTTP ${res.status})`;
-      }
+      if (res.status === 401) { window.location.href = '/login.html'; return; }
+      if (!res.ok) { backupLogTerminal.textContent = `Failed to fetch log tail (HTTP ${res.status})`; return; }
+      const data = await res.json();
+      rawBackupLogContent = data.output || '';
+      renderBackupLogTail(data);
     } catch (err) {
       backupLogTerminal.textContent = `Error: ${err.message}`;
     }
+  }
+
+  function renderBackupLog() {
+    if (!rawBackupLogContent) return;
+    const filter = backupFilterInput.value.toLowerCase().trim();
+    let lines = rawBackupLogContent.split('\n');
+    if (filter) lines = lines.filter(l => l.toLowerCase().includes(filter));
+
+    // Newest entries first: reverse the lines
+    if (backupReverseCheck.checked) lines = lines.slice().reverse();
+
+    // Colorize lines
+    const formatted = lines.map(line => {
+      let esc = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      if (/^=== Backup started/i.test(esc)) {
+        esc = `<span class="log-ts">${esc}</span>`;
+      } else if (/✓/.test(esc) || /Backup successful/i.test(esc)) {
+        esc = `<span class="log-ok">${esc}</span>`;
+      } else if (/✗/.test(esc) || /FAILED/i.test(esc) || /^rm: cannot remove/i.test(esc) || /^error/i.test(esc)) {
+        esc = `<span class="log-err">${esc}</span>`;
+      } else if (/WARN/i.test(esc)) {
+        esc = `<span class="log-warn">${esc}</span>`;
+      }
+      return esc;
+    }).join('\n');
+
+    backupLogTerminal.innerHTML = formatted || '<span class="text-dim">No matching lines found.</span>';
+    // Scroll to top since newest is first
+    backupLogsBody.scrollTop = 0;
   }
 
   function renderBackupLogTail(data) {
     lastUpdatedVal.textContent = new Date().toLocaleTimeString();
     backupTargetVal.textContent = `${data.type || 'source'}: ${data.target || data.id}`;
 
-    // Render Status Banner
     const st = data.backupStatus || {};
-    backupBadgeTag.className = `status-tag ${st.badgeClass || 'warn'}`;
+    backupBadgeTag.className   = `status-tag ${st.badgeClass || 'warn'}`;
     backupBadgeTag.textContent = `[${(st.status || 'UNKNOWN').toUpperCase()}]`;
     backupStatusMsg.textContent = st.message || 'Log analysis complete';
 
-    // Render Log Terminal Content
-    if (!rawBackupLogContent) {
-      backupLogTerminal.textContent = 'Log stream is empty.';
-      return;
-    }
-
-    const filter = backupFilterInput.value.toLowerCase().trim();
-    let lines = rawBackupLogContent.split('\n');
-
-    if (filter) {
-      lines = lines.filter(l => l.toLowerCase().includes(filter));
-    }
-
-    backupLogTerminal.textContent = lines.join('\n') || 'No matching lines found.';
-
-    // Auto-scroll .logs-body container to bottom so latest log entries are visible first
-    const logsBody = backupLogTerminal.closest('.logs-body') || backupLogTerminal.parentElement;
-    if (logsBody) {
-      setTimeout(() => { logsBody.scrollTop = logsBody.scrollHeight; }, 50);
-    }
+    renderBackupLog();
   }
 
-  backupFilterInput.addEventListener('input', () => {
-    if (!rawBackupLogContent) return;
-    const filter = backupFilterInput.value.toLowerCase().trim();
-    let lines = rawBackupLogContent.split('\n');
-    if (filter) {
-      lines = lines.filter(l => l.toLowerCase().includes(filter));
-    }
-    backupLogTerminal.textContent = lines.join('\n') || 'No matching lines found.';
-    const logsBody = backupLogTerminal.closest('.logs-body') || backupLogTerminal.parentElement;
-    if (logsBody) {
-      setTimeout(() => { logsBody.scrollTop = logsBody.scrollHeight; }, 50);
-    }
-  });
+  backupFilterInput.addEventListener('input', renderBackupLog);
 
   backupCopyBtn.addEventListener('click', () => {
     if (!rawBackupLogContent) return;
@@ -664,22 +700,31 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => { backupCopyBtn.textContent = 'Copy'; }, 1500);
   });
 
-  // --- AUTO REFRESH & EVENT LISTENERS ---
+  // ════════════════════════════════════════════════════════
+  // AUTO-REFRESH & BOOTSTRAP
+  // ════════════════════════════════════════════════════════
   refreshBtn.addEventListener('click', refreshActiveTabData);
-
   refreshSelect.addEventListener('change', setupAutoRefresh);
-  logLinesSelect.addEventListener('change', fetchLogs);
-  logFilterInput.addEventListener('input', renderLogs);
 
   function setupAutoRefresh() {
     if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-    const intervalSec = parseInt(refreshSelect.value, 10);
-    if (intervalSec > 0) {
-      autoRefreshTimer = setInterval(refreshActiveTabData, intervalSec * 1000);
-    }
+    const secs = parseInt(refreshSelect.value, 10);
+    if (secs > 0) autoRefreshTimer = setInterval(refreshActiveTabData, secs * 1000);
   }
 
-  // Initial Load Sequence
+  // ════════════════════════════════════════════════════════
+  // HELPERS
+  // ════════════════════════════════════════════════════════
+  function formatBytesClient(bytes) {
+    if (!bytes || bytes <= 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
+  }
+
+  // ════════════════════════════════════════════════════════
+  // INITIAL LOAD
+  // ════════════════════════════════════════════════════════
   fetchStatus();
   fetchLogs();
   fetchModels();
