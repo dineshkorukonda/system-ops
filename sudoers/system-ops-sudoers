@@ -13,9 +13,11 @@ ops ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active *
 ops ALL=(ollama) NOPASSWD: /usr/local/bin/ollama list, /usr/bin/ollama list
 ops ALL=(ALL) NOPASSWD: /usr/local/bin/ollama list, /usr/bin/ollama list
 
-# 4. PM2 Read-Only Monitoring for configured users (e.g. 'deploy' or 'ops')
-ops ALL=(ALL) NOPASSWD: /usr/local/bin/pm2 jlist, /usr/bin/pm2 jlist
-ops ALL=(ALL) NOPASSWD: /usr/local/bin/pm2 logs * --nostream --lines [0-9]*, /usr/bin/pm2 logs * --nostream --lines [0-9]*
+# 4. PM2 Read-Only Monitoring for configured users (e.g. 'deploy', 'root', or 'ops')
+ops ALL=(ALL) NOPASSWD: /usr/local/bin/pm2 jlist, /usr/bin/pm2 jlist, /usr/bin/env pm2 jlist, /home/*/.nvm/versions/node/*/bin/pm2 jlist, /root/.nvm/versions/node/*/bin/pm2 jlist
+ops ALL=(ALL) NOPASSWD: /usr/local/bin/pm2 logs *, /usr/bin/pm2 logs *, /usr/bin/env pm2 logs *
+ops ALL=(deploy,root) NOPASSWD: /usr/local/bin/pm2 jlist, /usr/bin/pm2 jlist, /usr/bin/env pm2 jlist, /home/*/.nvm/versions/node/*/bin/pm2 jlist, /root/.nvm/versions/node/*/bin/pm2 jlist
+ops ALL=(deploy,root) NOPASSWD: /usr/local/bin/pm2 logs *, /usr/bin/pm2 logs *, /usr/bin/env pm2 logs *, /usr/bin/pm2 logs * --nostream --lines [0-9]*
 
 # 5. Allow 'ops' user to tail backup log files if owned by root or another user
 ops ALL=(ALL) NOPASSWD: /usr/bin/tail -n [0-9]* /var/log/*, /usr/bin/tail -n [0-9]* /root/backups/*, /usr/bin/tail -n [0-9]* /var/backups/*

@@ -48,7 +48,7 @@ function formatUptime(uptimeMs) {
  * Get configured PM2 users list from environment (e.g., 'deploy' or 'deploy,root').
  */
 function getPm2Users() {
-  const envUsers = process.env.PM2_USERS || 'deploy';
+  const envUsers = process.env.PM2_USERS || 'deploy,root';
   return envUsers.split(',').map(u => u.trim()).filter(Boolean);
 }
 
