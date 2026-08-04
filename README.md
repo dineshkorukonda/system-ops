@@ -1,294 +1,197 @@
-# System Ops Mini-Site (v1)
+# system-ops
 
-A lightweight, self-hosted operations web application designed for a single Ubuntu 24.04 VPS running **Ollama** (`llama3.2:3b`). Provides real-time infrastructure visibility into Ollama service state, listen status, model inventory, API health, quick chat probe verification, and systemd journal logs.
-
-Designed with modular extensibility so PM2 process management (`cte-backend-dev`, `cte-backend`) and CoverTheEarth log tails can be added in v2 without rewriting core components.
+Lightweight self-hosted operations dashboard for a single Ubuntu VPS. Monitors Ollama, PM2 processes, system health, and PostgreSQL backup logs from a single browser tab.
 
 ---
 
-## Features (v1 Scope)
+## What It Does
 
-- **Infrastructure Dashboard**:
-  - **Service State**: Displays active / inactive / failed status via `systemctl show ollama` with PID and runtime memory.
-  - **Process User Verification**: Ensures the process is running strictly under user `ollama`.
-  - **Loopback Listen Check**: Verifies Ollama is bound exclusively to `127.0.0.1:11434` (never public `0.0.0.0`).
-  - **HTTP API Health**: Live latency timing and parsed model list from `GET http://127.0.0.1:11434/api/tags`.
-  - **Quick Chat Probe**: Rate-limited interactive POST to `/api/chat` with custom/preset prompt (`OK`) measuring response latency.
-  - **Model Inventory**: Output equivalent to `sudo -u ollama -H ollama list` showing name, size (formatted in GB), modified timestamp, and quick `ollama run <name>` copy helper.
-  - **Recent Service Logs**: Stream last N lines (50, 100, 200, 500) from `journalctl -u ollama -n N --no-pager -o short-iso` with keyword filter, timestamp highlighting, auto-scroll, and copy to clipboard.
-  - **Host Resource Usage**: RAM and Swap gauges for the Ubuntu VPS.
-  - **Auto-Refresh & Themes**: Configurable auto-refresh (10s, 30s, 60s, off), manual refresh trigger, dark & light theme toggle.
-  - **v2 Extension Stubs**: Reserved UI and API stubs for PM2 processes and CoverTheEarth logs.
+| Tab | What You See |
+|-----|-------------|
+| **Ollama** | Service state, API health, model list, journal logs, quick chat probe |
+| **PM2** | Per-user process list (deploy + root), CPU/memory/uptime, live log tail |
+| **System** | RAM/swap, disk usage, systemd services, listening ports, TLS expiry |
+| **Backups** | PostgreSQL backup log tail with status badge (SUCCESS / FAILED / UNKNOWN) |
+
+Runs as an unprivileged `ops` user behind Nginx + SSL. All system calls go through narrow passwordless `sudo` rules in `/etc/sudoers.d/system-ops`.
 
 ---
 
-## Architecture & Security Model
+## Architecture
 
 ```
 Browser (HTTPS)
    │
-   ▼ (subdomain e.g. ops.example.com)
-┌────────────────────────────────────────────────────────┐
-│ Nginx Reverse Proxy (SSL + Basic Auth / IP Allowlist) │
-└───────────────────────────┬────────────────────────────┘
-                            │ (http://127.0.0.1:9080)
-┌───────────────────────────▼────────────────────────────┐
-│ System Ops Express App (User: ops, Port: 9080)         │
-│  - Session Auth & Password Protection                  │
-│  - Rate Limiter (Max 10 chat probes / 15m)            │
-│  - Public Leak-Free /health Endpoint                   │
-└──────────────┬──────────────────────────┬──────────────┘
-               │                          │
-               ▼ (systemctl / journalctl)  ▼ (HTTP GET / POST)
-   ┌───────────────────────┐   ┌──────────────────────────┐
-   │ systemd (ollama.service)  │   │ Ollama Engine            │
-   │ User: ollama          │   │ 127.0.0.1:11434          │
-   └───────────────────────┘   └──────────────────────────┘
+   ▼ ops.yourdomain.com
+Nginx (SSL + optional IP allowlist)
+   │ http://127.0.0.1:9080
+   ▼
+Express App  (user: ops, port: 9080)
+   ├── sudo -n → journalctl / systemctl
+   ├── sudo -n -u deploy → pm2 jlist
+   ├── sudo -n -u root   → pm2 jlist
+   └── sudo -n tail      → /var/backups/postgres/logs/backup.log
 ```
 
-### Security Enforcement
-- **Loopback Binding**: App binds exclusively to `127.0.0.1:9080`.
-- **Zero Public Port Exposure**: Ollama's port 11434 is restricted to loopback (`127.0.0.1`).
-- **Unprivileged Execution**: Runs under a dedicated `ops` user (or `deploy`).
-- **Minimal Sudo Rule**: Narrow `/etc/sudoers.d/system-ops` rule strictly granting read-only journalctl/systemctl checks.
-- **Authentication**: Double-layer protection using Express Session cookie auth and optional Nginx HTTP Basic Auth / IP allowlist.
-- **Rate Limiting**: Express rate limiter protects API and chat probe endpoints from CPU exhaustion.
-- **No Database / No Secrets Leakage**: Secrets are loaded from `.env` and excluded from API responses.
-
 ---
 
-## Deliverables & File Layout
+## Quick Update (Deployed Server)
 
-- `src/server.js`: Main Express backend server & endpoints.
-- `src/services/systemService.js`: `systemctl`, `journalctl`, host metrics, and socket listener logic.
-- `src/services/ollamaService.js`: Ollama API client calls (`/api/tags`, `/api/chat`).
-- `src/middleware/auth.js`: Session cookie, password authentication & authorization.
-- `src/middleware/rateLimiter.js`: Rate limiting protection.
-- `public/index.html`: Responsive operations dashboard single-page application.
-- `public/login.html`: Glassmorphism authentication login interface.
-- `public/css/style.css`: Custom CSS design system with light/dark themes.
-- `public/js/app.js`: Frontend dynamic rendering, polling, search filtering, and state management.
-- `systemd/system-ops.service`: Production systemd service unit.
-- `nginx/system-ops.conf`: Nginx server block with SSL, rate limiting, and Basic Auth options.
-- `sudoers/system-ops-sudoers`: Sudoers policy for `journalctl` & `systemctl`.
-- `scripts/install.sh`: Automated installation script for Ubuntu 24.04 LTS.
-- `.env.example`: Template for environment settings.
-
----
-
-## Installation & Setup Guide (Ubuntu 24.04 LTS)
-
-### Quick Automated Installation
+Run these commands **as root** on the server after merging a PR to `main`:
 
 ```bash
-# Clone or place repository into /opt/system-ops
-sudo git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops
+# 1. Pull latest code
+cd /opt/system-ops
+git pull origin main
+
+# 2. Update sudoers (if sudoers/system-ops-sudoers changed in the PR)
+cp /opt/system-ops/sudoers/system-ops-sudoers /etc/sudoers.d/system-ops
+chmod 0440 /etc/sudoers.d/system-ops
+
+# 3. Restart the dashboard service
+systemctl restart system-ops.service
+
+# 4. Verify it came back up
+systemctl status system-ops.service
+```
+
+That's it. No build step, no npm install needed unless `package.json` changed.
+
+---
+
+## First-Time Install (Ubuntu 24.04)
+
+```bash
+# Clone
+git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops
 cd /opt/system-ops
 
-# Run automated installer
+# Run automated installer (creates ops user, installs deps, sets up systemd)
 sudo bash scripts/install.sh
 ```
 
-### Manual Installation Steps
-
-#### 1. Create Dedicated Unprivileged User
-```bash
-sudo useradd -r -s /bin/false -d /opt/system-ops ops
-sudo usermod -aG systemd-journal,adm ops
-```
-
-#### 2. Install Dependencies & Build
-```bash
-cd /opt/system-ops
-sudo npm ci --only=production
-sudo cp .env.example .env
-```
-
-Edit `.env` to configure your `APP_PASSWORD` and `SESSION_SECRET`:
-```bash
-sudo nano /opt/system-ops/.env
-```
-
-Set file permissions:
-```bash
-sudo chown -R ops:ops /opt/system-ops
-sudo chmod 750 /opt/system-ops
-sudo chmod 600 /opt/system-ops/.env
-```
-
-#### 3. Install Narrow Sudoers Rules
-```bash
-sudo cp sudoers/system-ops-sudoers /etc/sudoers.d/system-ops
-sudo chmod 0440 /etc/sudoers.d/system-ops
-```
-
-#### 4. Register & Enable systemd Unit
-```bash
-sudo cp systemd/system-ops.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now system-ops.service
-sudo systemctl status system-ops.service
-```
-
----
-
-## Nginx & SSL Subdomain Setup
-
-#### 1. Link Nginx Virtual Host
-```bash
-sudo cp nginx/system-ops.conf /etc/nginx/sites-available/system-ops.conf
-# Edit subdomain domain name
-sudo nano /etc/nginx/sites-available/system-ops.conf
-sudo ln -s /etc/nginx/sites-available/system-ops.conf /etc/nginx/sites-enabled/
-```
-
-#### 2. Generate SSL Certificate with Certbot
-```bash
-sudo certbot --nginx -d ops.yourdomain.com
-```
-
-#### 3. Test & Reload Nginx
-```bash
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
----
-
-## API Endpoints Reference
-
-| Method | Endpoint | Auth Required | Description |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/health` | No | Public health probe returning `{"ok": true}` |
-| `POST` | `/api/login` | No | Authenticates password & sets HTTP-only session cookie |
-| `POST` | `/api/logout` | No | Clears authentication session cookie |
-| `GET` | `/api/auth/status` | No | Returns `{ "authenticated": true/false }` |
-| `GET` | `/api/status` | **Yes** | Consolidated systemd state, listener check, API health & host metrics |
-| `GET` | `/api/logs?lines=100` | **Yes** | Fetches recent `journalctl -u ollama` logs |
-| `GET` | `/api/models` | **Yes** | Returns parsed model list from API & CLI |
-| `POST` | `/api/test-chat` | **Yes** (Rate-limited) | Runs quick chat probe test on `/api/chat` |
-| `GET` | `/api/v2/pm2/status` | **Yes** | Stub endpoint for v2 PM2 integration (`501 Not Implemented`) |
-
----
-
-## Screenshot / Visual Overview of Final Dashboard
-
-```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ SYSTEM OPS v1.0 // Ubuntu 24.04 LTS          [Ollama Healthy] [Auto-refresh: 30s] 🌙   │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ Last Updated: 07:05:00 AM  │ Process User: ollama  │ Host: ubuntu-24-vps               │
-├───────────────────────────────────┬────────────────────────────────────────────────────┤
-│ systemd Service                   │ Listener Check                                     │
-│ [ ACTIVE ]                        │ [ 127.0.0.1:11434 ]                                │
-│ SubState: running  PID: 4120      │ Public exposure: NONE (Safe)                       │
-├───────────────────────────────────┼────────────────────────────────────────────────────┤
-│ API Health (GET /api/tags)        │ Resource Usage                                     │
-│ [ HTTP 200 OK ]                   │ RAM Usage:  2.10 GB / 8.00 GB [████░░░░░░] 26%     │
-│ Latency: 12 ms  Models: 1         │ Swap Usage: 0.15 GB / 4.00 GB [█░░░░░░░░░] 3%      │
-├───────────────────────────────────┴────────────────────────────────────────────────────┤
-│ Quick Chat Probe (POST /api/chat)                                                     │
-│ Model: [ llama3.2:3b ]  Prompt: [ OK ]  [ Run Chat Test ]                             │
-│ Result: [ PASS ]  Latency: 184 ms  Response: "OK"                                      │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ Installed Ollama Models (sudo -u ollama -H ollama list)                                │
-│ Name              Size       Modified Date            Digest         Action            │
-│ llama3.2:3b       2.02 GB    08/03/2026, 06:40 AM     a80c4f12345    [ Run Cmd ]       │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ Recent Service Logs (journalctl -u ollama -n 100 --no-pager -o short-iso)              │
-│ Filter: [ Search logs... ] [x] Auto-scroll [ Copy Logs ]                               │
-│ 2026-08-03T06:50:12+00:00 ubuntu-24-vps ollama[4120]: Listening on 127.0.0.1:11434     │
-│ 2026-08-03T06:50:12+00:00 ubuntu-24-vps ollama[4120]: [GIN] 200 | GET /api/tags        │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ CoverTheEarth & PM2 Ops Integration [ v2 COMING SOON ]                                 │
-│ [Stub] PM2 Process Manager (cte-backend-dev)                                           │
-│ [Stub] PM2 Production Instance (cte-backend)                                           │
-│ [Stub] CoverTheEarth BackEnd Log Tails                                                 │
-└────────────────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## v2 Features & Monitoring Collectors
-
-### 1. PM2 Multi-User Status & Log Tailing (`src/collectors/pm2.js`)
-- **Environment**: `PM2_USERS=deploy` (comma-separated list, e.g. `deploy,root`).
-- **Read-Only Inspection**:
-  - `GET /api/v2/pm2/snapshot`: Executes `sudo -u <user> -H pm2 jlist` to parse app name, status, PID, CPU %, memory usage, uptime, restart count, and script path.
-  - `GET /api/v2/pm2/logs?user=deploy&app=cte-backend-dev&lines=80`: Tails on-demand app logs via `sudo -u <user> -H pm2 logs <app> --nostream --lines N` (max 500 lines).
-
-### 2. General System Status (`src/collectors/system.js`)
-- **API**: `GET /api/v2/system/snapshot`
-- **Uptime & Load**: Formatted uptime text, CPU core count, 1m/5m/15m load average.
-- **Memory & Swap**: Visual progress bars and byte statistics parsed from `/proc/meminfo` or `free -b`.
-- **Disk Usage**: Configured mount points (`DISK_PATHS=/,/var,/root/backups`).
-- **Key Services**: Status check for systemd units (`SYSTEMD_UNITS=nginx,ollama,system-ops,postgresql`).
-- **Listening Ports**: Sanity check for loopback TCP ports (11434, 9080, 8100).
-- **TLS Expiry**: Checks certificate expiration dates for configured domains (`TLS_HOSTS=system-health.iskconcommunity`).
-
-### 3. PostgreSQL Backup Logs (`src/collectors/logSources.js`)
-- **Environment**: `LOG_SOURCES=pg-backup:/var/log/pg-backup.log:200,journal:postgresql:100`
-- **Source Types**:
-  - `file`: Tails log file (e.g. `/var/log/pg-backup.log` or `/root/backups/*.log`). Gracefully outputs a `WARN` banner if file is missing.
-  - `journal`: Tails systemd unit journalctl logs.
-- **Heuristic Analysis**: Automatically scans log lines for patterns like `BACKUP OK`, `SUCCESS`, `pg_dump`, `ERROR`, or `FAILED` to report status badge (`[SUCCESS]`, `[FAILURE]`, or `[UNKNOWN]`) and timestamps.
-
----
-
-## Deploy & Update Guide (v2)
-
-### Automated Deployment Script
-To pull updates, rebuild, update permissions, apply narrow sudoers, and restart the service:
+Or manually:
 
 ```bash
-sudo bash scripts/deploy.sh
-```
+# 1. Create ops user
+useradd -r -s /bin/false -d /opt/system-ops ops
+usermod -aG systemd-journal,adm ops
 
-### Manual Deployment Steps
+# 2. Install Node dependencies
+npm ci --only=production
 
-```bash
-# 1. Pull latest code & install dependencies as deploy user
-su - deploy -c 'cd /opt/system-ops && git pull origin main && npm ci --omit=dev'
+# 3. Configure environment
+cp .env.example .env
+nano .env   # set APP_PASSWORD and SESSION_SECRET
 
-# 2. Set strict file ownership and permissions
+# 4. Set permissions
 chown -R ops:ops /opt/system-ops
 chmod 750 /opt/system-ops
 chmod 600 /opt/system-ops/.env
 
-# 3. Update narrow sudoers policy
-sudo cp /opt/system-ops/sudoers/system-ops-sudoers /etc/sudoers.d/system-ops
-sudo chmod 0440 /etc/sudoers.d/system-ops
+# 5. Install sudoers rules
+cp sudoers/system-ops-sudoers /etc/sudoers.d/system-ops
+chmod 0440 /etc/sudoers.d/system-ops
 
-# 4. Restart service
-sudo systemctl daemon-reload
-sudo systemctl restart system-ops.service
+# 6. Register systemd service
+cp systemd/system-ops.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now system-ops.service
 ```
 
 ---
 
-## Verification & Testing
+## Environment Variables (`.env`)
 
-To test the ops site endpoints locally:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `APP_PASSWORD` | *(required)* | Dashboard login password |
+| `SESSION_SECRET` | *(required)* | Cookie signing secret |
+| `PORT` | `9080` | Listen port (loopback only) |
+| `PM2_USERS` | `deploy,root` | Comma-separated users whose PM2 to monitor |
+| `LOG_SOURCES` | `pg-backup:/var/backups/postgres/logs/backup.log:200` | Log sources (see below) |
+| `OLLAMA_URL` | `http://127.0.0.1:11434` | Ollama API base URL |
+
+**LOG_SOURCES format:** `id:type:target:lines` or shorthand `id:/path/to/file:lines`  
+Example: `pg-backup:/var/backups/postgres/logs/backup.log:200,journal:postgresql:100`
+
+---
+
+## PostgreSQL Backup Script Setup
+
+Place this at `/var/backups/postgres/backup.sh` and add to root's crontab:
 
 ```bash
-# Start server in dev mode
-npm start
+# /var/backups/postgres/backup.sh
+#!/bin/bash
+DATE=$(date +%F)
+DB_NAME="iskcon_family_v5"
+BACKUP_DIR="/var/backups/postgres"
+LOG_FILE="$BACKUP_DIR/logs/backup.log"
+KEEP_DAYS=7
 
-# Verify leak-free public health check
-curl -i http://127.0.0.1:9080/health
+mkdir -p "$BACKUP_DIR/logs"
+echo "=== Backup started at $(date) ===" >> "$LOG_FILE"
 
-# Verify PM2 snapshot endpoint (requires Auth)
-curl -i -H "Authorization: Bearer admin-password-change-me" http://127.0.0.1:9080/api/v2/pm2/snapshot
-
-# Verify System snapshot endpoint (requires Auth)
-curl -i -H "Authorization: Bearer admin-password-change-me" http://127.0.0.1:9080/api/v2/system/snapshot
-
-# Verify Log sources tail endpoint (requires Auth)
-curl -i -H "Authorization: Bearer admin-password-change-me" "http://127.0.0.1:9080/api/v2/logs/tail?id=pg-backup&lines=100"
+if /usr/bin/pg_dump -F c "$DB_NAME" > "$BACKUP_DIR/${DB_NAME}_$DATE.dump" 2>> "$LOG_FILE"; then
+    SIZE=$(stat -c%s "$BACKUP_DIR/${DB_NAME}_$DATE.dump")
+    if [ "$SIZE" -gt 1000000 ]; then
+        echo "✓ Backup successful: ${DB_NAME}_$DATE.dump ($SIZE bytes)" >> "$LOG_FILE"
+        # Delete dumps older than KEEP_DAYS (handles spaces in filenames correctly)
+        find "$BACKUP_DIR" -maxdepth 1 -name "${DB_NAME}_*.dump" -type f \
+            -printf "%T@ %p\n" | sort -n | head -n -${KEEP_DAYS} | \
+            cut -d' ' -f2- | while IFS= read -r f; do
+                rm -- "$f" && echo "  Deleted: $(basename "$f")" >> "$LOG_FILE"
+            done
+    else
+        echo "✗ FAILED: Backup file too small ($SIZE bytes)" >> "$LOG_FILE"
+        rm -f "$BACKUP_DIR/${DB_NAME}_$DATE.dump"
+    fi
+else
+    echo "✗ FAILED: pg_dump error" >> "$LOG_FILE"
+    rm -f "$BACKUP_DIR/${DB_NAME}_$DATE.dump"
+fi
+echo "" >> "$LOG_FILE"
 ```
+
+Crontab (runs daily at 2 AM):
+```
+0 2 * * * /bin/bash /var/backups/postgres/backup.sh
+```
+
+Log rotation (`/etc/logrotate.d/pg-backup`):
+```
+/var/backups/postgres/logs/backup.log {
+    monthly
+    rotate 3
+    compress
+    missingok
+    notifempty
+    create 0640 root root
+}
+```
+
+---
+
+## API Endpoints
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/health` | No | Public health check |
+| `POST` | `/api/login` | No | Session login |
+| `POST` | `/api/logout` | No | Session logout |
+| `GET` | `/api/status` | Yes | Ollama service + host metrics |
+| `GET` | `/api/logs` | Yes | journalctl -u ollama |
+| `GET` | `/api/models` | Yes | Ollama model list |
+| `POST` | `/api/test-chat` | Yes | Quick chat probe |
+| `GET` | `/api/v2/pm2/snapshot` | Yes | PM2 process list (all users) |
+| `GET` | `/api/v2/pm2/logs` | Yes | PM2 app log tail |
+| `GET` | `/api/v2/system/snapshot` | Yes | System health snapshot |
+| `GET` | `/api/v2/logs/sources` | Yes | Configured log sources |
+| `GET` | `/api/v2/logs/tail` | Yes | Log file / journal tail |
 
 ---
 
 ## License
 
-MIT License. Designed for single-server VPS operations management.
+MIT
