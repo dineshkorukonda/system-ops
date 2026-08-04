@@ -439,87 +439,54 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      const table = document.createElement('table');
-      table.className = 'process-table';
-      table.innerHTML = `
-        <thead>
-          <tr>
-            <th>App</th>
-            <th>Status</th>
-            <th>PID</th>
-            <th>CPU</th>
-            <th>Memory</th>
-            <th>Uptime</th>
-            <th>↺</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          ${u.processes.map(p => {
-            const sc = p.status === 'online' ? 'ok' : (p.status === 'stopped' ? 'warn' : 'err');
-            return `
-              <tr>
-                <td><code>${p.name}</code></td>
-                <td><span class="status-tag ${sc}">[${p.status.toUpperCase()}]</span></td>
-                <td><code>${p.pid || '--'}</code></td>
-                <td>${p.cpu}</td>
-                <td>${p.formattedMemory}</td>
-                <td>${p.uptime}</td>
-                <td>${p.restarts}</td>
-                <td>
-                  <button class="btn-min pm2-log-btn" data-user="${u.user}" data-app="${p.name}"
-                    style="font-size:11px;padding:0.2rem 0.5rem;">Logs</button>
-                </td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      `;
-      pm2UserTablesContainer.appendChild(table);
-    });
+      // Render a modern card for each process
+      u.processes.forEach(p => {
+        const sc = p.status === 'online' ? 'ok' : (p.status === 'stopped' ? 'warn' : 'err');
+        const card = document.createElement('div');
+        card.className = 'v2-card pm2-process-card';
+        card.style.marginBottom = '1rem';
+        
+        card.innerHTML = `
+          <div class="v2-card-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:1rem;">
+              <div class="v2-card-title">${p.name}</div>
+              <span class="status-tag ${sc}">[${p.status.toUpperCase()}]</span>
+            </div>
+            <div style="font-size:12px; color:var(--text-dim); display:flex; gap:1rem;">
+              <span><strong>PID:</strong> ${p.pid || '--'}</span>
+              <span><strong>UPTIME:</strong> ${p.uptime}</span>
+              <span><strong>RESTARTS:</strong> ${p.restarts}</span>
+            </div>
+          </div>
+          <div class="v2-card-body p-0" style="background:var(--bg-lighter);">
+            <div style="display:flex; border-bottom:1px solid var(--border); font-size:12px;">
+              <div style="flex:1; padding:0.5rem 1rem; border-right:1px solid var(--border);"><strong>CPU:</strong> ${p.cpu}</div>
+              <div style="flex:1; padding:0.5rem 1rem;"><strong>MEM:</strong> ${p.formattedMemory}</div>
+            </div>
+            <div class="pm2-inline-logs-wrap" style="position:relative; background:#0f1115; border-bottom-left-radius:6px; border-bottom-right-radius:6px; padding:0.5rem;">
+              <div style="font-size:10px; color:var(--text-dim); text-transform:uppercase; margin-bottom:0.25rem; font-family:var(--font-mono);">Live Logs (Last 50 lines)</div>
+              <pre id="pm2-log-${u.user}-${p.name}" style="margin:0; font-family:var(--font-mono); font-size:11px; color:var(--text-main); max-height:200px; overflow-y:auto; white-space:pre-wrap;">Loading logs...</pre>
+            </div>
+          </div>
+        `;
+        pm2UserTablesContainer.appendChild(card);
 
-    // Attach log button listeners
-    document.querySelectorAll('.pm2-log-btn').forEach(btn => {
-      btn.addEventListener('click', e => {
-        const user = e.currentTarget.getAttribute('data-user');
-        const app  = e.currentTarget.getAttribute('data-app');
-        openPm2LogView(user, app);
+        // Fetch logs automatically
+        fetch(`/api/v2/pm2/logs?user=${u.user}&app=${p.name}&lines=50`)
+          .then(r => r.json())
+          .then(data => {
+            const pre = document.getElementById(`pm2-log-${u.user}-${p.name}`);
+            if(pre) {
+              pre.textContent = data.error ? \`Error: \${data.error}\` : (data.output || 'No logs available.');
+              pre.scrollTop = pre.scrollHeight;
+            }
+          })
+          .catch(err => {
+            const pre = document.getElementById(`pm2-log-${u.user}-${p.name}`);
+            if(pre) pre.textContent = \`Failed to fetch logs: \${err.message}\`;
+          });
       });
     });
-  }
-
-  function openPm2LogView(user, app) {
-    activePm2User = user;
-    activePm2App  = app;
-    pm2LogAppTitle.textContent = app;
-    pm2LogUserTag.textContent  = `@ ${user}`;
-    pm2TableView.classList.add('hidden');
-    pm2LogView.classList.remove('hidden');
-    fetchPm2AppLogs();
-  }
-
-  pm2LogBackBtn.addEventListener('click', () => {
-    pm2LogView.classList.add('hidden');
-    pm2TableView.classList.remove('hidden');
-  });
-
-  pm2LogFetchBtn.addEventListener('click', fetchPm2AppLogs);
-
-  async function fetchPm2AppLogs() {
-    if (!activePm2User || !activePm2App) return;
-    const lines = pm2LogLinesSelect.value || 80;
-    pm2LogTerminal.textContent = `Fetching logs for ${activePm2App} (${lines} lines)...`;
-    try {
-      const res  = await fetch(`/api/v2/pm2/logs?user=${activePm2User}&app=${activePm2App}&lines=${lines}`);
-      const data = await res.json();
-      if (data.error) {
-        pm2LogTerminal.textContent = `Error: ${data.error}`;
-      } else {
-        pm2LogTerminal.textContent = data.output || 'No log output returned.';
-      }
-    } catch (err) {
-      pm2LogTerminal.textContent = `Error: ${err.message}`;
-    }
   }
 
   // ════════════════════════════════════════════════════════

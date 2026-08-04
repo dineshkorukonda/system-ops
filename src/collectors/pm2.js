@@ -187,7 +187,7 @@ function parsePm2Json(user, stdout) {
         cpu: typeof monit.cpu === 'number' ? `${monit.cpu}%` : '0%',
         memoryBytes: memBytes,
         formattedMemory: formatBytes(memBytes),
-        uptime: formatUptime(pm2Env.pm2_uptime),
+        uptime: formatUptime(pm2Env.pm_uptime),
         restarts: pm2Env.restart_time || 0,
         script: pm2Env.pm2_exec_path || pm2Env.script?.path || 'N/A',
         mode: pm2Env.exec_mode || 'fork',

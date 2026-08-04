@@ -179,47 +179,19 @@
           </div>
         </div>
 
-        <!-- Right Column: Process Table + Log Pane -->
+        <!-- Right Column: Process Cards + Inline Logs -->
         <div class="col-logs" id="pm2RightCol">
-
-          <!-- PROCESS TABLE VIEW (default) -->
           <div id="pm2TableView" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
             <div class="logs-header">
-              <div class="logs-header-title" id="pm2TableTitle">All Processes</div>
+              <div class="logs-header-title" id="pm2TableTitle">Processes & Logs</div>
               <div class="logs-controls">
                 <span class="text-dim" style="font-size:11px;" id="pm2ProcessCount">--</span>
               </div>
             </div>
-            <div style="flex:1;overflow-y:auto;">
-              <div id="pm2UserTablesContainer">
-                <div style="padding:1rem;" class="text-dim">Loading PM2 snapshot...</div>
-              </div>
+            <div style="flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:1.5rem;" id="pm2UserTablesContainer">
+              <div class="text-dim">Loading PM2 snapshot...</div>
             </div>
           </div>
-
-          <!-- LOG DETAIL VIEW (shown when "Logs" clicked) -->
-          <div id="pm2LogView" class="hidden" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
-            <div class="logs-header">
-              <div class="logs-header-title">
-                Logs: <span id="pm2LogAppTitle" class="text-mono">--</span>
-                <span id="pm2LogUserTag" class="text-dim" style="font-size:11px;margin-left:0.5rem;"></span>
-              </div>
-              <div class="logs-controls">
-                <select id="pm2LogLinesSelect" class="select-min">
-                  <option value="50">50 lines</option>
-                  <option value="80" selected>80 lines</option>
-                  <option value="150">150 lines</option>
-                  <option value="300">300 lines</option>
-                </select>
-                <button id="pm2LogFetchBtn" class="btn-min">Fetch</button>
-                <button id="pm2LogBackBtn" class="btn-min">← Back</button>
-              </div>
-            </div>
-            <div class="logs-body">
-              <pre id="pm2LogTerminal">Select a process and click Logs.</pre>
-            </div>
-          </div>
-
         </div>
       </div>
     </div>
