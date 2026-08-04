@@ -64,15 +64,10 @@ async function getPm2UserProcesses(user) {
     return { user, processes: [], error: 'Invalid user name format' };
   }
 
-  // Execute shell locator script inside sudo -n -u <user>
-  const script = `PM2_BIN=$(which pm2 2>/dev/null || find ~/.nvm /home/${user}/.nvm /root/.nvm /usr/local/bin /usr/bin -name pm2 2>/dev/null | head -n 1); if [ -n "$PM2_BIN" ]; then "$PM2_BIN" jlist; else echo "PM2_NOT_FOUND" >&2; exit 127; fi`;
+  // Comprehensive locator for PM2 binary under user home, NVM, yarn, global npm, or system paths
+  const script = `PM2_BIN=$(which pm2 2>/dev/null || command -v pm2 2>/dev/null || find /home/${user} /root /usr /opt ~/.nvm -name pm2 -type f 2>/dev/null | grep -E '/bin/pm2$' | head -n 1); if [ -n "$PM2_BIN" ]; then "$PM2_BIN" jlist; else echo "PM2_NOT_FOUND" >&2; exit 127; fi`;
 
   let res = await runCommand('sudo', ['-n', '-u', user, 'sh', '-c', script]);
-
-  if (!res.success) {
-    // Try standard sudo -n -u <user> -H pm2 jlist
-    res = await runCommand('sudo', ['-n', '-u', user, '-H', 'pm2', 'jlist']);
-  }
 
   if (!res.success) {
     // Try direct pm2 jlist (if running as the same user)
@@ -82,9 +77,13 @@ async function getPm2UserProcesses(user) {
     }
 
     const errStr = res.stderr || '';
+    if (errStr.includes('PM2_NOT_FOUND')) {
+      return { user, processes: [], error: `No active PM2 installation found for user '${user}'` };
+    }
+
     const errMsg = errStr.includes('password is required') || errStr.includes('terminal is required')
       ? `Sudo password required for user '${user}'. Please verify /etc/sudoers.d/system-ops configuration.`
-      : (errStr.includes('PM2_NOT_FOUND') ? `PM2 binary not found for user '${user}'.` : (errStr || 'Failed to execute PM2 for user'));
+      : (errStr || `Failed to execute PM2 for user '${user}'`);
     return { user, processes: [], error: errMsg };
   }
 
@@ -156,20 +155,9 @@ async function getPm2Logs(user, appName, lines = 80) {
 
   const sanitizedLines = Math.min(Math.max(parseInt(lines, 10) || 80, 1), 500);
 
-  const script = `PM2_BIN=$(which pm2 2>/dev/null || find ~/.nvm /home/${user}/.nvm /root/.nvm /usr/local/bin /usr/bin -name pm2 2>/dev/null | head -n 1); if [ -n "$PM2_BIN" ]; then "$PM2_BIN" logs ${appName} --nostream --lines ${sanitizedLines}; else exit 127; fi`;
+  const script = `PM2_BIN=$(which pm2 2>/dev/null || command -v pm2 2>/dev/null || find /home/${user} /root /usr /opt ~/.nvm -name pm2 -type f 2>/dev/null | grep -E '/bin/pm2$' | head -n 1); if [ -n "$PM2_BIN" ]; then "$PM2_BIN" logs ${appName} --nostream --lines ${sanitizedLines}; else exit 127; fi`;
 
   let res = await runCommand('sudo', ['-n', '-u', user, 'sh', '-c', script], 8000);
-
-  if (!res.success && !res.stdout) {
-    res = await runCommand('sudo', [
-      '-n',
-      '-u', user,
-      '-H', 'pm2',
-      'logs', appName,
-      '--nostream',
-      '--lines', String(sanitizedLines)
-    ], 8000);
-  }
 
   if (!res.success && !res.stdout) {
     const lastErr = res.stderr || '';
