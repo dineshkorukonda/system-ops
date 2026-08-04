@@ -142,25 +142,12 @@ async function getPm2UserProcesses(user) {
 
   const pm2Path = await resolvePm2Binary(user);
 
-  if (!pm2Path) {
-    return {
-      user,
-      processes: [],
-      error: `PM2 binary not found for user '${user}'. Ensure PM2 is installed.`,
-      pm2Path: null
-    };
-  }
+  const resolvedPath = pm2Path || '/usr/bin/env pm2';
 
-  // Step 2: Run pm2 jlist via bash with NVM sourced so node is on PATH.
-  //
-  // Why not direct binary invocation:
-  //   pm2's shebang is '#!/usr/bin/env node'. sudo env_reset strips PATH,
-  //   so 'env node' fails for NVM-managed installs. We source nvm.sh if
-  //   present, which puts the correct node on PATH without needing bash -l
-  //   (which only sources login profiles, not ~/.bashrc on many systems).
+  // Step 2: Run pm2 jlist via bash with NVM sourced
   const nvmDir = (user === 'root') ? '/root/.nvm' : '/home/' + user + '/.nvm';
   const nvmSource = '[ -s "' + nvmDir + '/nvm.sh" ] && . "' + nvmDir + '/nvm.sh"';
-  const jlistShell = nvmSource + '; ' + pm2Path + ' jlist 2>/dev/null';
+  const jlistShell = nvmSource + '; ' + resolvedPath + ' jlist 2>/dev/null';
   const res = await runCommand('sudo', ['-n', '-H', '-u', user, 'bash', '-c', jlistShell], 10000);
 
 
@@ -250,17 +237,12 @@ async function getPm2Logs(user, appName, lines = 80) {
 
   const pm2Path = await resolvePm2Binary(user);
 
-  if (!pm2Path) {
-    return {
-      user, app: appName, lines: sanitizedLines, output: '',
-      error: `PM2 binary not found for user '${user}'.`
-    };
-  }
+  const resolvedPath = pm2Path || '/usr/bin/env pm2';
 
   // Use bash -c and source nvm.sh so node is on PATH for pm2's shebang.
   const nvmDir = (user === 'root') ? '/root/.nvm' : '/home/' + user + '/.nvm';
   const nvmSource = '[ -s "' + nvmDir + '/nvm.sh" ] && . "' + nvmDir + '/nvm.sh"';
-  const logCmd = nvmSource + '; ' + pm2Path + ' logs ' + appName + ' --nostream --lines ' + String(sanitizedLines) + ' 2>&1';
+  const logCmd = nvmSource + '; ' + resolvedPath + ' logs ' + appName + ' --nostream --lines ' + String(sanitizedLines) + ' 2>&1';
   const res = await runCommand('sudo', [
     '-n', '-H', '-u', user,
     'bash', '-c', logCmd
