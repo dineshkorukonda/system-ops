@@ -72,12 +72,9 @@ async function resolvePm2Binary(user) {
     return cached.path;
   }
 
-  const homeDir = (user === 'root') ? '/root' : '/home/' + user;
-
-  // ls with glob finds symlinks (unlike find -type f).
-  // -t sorts newest NVM node version first.
-  // 2>/dev/null suppresses errors from non-existent paths.
-  const shellCmd = 'ls -t "' + homeDir + '/.nvm/versions/node/"*/bin/pm2 /usr/local/bin/pm2 /usr/bin/pm2 2>/dev/null | head -3';
+  const nvmDir = (user === 'root') ? '/root/.nvm' : '/home/' + user + '/.nvm';
+  const nvmSource = '[ -s "' + nvmDir + '/nvm.sh" ] && . "' + nvmDir + '/nvm.sh" --no-use';
+  const shellCmd = nvmSource + '; command -v pm2 || type -P pm2 || echo ""';
 
   const findRes = await runCommand('sudo', [
     '-n', '-H', '-u', user,
@@ -94,26 +91,19 @@ async function resolvePm2Binary(user) {
       .filter(function(l) { return l && l.endsWith('pm2'); });
 
     if (lines.length > 0) {
-      // Verify the resolved path actually exists before caching
-      const verifyRes = await runCommand('sudo', [
-        '-n', '-H', '-u', user,
-        'bash', '-c', 'test -e "' + lines[0] + '" && echo ok'
-      ], 3000);
-      if (verifyRes.stdout && verifyRes.stdout.trim() === 'ok') {
-        pm2Path = lines[0];
-      } else {
-        // Try remaining candidates
-        for (let i = 1; i < lines.length; i++) {
-          const vr = await runCommand('sudo', [
-            '-n', '-H', '-u', user,
-            'bash', '-c', 'test -e "' + lines[i] + '" && echo ok'
-          ], 3000);
-          if (vr.stdout && vr.stdout.trim() === 'ok') {
-            pm2Path = lines[i];
-            break;
-          }
-        }
-      }
+      pm2Path = lines[0];
+    }
+  }
+
+  // Fallback to absolute paths if command -v fails but file exists
+  if (!pm2Path) {
+    const fallbackCmd = 'for p in /usr/local/bin/pm2 /usr/bin/pm2; do if [ -e "$p" ]; then echo "$p"; break; fi; done';
+    const fallbackRes = await runCommand('sudo', [
+      '-n', '-H', '-u', user,
+      'bash', '-c', fallbackCmd
+    ], 3000);
+    if (fallbackRes.stdout && fallbackRes.stdout.trim()) {
+      pm2Path = fallbackRes.stdout.trim();
     }
   }
 
