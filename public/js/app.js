@@ -100,11 +100,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // THEME TOGGLE
   // ════════════════════════════════════════════════════════
   function applyTheme(light) {
+    // Apply on <body> — more reliable than <html> for CSS var overrides
     if (light) {
+      document.body.setAttribute('data-theme', 'light');
       document.documentElement.setAttribute('data-theme', 'light');
       themeToggleBtn.textContent = '○';
       themeToggleBtn.title = 'Switch to dark mode';
     } else {
+      document.body.removeAttribute('data-theme');
       document.documentElement.removeAttribute('data-theme');
       themeToggleBtn.textContent = '◐';
       themeToggleBtn.title = 'Switch to light mode';
@@ -112,11 +115,11 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('theme', light ? 'light' : 'dark');
   }
 
-  // Restore saved theme
+  // Restore saved theme on load
   applyTheme(localStorage.getItem('theme') === 'light');
 
   themeToggleBtn.addEventListener('click', () => {
-    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const isLight = document.body.getAttribute('data-theme') === 'light';
     applyTheme(!isLight);
   });
 
@@ -146,7 +149,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (activeTab === 'tab-ollama')  { fetchStatus(); fetchLogs(); fetchModels(); }
     else if (activeTab === 'tab-pm2')     { fetchPm2Snapshot(); }
     else if (activeTab === 'tab-system')  { fetchSystemSnapshot(); }
-    else if (activeTab === 'tab-backups') { fetchBackupLogTail(); }
+    else if (activeTab === 'tab-backups') {
+      // Re-fetch sources if dropdown never populated (e.g. initial load failed)
+      if (!backupSourceSelect.value || backupSourceSelect.querySelector('option[value=""]')) {
+        fetchLogSourcesList();
+      } else {
+        fetchBackupLogTail();
+      }
+    }
   }
 
   // ════════════════════════════════════════════════════════
@@ -587,11 +597,20 @@ document.addEventListener('DOMContentLoaded', () => {
   async function fetchLogSourcesList() {
     try {
       const res = await fetch('/api/v2/logs/sources');
-      if (res.ok) {
-        const data = await res.json();
-        renderLogSourcesSelect(data.sources || []);
+      if (!res.ok) {
+        backupSourceSelect.innerHTML = `<option value="">Error loading sources (HTTP ${res.status})</option>`;
+        return;
       }
-    } catch (err) {}
+      const data = await res.json();
+      const sources = data.sources || [];
+      if (sources.length === 0) {
+        backupSourceSelect.innerHTML = `<option value="">No log sources configured</option>`;
+        return;
+      }
+      renderLogSourcesSelect(sources);
+    } catch (err) {
+      backupSourceSelect.innerHTML = `<option value="">Error: ${err.message}</option>`;
+    }
   }
 
   function renderLogSourcesSelect(sources) {

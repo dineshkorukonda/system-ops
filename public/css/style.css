@@ -24,8 +24,9 @@
   --transition: 0.15s ease;
 }
 
-/* Light mode */
-[data-theme="light"] {
+/* Light mode — triggered by JS setting data-theme on both html and body */
+[data-theme="light"],
+body[data-theme="light"] {
   --bg:         #ffffff;
   --panel-bg:   #f5f5f5;
   --panel-alt:  #ebebeb;
