@@ -73,7 +73,7 @@ async function resolvePm2Binary(user) {
   }
 
   const nvmDir = (user === 'root') ? '/root/.nvm' : '/home/' + user + '/.nvm';
-  const nvmSource = '[ -s "' + nvmDir + '/nvm.sh" ] && . "' + nvmDir + '/nvm.sh" --no-use';
+  const nvmSource = '[ -s "' + nvmDir + '/nvm.sh" ] && . "' + nvmDir + '/nvm.sh"';
   const shellCmd = nvmSource + '; command -v pm2 || type -P pm2 || echo ""';
 
   const findRes = await runCommand('sudo', [
@@ -95,9 +95,9 @@ async function resolvePm2Binary(user) {
     }
   }
 
-  // Fallback to absolute paths if command -v fails but file exists
+  // Fallback to globs and absolute paths if command -v fails
   if (!pm2Path) {
-    const fallbackCmd = 'for p in /usr/local/bin/pm2 /usr/bin/pm2; do if [ -e "$p" ]; then echo "$p"; break; fi; done';
+    const fallbackCmd = 'for p in "' + nvmDir + '"/versions/node/*/bin/pm2 /usr/local/bin/pm2 /usr/bin/pm2; do if [ -e "$p" ]; then echo "$p"; break; fi; done';
     const fallbackRes = await runCommand('sudo', [
       '-n', '-H', '-u', user,
       'bash', '-c', fallbackCmd
@@ -159,7 +159,7 @@ async function getPm2UserProcesses(user) {
   //   present, which puts the correct node on PATH without needing bash -l
   //   (which only sources login profiles, not ~/.bashrc on many systems).
   const nvmDir = (user === 'root') ? '/root/.nvm' : '/home/' + user + '/.nvm';
-  const nvmSource = '[ -s "' + nvmDir + '/nvm.sh" ] && . "' + nvmDir + '/nvm.sh" --no-use';
+  const nvmSource = '[ -s "' + nvmDir + '/nvm.sh" ] && . "' + nvmDir + '/nvm.sh"';
   const jlistShell = nvmSource + '; ' + pm2Path + ' jlist 2>/dev/null';
   const res = await runCommand('sudo', ['-n', '-H', '-u', user, 'bash', '-c', jlistShell], 10000);
 
@@ -259,7 +259,7 @@ async function getPm2Logs(user, appName, lines = 80) {
 
   // Use bash -c and source nvm.sh so node is on PATH for pm2's shebang.
   const nvmDir = (user === 'root') ? '/root/.nvm' : '/home/' + user + '/.nvm';
-  const nvmSource = '[ -s "' + nvmDir + '/nvm.sh" ] && . "' + nvmDir + '/nvm.sh" --no-use';
+  const nvmSource = '[ -s "' + nvmDir + '/nvm.sh" ] && . "' + nvmDir + '/nvm.sh"';
   const logCmd = nvmSource + '; ' + pm2Path + ' logs ' + appName + ' --nostream --lines ' + String(sanitizedLines) + ' 2>&1';
   const res = await runCommand('sudo', [
     '-n', '-H', '-u', user,
