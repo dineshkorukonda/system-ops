@@ -53,7 +53,7 @@ function getPm2Users() {
 }
 
 /**
- * Fetch PM2 process list for a single user via `sudo -u <user> -H pm2 jlist`.
+ * Fetch PM2 process list for a single user via `sudo -u <user> -H pm2 jlist` or bash login shell fallback.
  */
 async function getPm2UserProcesses(user) {
   // Validate username format (alphanumeric and dashes/underscores only)
@@ -61,15 +61,21 @@ async function getPm2UserProcesses(user) {
     return { user, processes: [], error: 'Invalid user name format' };
   }
 
-  // Execute sudo -n -u <user> -H pm2 jlist
-  const res = await runCommand('sudo', ['-n', '-u', user, '-H', 'pm2', 'jlist']);
+  // 1. Try standard sudo -n -u <user> -H pm2 jlist
+  let res = await runCommand('sudo', ['-n', '-u', user, '-H', 'pm2', 'jlist']);
 
+  // 2. If failed, try sudo -n -u <user> bash -lc "pm2 jlist" (loads NVM / shell environment)
   if (!res.success) {
-    // Try without sudo if running as the same user
+    res = await runCommand('sudo', ['-n', '-u', user, 'bash', '-lc', 'pm2 jlist']);
+  }
+
+  // 3. If failed, try direct pm2 jlist (if running as the same user)
+  if (!res.success) {
     const directRes = await runCommand('pm2', ['jlist']);
     if (directRes.success) {
       return parsePm2Json(user, directRes.stdout);
     }
+
     const errMsg = res.stderr.includes('password is required') || res.stderr.includes('terminal is required')
       ? `Sudo password required for user '${user}'. Please verify /etc/sudoers.d/system-ops configuration.`
       : (res.stderr || 'Failed to execute PM2 for user');
@@ -144,8 +150,8 @@ async function getPm2Logs(user, appName, lines = 80) {
 
   const sanitizedLines = Math.min(Math.max(parseInt(lines, 10) || 80, 1), 500);
 
-  // Execute sudo -n -u <user> -H pm2 logs <name> --nostream --lines N
-  const res = await runCommand('sudo', [
+  // 1. Execute sudo -n -u <user> -H pm2 logs <name> --nostream --lines N
+  let res = await runCommand('sudo', [
     '-n',
     '-u', user,
     '-H', 'pm2',
@@ -153,6 +159,17 @@ async function getPm2Logs(user, appName, lines = 80) {
     '--nostream',
     '--lines', String(sanitizedLines)
   ], 8000);
+
+  // 2. Fallback to bash login shell if pm2 isn't in default system PATH
+  if (!res.success && !res.stdout) {
+    res = await runCommand('sudo', [
+      '-n',
+      '-u', user,
+      'bash',
+      '-lc',
+      `pm2 logs ${appName} --nostream --lines ${sanitizedLines}`
+    ], 8000);
+  }
 
   if (!res.success && !res.stdout) {
     const errMsg = res.stderr.includes('password is required') || res.stderr.includes('terminal is required')
