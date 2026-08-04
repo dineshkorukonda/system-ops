@@ -321,6 +321,10 @@ document.addEventListener('DOMContentLoaded', () => {
     pm2UserTablesContainer.innerHTML = `<div class="text-dim">Fetching PM2 process snapshot...</div>`;
     try {
       const res = await fetch('/api/v2/pm2/snapshot');
+      if (res.status === 401) {
+        window.location.href = '/login.html';
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         renderPm2Snapshot(data);
@@ -591,6 +595,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const res = await fetch(`/api/v2/logs/tail?id=${id}&lines=${lines}`);
+      if (res.status === 401) {
+        window.location.href = '/login.html';
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         rawBackupLogContent = data.output || '';

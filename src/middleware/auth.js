@@ -42,7 +42,7 @@ function requireAuth(req, res, next) {
   }
 
   // If requesting API endpoint, return 401 JSON
-  if (req.path.startsWith('/api/')) {
+  if (req.originalUrl.startsWith('/api') || req.baseUrl.startsWith('/api') || req.path.startsWith('/api')) {
     return res.status(401).json({
       error: 'Unauthorized',
       message: 'Authentication required. Please log in.'
