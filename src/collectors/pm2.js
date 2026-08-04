@@ -32,7 +32,7 @@ function formatUptime(uptimeMs) {
   if (!uptimeMs || uptimeMs <= 0) return 'N/A';
   const totalSeconds = Math.floor((Date.now() - uptimeMs) / 1000);
   if (totalSeconds < 0) return 'Just started';
-  
+
   const days = Math.floor(totalSeconds / 86400);
   const hours = Math.floor((totalSeconds % 86400) / 3600);
   const mins = Math.floor((totalSeconds % 3600) / 60);
@@ -44,11 +44,71 @@ function formatUptime(uptimeMs) {
   return parts.join(' ');
 }
 
-const path = require('path');
-const fs = require('fs');
+/**
+ * In-memory cache: { [user]: { path: '/home/deploy/.nvm/.../pm2', ts: Date.now() } }
+ * TTL: 10 minutes — avoids repeated `find` scans on every auto-refresh.
+ */
+const pm2BinaryCache = {};
+const PM2_CACHE_TTL_MS = 10 * 60 * 1000;
 
 /**
- * Get configured PM2 users list from environment (e.g., 'deploy' or 'deploy,root').
+ * Resolve the absolute PM2 binary path for a user.
+ *
+ * KEY INSIGHT: We run `find` as the TARGET USER via `sudo -n -u <user>`.
+ * This is required because `/home/deploy/.nvm` is owned by `deploy:deploy`
+ * and not readable by `ops`. Running as the target user lets them scan
+ * their own home directory for the NVM-managed PM2 binary.
+ *
+ * Result is cached for 10 minutes per user.
+ */
+async function resolvePm2Binary(user) {
+  const cached = pm2BinaryCache[user];
+  if (cached && (Date.now() - cached.ts) < PM2_CACHE_TTL_MS) {
+    return cached.path;
+  }
+
+  const homeDir = (user === 'root') ? '/root' : `/home/${user}`;
+
+  // Run find AS the target user — they have read access to their own ~/.nvm
+  // Search their nvm dir first, then fall back to system locations
+  const findRes = await runCommand('sudo', [
+    '-n', '-u', user,
+    'find',
+    `${homeDir}/.nvm`,
+    '/usr/local/bin',
+    '/usr/bin',
+    '-name', 'pm2',
+    '-type', 'f'
+  ], 10000);
+
+  let pm2Path = null;
+
+  if (findRes.stdout) {
+    const lines = findRes.stdout
+      .trim()
+      .split('\n')
+      .map(l => l.trim())
+      .filter(l => l && /\/bin\/pm2$/.test(l));
+
+    if (lines.length > 0) {
+      // Prefer NVM path (longest path usually = most specific version)
+      lines.sort((a, b) => b.length - a.length);
+      pm2Path = lines[0];
+    }
+  }
+
+  if (pm2Path) {
+    pm2BinaryCache[user] = { path: pm2Path, ts: Date.now() };
+    console.log(`[pm2] Resolved binary for '${user}': ${pm2Path}`);
+  } else {
+    console.warn(`[pm2] Could not find PM2 binary for user '${user}'`);
+  }
+
+  return pm2Path;
+}
+
+/**
+ * Get configured PM2 users list from environment (e.g., 'deploy,root').
  */
 function getPm2Users() {
   const envUsers = process.env.PM2_USERS || 'deploy,root';
@@ -56,38 +116,47 @@ function getPm2Users() {
 }
 
 /**
- * Fetch PM2 process list for a single user via in-sudo PM2 binary search.
+ * Fetch PM2 process list for a single user.
+ *
+ * Uses 2-step resolution:
+ *   1. Find binary path (running as target user via sudo)
+ *   2. Call <binary> jlist with full absolute path (no PATH dependency)
  */
 async function getPm2UserProcesses(user) {
-  // Validate username format (alphanumeric and dashes/underscores only)
   if (!/^[a-zA-Z0-9_-]+$/.test(user)) {
-    return { user, processes: [], error: 'Invalid user name format' };
+    return { user, processes: [], error: 'Invalid user name format', pm2Path: null };
   }
 
-  // Comprehensive locator for PM2 binary under user home, NVM, yarn, global npm, or system paths
-  const script = `PM2_BIN=$(which pm2 2>/dev/null || command -v pm2 2>/dev/null || find /home/${user} /root /usr /opt ~/.nvm -name pm2 -type f 2>/dev/null | grep -E '/bin/pm2$' | head -n 1); if [ -n "$PM2_BIN" ]; then "$PM2_BIN" jlist; else echo "PM2_NOT_FOUND" >&2; exit 127; fi`;
+  const pm2Path = await resolvePm2Binary(user);
 
-  let res = await runCommand('sudo', ['-n', '-u', user, 'sh', '-c', script]);
+  if (!pm2Path) {
+    return {
+      user,
+      processes: [],
+      error: `PM2 binary not found for user '${user}'. Ensure PM2 is installed.`,
+      pm2Path: null
+    };
+  }
+
+  // Step 2: Call pm2 jlist with the absolute resolved path
+  const res = await runCommand('sudo', ['-n', '-u', user, pm2Path, 'jlist'], 8000);
 
   if (!res.success) {
-    // Try direct pm2 jlist (if running as the same user)
-    const directRes = await runCommand('pm2', ['jlist']);
-    if (directRes.success && directRes.stdout) {
-      return parsePm2Json(user, directRes.stdout);
-    }
-
     const errStr = res.stderr || '';
-    if (errStr.includes('PM2_NOT_FOUND')) {
-      return { user, processes: [], error: `No active PM2 installation found for user '${user}'` };
+
+    // Clear cache if the binary was not found (path might have changed)
+    if (errStr.includes('No such file') || errStr.includes('not found')) {
+      delete pm2BinaryCache[user];
     }
 
     const errMsg = errStr.includes('password is required') || errStr.includes('terminal is required')
-      ? `Sudo password required for user '${user}'. Please verify /etc/sudoers.d/system-ops configuration.`
+      ? `Sudo password required for user '${user}'. Check /etc/sudoers.d/system-ops.`
       : (errStr || `Failed to execute PM2 for user '${user}'`);
-    return { user, processes: [], error: errMsg };
+
+    return { user, processes: [], error: errMsg, pm2Path };
   }
 
-  return parsePm2Json(user, res.stdout);
+  return { ...parsePm2Json(user, res.stdout), pm2Path };
 }
 
 /**
@@ -122,12 +191,12 @@ function parsePm2Json(user, stdout) {
 
     return { user, processes, error: null };
   } catch (err) {
-    return { user, processes: [], error: `JSON Parse error: ${err.message}` };
+    return { user, processes: [], error: `JSON parse error: ${err.message}` };
   }
 }
 
 /**
- * GET /api/v2/pm2/snapshot - Aggregated snapshot across all configured users.
+ * GET /api/v2/pm2/snapshot — Aggregated snapshot across all configured users.
  */
 async function getPm2Snapshot() {
   const users = getPm2Users();
@@ -140,11 +209,11 @@ async function getPm2Snapshot() {
 }
 
 /**
- * GET /api/v2/pm2/logs - Tail PM2 logs for a specific app under a user.
+ * GET /api/v2/pm2/logs — Tail PM2 logs for a specific app under a user.
  */
 async function getPm2Logs(user, appName, lines = 80) {
   const allowedUsers = getPm2Users();
-  
+
   if (!user || !allowedUsers.includes(user)) {
     return { user, app: appName, lines: 0, output: '', error: `User '${user}' is not in PM2_USERS list` };
   }
@@ -155,22 +224,28 @@ async function getPm2Logs(user, appName, lines = 80) {
 
   const sanitizedLines = Math.min(Math.max(parseInt(lines, 10) || 80, 1), 500);
 
-  const script = `PM2_BIN=$(which pm2 2>/dev/null || command -v pm2 2>/dev/null || find /home/${user} /root /usr /opt ~/.nvm -name pm2 -type f 2>/dev/null | grep -E '/bin/pm2$' | head -n 1); if [ -n "$PM2_BIN" ]; then "$PM2_BIN" logs ${appName} --nostream --lines ${sanitizedLines}; else exit 127; fi`;
+  const pm2Path = await resolvePm2Binary(user);
 
-  let res = await runCommand('sudo', ['-n', '-u', user, 'sh', '-c', script], 8000);
+  if (!pm2Path) {
+    return {
+      user, app: appName, lines: sanitizedLines, output: '',
+      error: `PM2 binary not found for user '${user}'.`
+    };
+  }
+
+  const res = await runCommand('sudo', [
+    '-n', '-u', user,
+    pm2Path, 'logs', appName,
+    '--nostream',
+    '--lines', String(sanitizedLines)
+  ], 12000);
 
   if (!res.success && !res.stdout) {
-    const lastErr = res.stderr || '';
-    const errMsg = lastErr.includes('password is required') || lastErr.includes('terminal is required')
-      ? `Sudo password required for user '${user}'. Please verify /etc/sudoers.d/system-ops configuration.`
-      : (lastErr || 'Failed to fetch PM2 logs');
-    return {
-      user,
-      app: appName,
-      lines: sanitizedLines,
-      output: '',
-      error: errMsg
-    };
+    const errStr = res.stderr || '';
+    const errMsg = errStr.includes('password is required') || errStr.includes('terminal is required')
+      ? `Sudo password required for user '${user}'.`
+      : (errStr || 'Failed to fetch PM2 logs');
+    return { user, app: appName, lines: sanitizedLines, output: '', error: errMsg };
   }
 
   return {
@@ -181,8 +256,20 @@ async function getPm2Logs(user, appName, lines = 80) {
   };
 }
 
+/**
+ * Expose cache invalidation so tests / admin routes can clear stale cache entries.
+ */
+function clearPm2Cache(user) {
+  if (user) {
+    delete pm2BinaryCache[user];
+  } else {
+    Object.keys(pm2BinaryCache).forEach(k => delete pm2BinaryCache[k]);
+  }
+}
+
 module.exports = {
   getPm2Snapshot,
   getPm2Logs,
-  getPm2Users
+  getPm2Users,
+  clearPm2Cache
 };
