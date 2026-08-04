@@ -94,7 +94,26 @@ async function resolvePm2Binary(user) {
       .filter(function(l) { return l && l.endsWith('pm2'); });
 
     if (lines.length > 0) {
-      pm2Path = lines[0];
+      // Verify the resolved path actually exists before caching
+      const verifyRes = await runCommand('sudo', [
+        '-n', '-H', '-u', user,
+        'bash', '-c', 'test -e "' + lines[0] + '" && echo ok'
+      ], 3000);
+      if (verifyRes.stdout && verifyRes.stdout.trim() === 'ok') {
+        pm2Path = lines[0];
+      } else {
+        // Try remaining candidates
+        for (let i = 1; i < lines.length; i++) {
+          const vr = await runCommand('sudo', [
+            '-n', '-H', '-u', user,
+            'bash', '-c', 'test -e "' + lines[i] + '" && echo ok'
+          ], 3000);
+          if (vr.stdout && vr.stdout.trim() === 'ok') {
+            pm2Path = lines[i];
+            break;
+          }
+        }
+      }
     }
   }
 
@@ -142,20 +161,31 @@ async function getPm2UserProcesses(user) {
     };
   }
 
-  // Step 2: Call pm2 jlist with the absolute resolved path
-  const res = await runCommand('sudo', ['-n', '-u', user, pm2Path, 'jlist'], 8000);
+  // Step 2: Run pm2 jlist via bash with NVM sourced so node is on PATH.
+  //
+  // Why not direct binary invocation:
+  //   pm2's shebang is '#!/usr/bin/env node'. sudo env_reset strips PATH,
+  //   so 'env node' fails for NVM-managed installs. We source nvm.sh if
+  //   present, which puts the correct node on PATH without needing bash -l
+  //   (which only sources login profiles, not ~/.bashrc on many systems).
+  const nvmDir = (user === 'root') ? '/root/.nvm' : '/home/' + user + '/.nvm';
+  const nvmSource = '[ -s "' + nvmDir + '/nvm.sh" ] && . "' + nvmDir + '/nvm.sh" --no-use';
+  const jlistShell = nvmSource + '; ' + pm2Path + ' jlist 2>/dev/null';
+  const res = await runCommand('sudo', ['-n', '-H', '-u', user, 'bash', '-c', jlistShell], 10000);
 
-  if (!res.success) {
+
+  if (!res.success && !res.stdout) {
     const errStr = res.stderr || '';
 
-    // Clear cache if the binary was not found (path might have changed)
-    if (errStr.includes('No such file') || errStr.includes('not found')) {
+    // Clear cache if the binary was not found or path changed
+    if (errStr.includes('No such file') || errStr.includes('not found') ||
+        errStr.includes('command not found')) {
       delete pm2BinaryCache[user];
     }
 
     const errMsg = errStr.includes('password is required') || errStr.includes('terminal is required')
       ? `Sudo password required for user '${user}'. Check /etc/sudoers.d/system-ops.`
-      : (errStr || `Failed to execute PM2 for user '${user}'`);
+      : (errStr.trim() || `Failed to execute PM2 for user '${user}'`);
 
     return { user, processes: [], error: errMsg, pm2Path };
   }
@@ -237,12 +267,14 @@ async function getPm2Logs(user, appName, lines = 80) {
     };
   }
 
+  // Use bash -c and source nvm.sh so node is on PATH for pm2's shebang.
+  const nvmDir = (user === 'root') ? '/root/.nvm' : '/home/' + user + '/.nvm';
+  const nvmSource = '[ -s "' + nvmDir + '/nvm.sh" ] && . "' + nvmDir + '/nvm.sh" --no-use';
+  const logCmd = nvmSource + '; ' + pm2Path + ' logs ' + appName + ' --nostream --lines ' + String(sanitizedLines) + ' 2>&1';
   const res = await runCommand('sudo', [
-    '-n', '-u', user,
-    pm2Path, 'logs', appName,
-    '--nostream',
-    '--lines', String(sanitizedLines)
-  ], 12000);
+    '-n', '-H', '-u', user,
+    'bash', '-c', logCmd
+  ], 14000);
 
   if (!res.success && !res.stdout) {
     const errStr = res.stderr || '';
