@@ -254,5 +254,12 @@ app.listen(PORT, HOST, () => {
   console.log(`  Listening on: http://${HOST}:${PORT}`);
   console.log(`  Health Check: http://${HOST}:${PORT}/health`);
   console.log(`  Target Ollama: ${OLLAMA_URL}`);
+
+  if (!process.env.APP_PASSWORD || process.env.APP_PASSWORD === 'admin-password-change-me') {
+    console.warn(`\n[SECURITY WARNING] Using default APP_PASSWORD. Set APP_PASSWORD in .env!`);
+  }
+  if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'dev-secret-session-key-12345') {
+    console.warn(`[SECURITY WARNING] Using default SESSION_SECRET. Set SESSION_SECRET in .env!`);
+  }
   console.log(`=======================================================`);
 });

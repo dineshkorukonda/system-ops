@@ -480,13 +480,13 @@ document.addEventListener('DOMContentLoaded', () => {
           .then(data => {
             const pre = document.getElementById(`pm2-log-${u.user}-${p.name}`);
             if(pre) {
-              pre.textContent = data.error ? \`Error: \${data.error}\` : (data.output || 'No logs available.');
+              pre.textContent = data.error ? `Error: ${data.error}` : (data.output || 'No logs available.');
               pre.scrollTop = pre.scrollHeight;
             }
           })
           .catch(err => {
             const pre = document.getElementById(`pm2-log-${u.user}-${p.name}`);
-            if(pre) pre.textContent = \`Failed to fetch logs: \${err.message}\`;
+            if(pre) pre.textContent = `Failed to fetch logs: ${err.message}`;
           });
       });
     });
