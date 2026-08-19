@@ -95,6 +95,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const backupLogTerminal   = document.getElementById('backupLogTerminal');
   const backupLogsBody      = document.getElementById('backupLogsBody');
   const backupReverseCheck  = document.getElementById('backupReverseCheck');
+  const backupFilesContainer  = document.getElementById('backupFilesContainer');
+  const backupFilesRefreshBtn = document.getElementById('backupFilesRefreshBtn');
 
   // ════════════════════════════════════════════════════════
   // THEME TOGGLE
@@ -150,6 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
     else if (activeTab === 'tab-pm2')     { fetchPm2Snapshot(); }
     else if (activeTab === 'tab-system')  { fetchSystemSnapshot(); }
     else if (activeTab === 'tab-backups') {
+      fetchBackupFiles();
       // Re-fetch sources if dropdown never populated (e.g. initial load failed)
       if (!backupSourceSelect.value || backupSourceSelect.querySelector('option[value=""]')) {
         fetchLogSourcesList();
@@ -666,6 +669,51 @@ document.addEventListener('DOMContentLoaded', () => {
     backupCopyBtn.textContent = 'Copied!';
     setTimeout(() => { backupCopyBtn.textContent = 'Copy'; }, 1500);
   });
+
+  if (backupFilesRefreshBtn) {
+    backupFilesRefreshBtn.addEventListener('click', fetchBackupFiles);
+  }
+
+  async function fetchBackupFiles() {
+    if (!backupFilesContainer) return;
+    backupFilesContainer.innerHTML = '<div class="text-dim" style="font-size: 12px; padding: 0.4rem;">Loading backup files...</div>';
+
+    try {
+      const res = await fetch('/api/v2/backups/files');
+      if (res.status === 401) { window.location.href = '/login.html'; return; }
+      if (!res.ok) {
+        backupFilesContainer.innerHTML = `<div class="text-dim" style="font-size: 12px; padding: 0.4rem; color: var(--red);">Error loading files (HTTP ${res.status})</div>`;
+        return;
+      }
+      const data = await res.json();
+      if (!data.success || !data.files || data.files.length === 0) {
+        backupFilesContainer.innerHTML = `<div class="text-dim" style="font-size: 12px; padding: 0.4rem;">${data.error || 'No backup dump files found.'}</div>`;
+        return;
+      }
+      renderBackupFilesList(data.files);
+    } catch (err) {
+      backupFilesContainer.innerHTML = `<div class="text-dim" style="font-size: 12px; padding: 0.4rem; color: var(--red);">Error: ${err.message}</div>`;
+    }
+  }
+
+  function renderBackupFilesList(files) {
+    backupFilesContainer.innerHTML = files.map(file => {
+      const sizeStr = formatBytesClient(file.size);
+      const d = new Date(file.mtime);
+      const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return `
+        <div class="backup-file-item">
+          <div class="backup-file-info">
+            <div class="backup-file-name" title="${file.name}">${file.name}</div>
+            <div class="backup-file-meta">${sizeStr} • ${dateStr}</div>
+          </div>
+          <a href="/api/v2/backups/download/${encodeURIComponent(file.name)}" class="btn-download" download="${file.name}">
+            ⬇ Download
+          </a>
+        </div>
+      `;
+    }).join('');
+  }
 
   // ════════════════════════════════════════════════════════
   // AUTO-REFRESH & BOOTSTRAP

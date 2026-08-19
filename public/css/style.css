@@ -524,6 +524,69 @@ body {
   font-family: var(--font-mono);
 }
 
+.backup-files-list {
+  max-height: 230px;
+  overflow-y: auto;
+  background-color: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.25rem 0.5rem;
+}
+
+.backup-file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.25rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  gap: 0.5rem;
+}
+
+.backup-file-item:last-child {
+  border-bottom: none;
+}
+
+.backup-file-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.backup-file-name {
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.backup-file-meta {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.btn-download {
+  padding: 2px 8px;
+  font-size: 11px;
+  background-color: var(--accent);
+  color: #fff !important;
+  border-radius: var(--radius);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.btn-download:hover {
+  opacity: 0.9;
+}
+
 /* ============================================================
    LOG SYNTAX COLORS
    ============================================================ */

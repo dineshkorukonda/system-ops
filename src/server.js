@@ -13,6 +13,7 @@ const { checkApiHealth, runQuickChatTest, getCliModelList } = require('./service
 const { getPm2Snapshot, getPm2Logs } = require('./collectors/pm2');
 const { getSystemSnapshot } = require('./collectors/system');
 const { getLogSourcesList, getLogSourceTail } = require('./collectors/logSources');
+const { listBackupFiles, getBackupFilePath } = require('./collectors/backupFiles');
 
 const app = express();
 
@@ -211,6 +212,26 @@ app.get('/api/v2/logs/tail', logTailLimiter, async (req, res) => {
     return res.json(data);
   } catch (error) {
     return res.status(500).json({ error: 'Failed to fetch log source tail', details: error.message });
+  }
+});
+
+app.get('/api/v2/backups/files', async (req, res) => {
+  try {
+    const data = await listBackupFiles();
+    return res.json(data);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to list backup files', details: error.message });
+  }
+});
+
+app.get('/api/v2/backups/download/:filename', (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const targetPath = getBackupFilePath(filename);
+    return res.download(targetPath, filename);
+  } catch (error) {
+    const statusCode = error.message.includes('Access denied') ? 403 : error.message.includes('not found') ? 404 : 400;
+    return res.status(statusCode).json({ error: error.message });
   }
 });
 
