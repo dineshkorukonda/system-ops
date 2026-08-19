@@ -97,27 +97,31 @@ function analyzeBackupHeuristics(logContent) {
   const lines = logContent.split('\n').filter(Boolean);
   let lastSuccess = null;
   let lastFailure = null;
+  let lastSuccessIndex = -1;
+  let lastFailureIndex = -1;
 
   // Regex patterns for PostgreSQL backup analysis
   const successRegex = /BACKUP OK|BACKUP SUCCESS|SUCCESS|completed|pg_dump.*completed|archive dump completed|backup completed|✓ Backup successful|Backup successful/i;
   const failureRegex = /ERROR|FAILED|FATAL|pg_dump: error|backup failed|permission denied|✗ FAILED/i;
-  const timestampRegex = /(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})|([A-Z][a-z]{2}\s+[A-Z][a-z]{2}\s+\d+\s+\d{2}:\d{2}:\d{2})/;
+  const timestampRegex = /(\d{4}-\d{2}-\d{2}([T\s]\d{2}:\d{2}:\d{2})?)|([A-Z][a-z]{2}\s+[A-Z][a-z]{2}\s+\d+(\s+\d{2}:\d{2}:\d{2})?)/;
 
-  // Iterate backwards through recent lines
+  // Iterate backwards through recent lines (newest first)
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
     const matchTime = line.match(timestampRegex);
     const ts = matchTime ? matchTime[0] : null;
 
     if (!lastSuccess && successRegex.test(line)) {
-      lastSuccess = ts || 'Recent line matching success pattern';
+      lastSuccess = ts || line.trim();
+      lastSuccessIndex = i;
     }
     if (!lastFailure && failureRegex.test(line)) {
-      lastFailure = ts || 'Recent line matching error pattern';
+      lastFailure = ts || line.trim();
+      lastFailureIndex = i;
     }
   }
 
-  if (lastSuccess && (!lastFailure || lines.join('\n').lastIndexOf(lastSuccess) > lines.join('\n').lastIndexOf(lastFailure))) {
+  if (lastSuccessIndex !== -1 && (lastFailureIndex === -1 || lastSuccessIndex > lastFailureIndex)) {
     return {
       status: 'success',
       badgeClass: 'ok',
@@ -125,7 +129,7 @@ function analyzeBackupHeuristics(logContent) {
       lastSuccess,
       lastFailure
     };
-  } else if (lastFailure) {
+  } else if (lastFailureIndex !== -1) {
     return {
       status: 'failure',
       badgeClass: 'err',
