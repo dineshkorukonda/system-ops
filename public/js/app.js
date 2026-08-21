@@ -160,6 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchBackupLogTail();
       }
     }
+    else if (activeTab === 'tab-traffic') { fetchTrafficAnalytics(); }
   }
 
   // ════════════════════════════════════════════════════════
@@ -713,6 +714,189 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
     }).join('');
+  }
+
+  // ════════════════════════════════════════════════════════
+  // TAB 5: TRAFFIC ANALYTICS
+  // ════════════════════════════════════════════════════════
+  let leafletMap = null;
+  let mapMarkersLayer = null;
+
+  async function fetchTrafficAnalytics() {
+    try {
+      const res = await fetch('/api/traffic-analytics');
+      if (res.status === 401) { window.location.href = '/login.html'; return; }
+      const data = await res.json();
+      renderTrafficAnalytics(data);
+    } catch (err) {
+      console.error('Failed to fetch traffic analytics:', err);
+    }
+  }
+
+  function renderTrafficAnalytics(data) {
+    if (!data) return;
+
+    // 1. Metric Cards
+    const summary = data.summary || {};
+    const doms = summary.domains || {};
+
+    const appData = doms['iskconcommunity.com'] || { hits: 0, unique: 0 };
+    const devData = doms['dev.iskconcommunity.com'] || { hits: 0, unique: 0 };
+    const msfData = doms['msf.iskconcommunity.com'] || { hits: 0, unique: 0 };
+
+    const hitsAppEl = document.getElementById('trafficHitsApp');
+    const usersAppEl = document.getElementById('trafficUsersApp');
+    const hitsDevEl = document.getElementById('trafficHitsDev');
+    const usersDevEl = document.getElementById('trafficUsersDev');
+    const hitsMsfEl = document.getElementById('trafficHitsMsf');
+    const usersMsfEl = document.getElementById('trafficUsersMsf');
+    const hitsTotalEl = document.getElementById('trafficHitsTotal');
+    const usersTotalEl = document.getElementById('trafficUsersTotal');
+
+    if (hitsAppEl) hitsAppEl.textContent = appData.hits.toLocaleString();
+    if (usersAppEl) usersAppEl.textContent = appData.unique.toLocaleString();
+
+    if (hitsDevEl) hitsDevEl.textContent = devData.hits.toLocaleString();
+    if (usersDevEl) usersDevEl.textContent = devData.unique.toLocaleString();
+
+    if (hitsMsfEl) hitsMsfEl.textContent = msfData.hits.toLocaleString();
+    if (usersMsfEl) usersMsfEl.textContent = msfData.unique.toLocaleString();
+
+    if (hitsTotalEl) hitsTotalEl.textContent = (summary.total_hits || 0).toLocaleString();
+    if (usersTotalEl) usersTotalEl.textContent = (summary.unique_devices || 0).toLocaleString();
+
+    // 2. OS Breakdown
+    const osStatsContainer = document.getElementById('osStatsContainer');
+    const osStats = data.os_stats || {};
+    const totalOsHits = Object.values(osStats).reduce((a, b) => a + b, 0) || 1;
+
+    const osColors = {
+      Android: '#10b981',
+      iOS: '#0ea5e9',
+      Windows: '#3b82f6',
+      Mac: '#8b5cf6',
+      Linux: '#f59e0b',
+      Other: '#6b7280'
+    };
+
+    if (osStatsContainer) {
+      osStatsContainer.innerHTML = Object.keys(osStats).map(os => {
+        const count = osStats[os] || 0;
+        const pct = ((count / totalOsHits) * 100).toFixed(1);
+        const color = osColors[os] || '#6b7280';
+        return `
+          <div style="flex:1; min-width:110px; background:var(--panel-alt); border:1px solid var(--border); border-radius:var(--radius); padding:0.5rem 0.75rem; border-left:3px solid ${color};">
+            <div style="font-size:11px; color:var(--text-dim); text-transform:uppercase; font-weight:600;">${os}</div>
+            <div style="font-size:16px; font-weight:700; color:var(--text); margin-top:2px;">${count.toLocaleString()}</div>
+            <div style="font-size:10px; color:var(--text-dim); margin-top:1px;">${pct}%</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 3. Map rendering
+    const locations = data.locations || [];
+    const countTag = document.getElementById('mapDeviceCountTag');
+    if (countTag) {
+      countTag.textContent = `${locations.length} active location${locations.length === 1 ? '' : 's'}`;
+    }
+
+    initOrUpdateMap(locations);
+
+    // 4. Recent Visitors Table
+    const recentTableBody = document.getElementById('trafficRecentTableBody');
+    const recent = data.recent_visitors || [];
+
+    if (recentTableBody) {
+      if (recent.length === 0) {
+        recentTableBody.innerHTML = `<tr><td colspan="4" class="text-dim" style="padding:1rem; text-align:center;">No recent traffic recorded</td></tr>`;
+      } else {
+        const hostBadges = {
+          'iskconcommunity.com': '<span class="status-tag ok" style="font-size:10px;">APP</span>',
+          'dev.iskconcommunity.com': '<span class="status-tag warn" style="font-size:10px;">DEV</span>',
+          'msf.iskconcommunity.com': '<span class="status-tag" style="font-size:10px; background:rgba(139,92,246,0.15); color:#a855f7; border-color:#8b5cf6;">MSF</span>'
+        };
+
+        recentTableBody.innerHTML = recent.map(v => {
+          const timeStr = v.timestamp || '-';
+          const badge = hostBadges[v.host] || `<span class="status-tag" style="font-size:10px;">${v.host}</span>`;
+          const locStr = (v.city && v.city !== 'Unknown') ? `${v.city}, ${v.country}` : (v.country || 'Unknown');
+          const osDeviceStr = `${v.os} (${v.device}) • ${v.browser}`;
+
+          return `
+            <tr style="border-bottom:1px solid var(--border-dim);">
+              <td style="padding:6px 10px; font-family:var(--font-mono); font-size:11px; white-space:nowrap; color:var(--text-dim);">${timeStr}</td>
+              <td style="padding:6px 10px; white-space:nowrap;">${badge}</td>
+              <td style="padding:6px 10px; white-space:nowrap;">${locStr}</td>
+              <td style="padding:6px 10px; color:var(--text-dim); font-size:11px;">${osDeviceStr}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+  }
+
+  function initOrUpdateMap(locations) {
+    const mapElement = document.getElementById('trafficMap');
+    if (!mapElement || typeof L === 'undefined') return;
+
+    if (!leafletMap) {
+      leafletMap = L.map('trafficMap').setView([20.5937, 78.9629], 3);
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
+      }).addTo(leafletMap);
+
+      mapMarkersLayer = L.layerGroup().addTo(leafletMap);
+    }
+
+    setTimeout(() => {
+      if (leafletMap) leafletMap.invalidateSize();
+    }, 100);
+
+    mapMarkersLayer.clearLayers();
+
+    const hostColors = {
+      'iskconcommunity.com': '#10b981',
+      'dev.iskconcommunity.com': '#0ea5e9',
+      'msf.iskconcommunity.com': '#8b5cf6'
+    };
+
+    const bounds = [];
+
+    locations.forEach(loc => {
+      if (typeof loc.lat === 'number' && typeof loc.lon === 'number') {
+        const color = hostColors[loc.host] || '#f59e0b';
+        const marker = L.circleMarker([loc.lat, loc.lon], {
+          radius: 7,
+          fillColor: color,
+          color: '#ffffff',
+          weight: 1,
+          opacity: 0.9,
+          fillOpacity: 0.8
+        });
+
+        const popupContent = `
+          <div style="font-family:sans-serif; font-size:12px; line-height:1.4; color:#111;">
+            <strong style="font-size:13px; color:#000;">${loc.city}, ${loc.country}</strong><br/>
+            <b>Domain:</b> ${loc.host_label || loc.host}<br/>
+            <b>OS / Device:</b> ${loc.os} (${loc.device})<br/>
+            <b>Browser:</b> ${loc.browser}<br/>
+            <b>IP:</b> <code>${loc.ip || 'Unknown'}</code>
+          </div>
+        `;
+
+        marker.bindPopup(popupContent);
+        mapMarkersLayer.addLayer(marker);
+        bounds.push([loc.lat, loc.lon]);
+      }
+    });
+
+    if (bounds.length > 0 && leafletMap) {
+      leafletMap.fitBounds(bounds, { maxZoom: 10, padding: [20, 20] });
+    }
   }
 
   // ════════════════════════════════════════════════════════

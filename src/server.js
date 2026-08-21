@@ -14,6 +14,7 @@ const { getPm2Snapshot, getPm2Logs } = require('./collectors/pm2');
 const { getSystemSnapshot } = require('./collectors/system');
 const { getLogSourcesList, getLogSourceTail } = require('./collectors/logSources');
 const { listBackupFiles, getBackupFilePath } = require('./collectors/backupFiles');
+const { parseTrafficAnalytics } = require('./collectors/trafficAnalytics');
 
 const app = express();
 
@@ -232,6 +233,18 @@ app.get('/api/v2/backups/download/:filename', (req, res) => {
   } catch (error) {
     const statusCode = error.message.includes('Access denied') ? 403 : error.message.includes('not found') ? 404 : 400;
     return res.status(statusCode).json({ error: error.message });
+  }
+});
+
+/**
+ * Traffic & Geographic Analytics Endpoint
+ */
+app.get('/api/traffic-analytics', async (req, res) => {
+  try {
+    const data = await parseTrafficAnalytics();
+    return res.json(data);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to parse traffic analytics', details: error.message });
   }
 });
 

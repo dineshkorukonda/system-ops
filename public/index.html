@@ -8,6 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css?v=3">
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
 </head>
 <body>
 
@@ -22,6 +24,7 @@
         <button class="nav-tab" data-tab="tab-pm2">PM2</button>
         <button class="nav-tab" data-tab="tab-system">System</button>
         <button class="nav-tab" data-tab="tab-backups">Backups</button>
+        <button class="nav-tab" data-tab="tab-traffic">Traffic Analytics</button>
       </nav>
     </div>
     <div class="top-actions">
@@ -392,8 +395,135 @@
       </div>
     </div>
 
+    <!-- ───────────────────────────────────────────────────
+         TAB 5: TRAFFIC ANALYTICS
+    ─────────────────────────────────────────────────────── -->
+    <div id="tab-traffic" class="tab-page">
+      <div class="traffic-wrap" style="display:flex; flex-direction:column; gap:1.25rem;">
+
+        <!-- Top Metrics Cards -->
+        <div class="traffic-metrics-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:1rem;">
+          
+          <div class="metric-card" style="background:var(--panel-bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; border-top: 3px solid #10b981;">
+            <div style="font-size:12px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.05em; display:flex; align-items:center; justify-content:space-between;">
+              <span>Mobile App</span>
+              <span class="status-tag ok" style="font-size:10px;">APP</span>
+            </div>
+            <div style="font-size:13px; font-weight:500; margin-top:0.2rem; color:var(--text);">iskconcommunity.com</div>
+            <div style="display:flex; justify-content:space-between; margin-top:0.8rem;">
+              <div>
+                <div style="font-size:20px; font-weight:700;" id="trafficHitsApp">0</div>
+                <div style="font-size:11px; color:var(--text-dim);">Total Hits</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:20px; font-weight:700; color:#10b981;" id="trafficUsersApp">0</div>
+                <div style="font-size:11px; color:var(--text-dim);">Unique Devices</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="metric-card" style="background:var(--panel-bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; border-top: 3px solid #0ea5e9;">
+            <div style="font-size:12px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.05em; display:flex; align-items:center; justify-content:space-between;">
+              <span>Web Dev</span>
+              <span class="status-tag warn" style="font-size:10px;">DEV</span>
+            </div>
+            <div style="font-size:13px; font-weight:500; margin-top:0.2rem; color:var(--text);">dev.iskconcommunity.com</div>
+            <div style="display:flex; justify-content:space-between; margin-top:0.8rem;">
+              <div>
+                <div style="font-size:20px; font-weight:700;" id="trafficHitsDev">0</div>
+                <div style="font-size:11px; color:var(--text-dim);">Total Hits</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:20px; font-weight:700; color:#0ea5e9;" id="trafficUsersDev">0</div>
+                <div style="font-size:11px; color:var(--text-dim);">Unique Devices</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="metric-card" style="background:var(--panel-bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; border-top: 3px solid #8b5cf6;">
+            <div style="font-size:12px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.05em; display:flex; align-items:center; justify-content:space-between;">
+              <span>Web MSF</span>
+              <span class="status-tag" style="font-size:10px; background:rgba(139,92,246,0.15); color:#a855f7; border-color:#8b5cf6;">MSF</span>
+            </div>
+            <div style="font-size:13px; font-weight:500; margin-top:0.2rem; color:var(--text);">msf.iskconcommunity.com</div>
+            <div style="display:flex; justify-content:space-between; margin-top:0.8rem;">
+              <div>
+                <div style="font-size:20px; font-weight:700;" id="trafficHitsMsf">0</div>
+                <div style="font-size:11px; color:var(--text-dim);">Total Hits</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:20px; font-weight:700; color:#a855f7;" id="trafficUsersMsf">0</div>
+                <div style="font-size:11px; color:var(--text-dim);">Unique Devices</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="metric-card" style="background:var(--panel-bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; border-top: 3px solid #f59e0b;">
+            <div style="font-size:12px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.05em;">Overall Summary</div>
+            <div style="font-size:13px; font-weight:500; margin-top:0.2rem; color:var(--text);">Deduplicated Across Domains</div>
+            <div style="display:flex; justify-content:space-between; margin-top:0.8rem;">
+              <div>
+                <div style="font-size:20px; font-weight:700;" id="trafficHitsTotal">0</div>
+                <div style="font-size:11px; color:var(--text-dim);">Raw Hits</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:20px; font-weight:700; color:#f59e0b;" id="trafficUsersTotal">0</div>
+                <div style="font-size:11px; color:var(--text-dim);">Unique Devices</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- OS Breakdown Row -->
+        <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem;">
+          <div class="section-title" style="margin-bottom:0.75rem;">Operating System Breakdown</div>
+          <div id="osStatsContainer" style="display:flex; flex-wrap:wrap; gap:0.75rem;">
+            <div class="text-dim" style="font-size:12px;">Loading OS statistics...</div>
+          </div>
+        </div>
+
+        <!-- Interactive Map & Recent Visitors Split Grid -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;" class="traffic-split-grid">
+          
+          <!-- Interactive Dark Leaflet Map -->
+          <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; display:flex; flex-direction:column; gap:0.75rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div class="section-title" style="margin-bottom:0;">Live Device Map</div>
+              <span id="mapDeviceCountTag" class="text-dim" style="font-size:11px;">0 markers</span>
+            </div>
+            <div id="trafficMap" style="height:360px; width:100%; border-radius:var(--radius); border:1px solid var(--border); background:#111;"></div>
+          </div>
+
+          <!-- Recent Sessions Table -->
+          <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; display:flex; flex-direction:column; gap:0.75rem;">
+            <div class="section-title" style="margin-bottom:0;">Recent Active Visitors</div>
+            <div style="max-height:360px; overflow-y:auto; border:1px solid var(--border-dim); border-radius:var(--radius);">
+              <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                <thead>
+                  <tr style="border-bottom:1px solid var(--border); background:var(--panel-alt); color:var(--text-dim); text-align:left;">
+                    <th style="padding:6px 10px;">Time</th>
+                    <th style="padding:6px 10px;">Host</th>
+                    <th style="padding:6px 10px;">Location</th>
+                    <th style="padding:6px 10px;">OS & Device</th>
+                  </tr>
+                </thead>
+                <tbody id="trafficRecentTableBody">
+                  <tr><td colspan="4" class="text-dim" style="padding:1rem; text-align:center;">Loading recent activity...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
   </main>
 
+  <!-- Leaflet Map JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="/js/app.js?v=4"></script>
 </body>
 </html>
