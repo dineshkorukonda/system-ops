@@ -740,30 +740,49 @@ document.addEventListener('DOMContentLoaded', () => {
     const summary = data.summary || {};
     const doms = summary.domains || {};
 
-    const appData = doms['iskconcommunity.com'] || { hits: 0, unique: 0 };
-    const devData = doms['dev.iskconcommunity.com'] || { hits: 0, unique: 0 };
-    const msfData = doms['msf.iskconcommunity.com'] || { hits: 0, unique: 0 };
+    const appData = doms['iskconcommunity.com'] || { hits: 0, unique: 0, mobile_hits: 0, web_hits: 0 };
+    const devData = doms['dev.iskconcommunity.com'] || { hits: 0, unique: 0, mobile_hits: 0, web_hits: 0 };
+    const msfData = doms['msf.iskconcommunity.com'] || { hits: 0, unique: 0, mobile_hits: 0, web_hits: 0 };
 
     const hitsAppEl = document.getElementById('trafficHitsApp');
     const usersAppEl = document.getElementById('trafficUsersApp');
+    const mobileAppEl = document.getElementById('trafficMobileApp');
+    const webAppEl = document.getElementById('trafficWebApp');
+
     const hitsDevEl = document.getElementById('trafficHitsDev');
     const usersDevEl = document.getElementById('trafficUsersDev');
+    const mobileDevEl = document.getElementById('trafficMobileDev');
+    const webDevEl = document.getElementById('trafficWebDev');
+
     const hitsMsfEl = document.getElementById('trafficHitsMsf');
     const usersMsfEl = document.getElementById('trafficUsersMsf');
+    const mobileMsfEl = document.getElementById('trafficMobileMsf');
+    const webMsfEl = document.getElementById('trafficWebMsf');
+
     const hitsTotalEl = document.getElementById('trafficHitsTotal');
     const usersTotalEl = document.getElementById('trafficUsersTotal');
+    const mobileTotalEl = document.getElementById('trafficMobileTotal');
+    const webTotalEl = document.getElementById('trafficWebTotal');
 
     if (hitsAppEl) hitsAppEl.textContent = appData.hits.toLocaleString();
     if (usersAppEl) usersAppEl.textContent = appData.unique.toLocaleString();
+    if (mobileAppEl) mobileAppEl.textContent = (appData.mobile_hits || 0).toLocaleString();
+    if (webAppEl) webAppEl.textContent = (appData.web_hits || 0).toLocaleString();
 
     if (hitsDevEl) hitsDevEl.textContent = devData.hits.toLocaleString();
     if (usersDevEl) usersDevEl.textContent = devData.unique.toLocaleString();
+    if (mobileDevEl) mobileDevEl.textContent = (devData.mobile_hits || 0).toLocaleString();
+    if (webDevEl) webDevEl.textContent = (devData.web_hits || 0).toLocaleString();
 
     if (hitsMsfEl) hitsMsfEl.textContent = msfData.hits.toLocaleString();
     if (usersMsfEl) usersMsfEl.textContent = msfData.unique.toLocaleString();
+    if (mobileMsfEl) mobileMsfEl.textContent = (msfData.mobile_hits || 0).toLocaleString();
+    if (webMsfEl) webMsfEl.textContent = (msfData.web_hits || 0).toLocaleString();
 
     if (hitsTotalEl) hitsTotalEl.textContent = (summary.total_hits || 0).toLocaleString();
     if (usersTotalEl) usersTotalEl.textContent = (summary.unique_devices || 0).toLocaleString();
+    if (mobileTotalEl) mobileTotalEl.textContent = (summary.total_mobile_hits || 0).toLocaleString();
+    if (webTotalEl) webTotalEl.textContent = (summary.total_web_hits || 0).toLocaleString();
 
     // 2. OS Breakdown
     const osStatsContainer = document.getElementById('osStatsContainer');

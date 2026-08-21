@@ -47,11 +47,17 @@ test('parseTrafficAnalytics correctly parses sample log lines', async () => {
     const result = await parseTrafficAnalytics(sampleLogPath);
 
     assert.strictEqual(result.summary.total_hits, 4); // ignores otherdomain.com
+    assert.strictEqual(result.summary.total_mobile_hits, 3);
+    assert.strictEqual(result.summary.total_web_hits, 1);
     assert.strictEqual(result.summary.unique_devices, 3);
     assert.strictEqual(result.summary.domains['iskconcommunity.com'].hits, 2);
+    assert.strictEqual(result.summary.domains['iskconcommunity.com'].mobile_hits, 2);
+    assert.strictEqual(result.summary.domains['iskconcommunity.com'].web_hits, 0);
     assert.strictEqual(result.summary.domains['iskconcommunity.com'].unique, 1);
     assert.strictEqual(result.summary.domains['dev.iskconcommunity.com'].hits, 1);
+    assert.strictEqual(result.summary.domains['dev.iskconcommunity.com'].web_hits, 1);
     assert.strictEqual(result.summary.domains['msf.iskconcommunity.com'].hits, 1);
+    assert.strictEqual(result.summary.domains['msf.iskconcommunity.com'].mobile_hits, 1);
 
     assert.strictEqual(result.os_stats.Android, 2);
     assert.strictEqual(result.os_stats.Windows, 1);

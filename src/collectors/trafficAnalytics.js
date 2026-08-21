@@ -51,11 +51,13 @@ async function parseTrafficAnalytics(customLogPath = null) {
 
   const summary = {
     total_hits: 0,
+    total_mobile_hits: 0,
+    total_web_hits: 0,
     unique_devices: 0,
     domains: {
-      'iskconcommunity.com': { name: 'Mobile App', hits: 0, unique: 0 },
-      'dev.iskconcommunity.com': { name: 'Web Dev', hits: 0, unique: 0 },
-      'msf.iskconcommunity.com': { name: 'Web MSF', hits: 0, unique: 0 }
+      'iskconcommunity.com': { name: 'Mobile App', hits: 0, unique: 0, mobile_hits: 0, web_hits: 0 },
+      'dev.iskconcommunity.com': { name: 'Web Dev', hits: 0, unique: 0, mobile_hits: 0, web_hits: 0 },
+      'msf.iskconcommunity.com': { name: 'Web MSF', hits: 0, unique: 0, mobile_hits: 0, web_hits: 0 }
     }
   };
 
@@ -132,6 +134,16 @@ async function parseTrafficAnalytics(customLogPath = null) {
       const osCategory = normalizeOS(rawOs);
       const browser = uaResult.browser.name || 'Unknown';
       const deviceType = uaResult.device.type || (osCategory === 'Android' || osCategory === 'iOS' ? 'mobile' : 'desktop');
+
+      const isMobileDevice = (deviceType === 'mobile' || deviceType === 'tablet' || osCategory === 'Android' || osCategory === 'iOS');
+
+      if (isMobileDevice) {
+        summary.domains[host].mobile_hits += 1;
+        summary.total_mobile_hits += 1;
+      } else {
+        summary.domains[host].web_hits += 1;
+        summary.total_web_hits += 1;
+      }
 
       os_stats[osCategory] = (os_stats[osCategory] || 0) + 1;
 
