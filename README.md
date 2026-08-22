@@ -14,12 +14,12 @@ For the full interactive guide, copyable `.env` configurations, and custom subdo
 
 ---
 
-## 1-Line Quickstart
+## 1-Command Zero-Friction Installation
 
-Run this on your Ubuntu VPS as root or with sudo:
+Run this on your Ubuntu/Debian VPS as root or with sudo:
 
 ```bash
-git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops && cd /opt/system-ops && sudo bash scripts/install.sh
+curl -sSL https://raw.githubusercontent.com/dineshkorukonda/system-ops/main/scripts/install.sh | bash
 ```
 
 ---
