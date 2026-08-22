@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>system-ops - Lightweight VPS Operations Console</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #000000;
+      color: #ffffff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      padding: 2rem 1rem;
+      line-height: 1.6;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    header {
+      border-bottom: 1px solid #333333;
+      padding-bottom: 1rem;
+      margin-bottom: 2rem;
+    }
+    h1 {
+      font-size: 1.8rem;
+      font-weight: normal;
+      margin-bottom: 0.5rem;
+    }
+    p {
+      color: #cccccc;
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+    }
+    section {
+      margin-bottom: 2.5rem;
+    }
+    h2 {
+      font-size: 1.2rem;
+      font-weight: normal;
+      border-bottom: 1px solid #222222;
+      padding-bottom: 0.4rem;
+      margin-bottom: 1rem;
+      color: #ffffff;
+    }
+    .code-block {
+      background-color: #111111;
+      border: 1px solid #333333;
+      padding: 0.8rem 1rem;
+      border-radius: 4px;
+      overflow-x: auto;
+      margin-bottom: 1rem;
+      color: #00ff66;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    ul {
+      list-style-type: square;
+      padding-left: 1.2rem;
+      color: #cccccc;
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+    li {
+      margin-bottom: 0.4rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5rem;
+      font-size: 0.85rem;
+    }
+    th, td {
+      border: 1px solid #262626;
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+    }
+    th {
+      background-color: #111111;
+      color: #ffffff;
+    }
+    td {
+      color: #cccccc;
+    }
+    a {
+      color: #3399ff;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    footer {
+      border-top: 1px solid #222222;
+      padding-top: 1.5rem;
+      margin-top: 3rem;
+      font-size: 0.85rem;
+      color: #888888;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>&gt; system-ops</h1>
+    <p>Lightweight operations console and telemetry dashboard for single Ubuntu VPS deployments.</p>
+  </header>
+
+  <section>
+    <h2>What is it?</h2>
+    <p>
+      system-ops is a fast, low-overhead operations dashboard engineered specifically for single-node Ubuntu servers. It monitors Ollama local LLMs, PM2 process fleets, system health, PostgreSQL backup logs, and real-time Nginx traffic with GeoIP mapping.
+    </p>
+    <p>
+      Unlike Prometheus or Grafana stacks that consume 500MB+ of RAM, system-ops operates in under 35MB of memory as a single self-contained Node.js service.
+    </p>
+  </section>
+
+  <section>
+    <h2>Core Capabilities</h2>
+    <ul>
+      <li>System Health: Live CPU load, RAM utilization, Swap trends, disk partitions, listening ports, and TLS cert expiry.</li>
+      <li>Process Monitor: Real-time top process list with instant search and sort by CPU or memory.</li>
+      <li>PM2 Fleet: Multi-user process monitoring (deploy, root), restarts, CPU/RAM, and live app log tailing.</li>
+      <li>Ollama AI: Local model registry, service state, token-capped inference probe, and journalctl log viewer.</li>
+      <li>PostgreSQL Backups: Automated log analysis (SUCCESS / FAILED), log sources, and direct dump file downloads.</li>
+      <li>Traffic Analytics: Nginx access log parser, mobile vs desktop breakdown, status codes, and GeoIP visitor map.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Installation (Native Systemd)</h2>
+    <p>Automated installer on Ubuntu 22.04 / 24.04:</p>
+    <div class="code-block">
+git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops<br>
+cd /opt/system-ops<br>
+sudo bash scripts/install.sh
+    </div>
+
+    <p>Manual installation:</p>
+    <div class="code-block">
+# 1. Create unprivileged ops user<br>
+useradd -r -s /bin/false -d /opt/system-ops ops<br>
+usermod -aG systemd-journal,adm ops<br><br>
+# 2. Install dependencies & configure env<br>
+npm ci --omit=dev<br>
+cp .env.example .env<br>
+nano .env<br><br>
+# 3. Setup permissions and sudoers rules<br>
+chown -R ops:ops /opt/system-ops<br>
+chmod 750 /opt/system-ops && chmod 600 /opt/system-ops/.env<br>
+cp sudoers/system-ops-sudoers /etc/sudoers.d/system-ops<br>
+chmod 0440 /etc/sudoers.d/system-ops<br><br>
+# 4. Enable systemd service<br>
+cp systemd/system-ops.service /etc/systemd/system/<br>
+systemctl daemon-reload && systemctl enable --now system-ops.service
+    </div>
+  </section>
+
+  <section>
+    <h2>Installation (Docker Compose)</h2>
+    <p>Run containerized with read-only host mounts:</p>
+    <div class="code-block">
+git clone https://github.com/dineshkorukonda/system-ops.git<br>
+cd system-ops<br>
+cp .env.example .env<br>
+docker compose up -d
+    </div>
+  </section>
+
+  <section>
+    <h2>Environment Configuration</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Variable</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>APP_PASSWORD</td>
+          <td>(required)</td>
+          <td>Console login password</td>
+        </tr>
+        <tr>
+          <td>SESSION_SECRET</td>
+          <td>(required)</td>
+          <td>Cookie signing secret</td>
+        </tr>
+        <tr>
+          <td>PORT</td>
+          <td>9080</td>
+          <td>Loopback HTTP listen port</td>
+        </tr>
+        <tr>
+          <td>HOST</td>
+          <td>127.0.0.1</td>
+          <td>Network interface binding</td>
+        </tr>
+        <tr>
+          <td>PM2_USERS</td>
+          <td>deploy,root</td>
+          <td>Users whose PM2 daemons to inspect</td>
+        </tr>
+        <tr>
+          <td>OLLAMA_URL</td>
+          <td>http://127.0.0.1:11434</td>
+          <td>Local Ollama API endpoint</td>
+        </tr>
+        <tr>
+          <td>NGINX_LOG_PATH</td>
+          <td>/var/log/nginx/access.log</td>
+          <td>Access log path for traffic analytics</td>
+        </tr>
+        <tr>
+          <td>BACKUPS_DIR</td>
+          <td>/var/backups</td>
+          <td>Directory where backup dump files are stored</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>API Reference</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Method</th>
+          <th>Endpoint</th>
+          <th>Auth</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>GET</td>
+          <td>/health</td>
+          <td>No</td>
+          <td>Liveness health check</td>
+        </tr>
+        <tr>
+          <td>POST</td>
+          <td>/api/login</td>
+          <td>No</td>
+          <td>Session login</td>
+        </tr>
+        <tr>
+          <td>POST</td>
+          <td>/api/logout</td>
+          <td>No</td>
+          <td>Session logout</td>
+        </tr>
+        <tr>
+          <td>GET</td>
+          <td>/api/v2/system/snapshot</td>
+          <td>Yes</td>
+          <td>Host health snapshot</td>
+        </tr>
+        <tr>
+          <td>GET</td>
+          <td>/api/v2/system/processes</td>
+          <td>Yes</td>
+          <td>Top process table</td>
+        </tr>
+        <tr>
+          <td>GET</td>
+          <td>/api/v2/pm2/snapshot</td>
+          <td>Yes</td>
+          <td>PM2 process fleet</td>
+        </tr>
+        <tr>
+          <td>GET</td>
+          <td>/api/v2/pm2/logs</td>
+          <td>Yes</td>
+          <td>PM2 application logs</td>
+        </tr>
+        <tr>
+          <td>GET</td>
+          <td>/api/v2/backups/files</td>
+          <td>Yes</td>
+          <td>Backup dump files</td>
+        </tr>
+        <tr>
+          <td>GET</td>
+          <td>/api/v2/traffic/analytics</td>
+          <td>Yes</td>
+          <td>Traffic analytics & GeoIP</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Architecture & Security</h2>
+    <p>
+      system-ops runs strictly on localhost (127.0.0.1:9080) behind Nginx with SSL termination. All host inspection commands (systemctl, journalctl, pm2) execute through fine-grained passwordless sudo rules in /etc/sudoers.d/system-ops.
+    </p>
+  </section>
+
+  <footer>
+    <p>Developed by <a href="https://dineshkorukonda.in" target="_blank">dineshkorukonda.in</a> | <a href="https://github.com/dineshkorukonda/system-ops" target="_blank">GitHub Repository</a></p>
+  </footer>
+
+</body>
+</html>
