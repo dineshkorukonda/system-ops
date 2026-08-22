@@ -205,17 +205,19 @@
 (____/(__/  (____/ (__) (____)\_)(_/     (_____)(__)  (____/
     </div>
     <h1>system-ops</h1>
-    <div class="tagline">ARCHITECTURE: NATIVE SYSTEMD UNIFIED (0MB EXTRA RAM)</div>
+    <div class="tagline">ARCHITECTURE: NATIVE SYSTEMD UNIFIED (&lt;35MB RAM)</div>
     <p class="subtitle">Lightweight self-hosted operations console and telemetry dashboard for single Ubuntu VPS deployments.</p>
   </header>
 
   <section>
-    <h2>What is it?</h2>
-    <p>
-      system-ops is a zero-bloat web console that gives you single-pane-of-glass observability over your VPS without the 500MB+ memory footprint of Prometheus, Grafana, or Datadog.
-    </p>
-    <p>
-      Built for developers and ops engineers running workloads on a single cloud VPS. It monitors systemd services, Ollama LLMs, host health metrics, PostgreSQL backup dumps, and Nginx visitor traffic with real-time GeoIP mapping.
+    <h2>1-Command Zero-Friction Installation</h2>
+    <p>Run this single command on your Ubuntu/Debian VPS as root or with sudo:</p>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block">curl -sSL https://raw.githubusercontent.com/dineshkorukonda/system-ops/main/scripts/install.sh | bash</div>
+    </div>
+    <p class="card-desc">
+      The interactive installer prompts for your desired password directly in the terminal, auto-detects running systemd services (Nginx, PostgreSQL, Ollama, Node apps), auto-generates cryptographic session tokens, and optionally sets up a custom subdomain with free Let's Encrypt SSL in seconds. No manual file editing required.
     </p>
   </section>
 
@@ -250,115 +252,20 @@
   </section>
 
   <section>
-    <h2>1-Command Zero-Friction Installation</h2>
-    <p>Run this single command on your Ubuntu/Debian VPS as root or with sudo:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">curl -sSL https://raw.githubusercontent.com/dineshkorukonda/system-ops/main/scripts/install.sh | bash</div>
-    </div>
-    <p class="card-desc" style="margin-bottom: 1.2rem;">
-      The interactive installer prompts for your desired admin password, auto-detects running systemd units (Nginx, PostgreSQL, Ollama, Node apps), auto-generates cryptographic secrets, and optionally provisions a custom subdomain with free SSL in seconds.
-    </p>
-
-    <h3>Reinstalling or Upgrading on VPS:</h3>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">systemctl stop system-ops.service 2>/dev/null || true &amp;&amp; rm -rf /opt/system-ops &amp;&amp; git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops &amp;&amp; cd /opt/system-ops &amp;&amp; bash scripts/install.sh</div>
-    </div>
-  </section>
-
-  <section>
-    <h2>Environment File (.env) Complete Template</h2>
-    <p>Copy and paste this template directly into <code>/opt/system-ops/.env</code>:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block dim"># ==========================================
-# System-Ops Environment Configuration
-# Location: /opt/system-ops/.env
-# ==========================================
-
-# Security & Authentication (REQUIRED)
-APP_PASSWORD=ChangeThisToYourSecurePassword123!
-SESSION_SECRET=a8f5643573f95b0730a8023aae4afdc9
-
-# Server Network Binding
-PORT=9080
-HOST=127.0.0.1
-ENABLE_SYSTEM_COLLECTOR=true
-
-# Systemd Services to Track (Comma-separated)
-SYSTEMD_UNITS=nginx,ollama,system-ops,postgresql
-
-# Host Health Mounts & Expiry Probes
-DISK_PATHS=/,/var,/var/backups
-TLS_HOSTS=ops.example.com,api.example.com
-
-# Traffic & Geographic Analytics
-NGINX_LOG_PATH=/var/log/nginx/access.log
-TRACKED_DOMAINS=app.example.com:App API,api.example.com:Backend API
-
-# PostgreSQL Backup Dumps & Log Tailer
-BACKUPS_DIR=/var/backups
-LOG_SOURCES=pg-backup:/var/backups/postgres/logs/backup.log:200
-
-# Ollama AI Local Service
-OLLAMA_URL=http://127.0.0.1:11434
-OLLAMA_SERVICE_NAME=ollama
-ENABLE_CHAT_TEST=true
-
-# Rate Limiting Guardrails
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=3000
-CHAT_TEST_RATE_LIMIT_MAX=30
-LOG_TAIL_RATE_LIMIT_MAX=300</div>
-    </div>
-  </section>
-
-  <section>
     <h2>Deploy at Custom Subdomain &amp; SSL (HTTPS)</h2>
     <p>Deploy system-ops at any subdomain of your choice (e.g., <code>ops.yourdomain.com</code>):</p>
 
-    <h3>Option A: 1-Line Automated Domain &amp; SSL Setup (Recommended)</h3>
-    <p>Run the built-in domain setup script with your chosen subdomain and email for SSL notifications:</p>
     <div class="code-container">
       <button class="copy-btn" onclick="copyCode(this)">COPY</button>
       <div class="code-block">sudo bash /opt/system-ops/scripts/setup-domain.sh ops.yourdomain.com admin@yourdomain.com</div>
     </div>
-    <p class="card-desc" style="margin-bottom: 1.2rem;">
-      This automatically verifies Nginx &amp; Certbot, generates the secure proxy block, requests a Let's Encrypt SSL certificate, enables auto-renewal, and reloads Nginx in seconds.
+    <p class="card-desc">
+      Automatically generates the Nginx reverse proxy configuration, verifies syntax, provisions a free Let's Encrypt SSL certificate with auto-renewal, and reloads Nginx.
     </p>
-
-    <h3>Option B: Manual Nginx Configuration</h3>
-    <p>Create <code>/etc/nginx/sites-available/ops.yourdomain.com.conf</code>:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block dim">server {
-    listen 80;
-    server_name ops.yourdomain.com;
-
-    location / {
-        proxy_pass http://127.0.0.1:9080;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}</div>
-    </div>
-    <p>Enable the site, test syntax, and issue Let's Encrypt SSL:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">sudo ln -sf /etc/nginx/sites-available/ops.yourdomain.com.conf /etc/nginx/sites-enabled/
-sudo nginx -t &amp;&amp; sudo systemctl reload nginx
-sudo certbot --nginx -d ops.yourdomain.com</div>
-    </div>
   </section>
 
   <section>
-    <h2>Standardizing Node.js Apps on Systemd</h2>
+    <h2>Standardizing Node.js Apps on Systemd (0MB Overhead)</h2>
     <p>To run your Node.js backend under systemd instead of PM2, create <code>/etc/systemd/system/myapp.service</code>:</p>
     <div class="code-container">
       <button class="copy-btn" onclick="copyCode(this)">COPY</button>
