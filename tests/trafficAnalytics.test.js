@@ -25,7 +25,7 @@ test('extractValidIP should return correct IP or fallback', () => {
 test('formatDomainLabel formats readable labels from domain strings', () => {
   assert.strictEqual(formatDomainLabel('system-ops.dineshkorukonda.online'), 'System-ops');
   assert.strictEqual(formatDomainLabel('subchk.dineshkorukonda.online'), 'Subchk');
-  assert.strictEqual(formatDomainLabel('www.example.com'), 'EXAMPLE');
+  assert.strictEqual(formatDomainLabel('www.sample.online'), 'SAMPLE');
 });
 
 test('parseTrafficAnalytics handles non-existent file gracefully', async () => {
@@ -40,32 +40,32 @@ test('parseTrafficAnalytics correctly parses sample log lines and respects confi
   const sampleLogPath = path.join(tmpDir, `test_access_${Date.now()}.log`);
 
   const sampleLogs = [
-    'app.example.com 203.0.113.5 - - [21/Aug/2026:17:00:00 +0530] "GET /api/feed HTTP/1.1" 200 1234 "-" "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36"',
-    'app.example.com 203.0.113.5 - - [21/Aug/2026:17:01:00 +0530] "GET /api/profile HTTP/1.1" 200 567 "-" "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36"',
-    'api.example.com 198.51.100.10 - - [21/Aug/2026:17:02:00 +0530] "GET /dev HTTP/1.1" 200 890 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"',
-    'web.example.com 198.51.100.20 - - [21/Aug/2026:17:03:00 +0530] "GET /msf HTTP/1.1" 200 432 "-" "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)"',
-    'otherdomain.com 1.2.3.4 - - [21/Aug/2026:17:04:00 +0530] "GET / HTTP/1.1" 200 100 "-" "Mozilla/5.0"'
+    'app.test.online 203.0.113.5 - - [21/Aug/2026:17:00:00 +0530] "GET /api/feed HTTP/1.1" 200 1234 "-" "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36"',
+    'app.test.online 203.0.113.5 - - [21/Aug/2026:17:01:00 +0530] "GET /api/profile HTTP/1.1" 200 567 "-" "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36"',
+    'api.test.online 198.51.100.10 - - [21/Aug/2026:17:02:00 +0530] "GET /dev HTTP/1.1" 200 890 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"',
+    'web.test.online 198.51.100.20 - - [21/Aug/2026:17:03:00 +0530] "GET /msf HTTP/1.1" 200 432 "-" "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)"',
+    'otherdomain.online 1.2.3.4 - - [21/Aug/2026:17:04:00 +0530] "GET / HTTP/1.1" 200 100 "-" "Mozilla/5.0"'
   ].join('\n');
 
   fs.writeFileSync(sampleLogPath, sampleLogs, 'utf8');
   const prevTracked = process.env.TRACKED_DOMAINS;
-  process.env.TRACKED_DOMAINS = 'app.example.com:App API,api.example.com:Backend API,web.example.com:Web App';
+  process.env.TRACKED_DOMAINS = 'app.test.online:App API,api.test.online:Backend API,web.test.online:Web App';
 
   try {
     const result = await parseTrafficAnalytics(sampleLogPath);
 
-    assert.strictEqual(result.summary.total_hits, 4); // filters out otherdomain.com when TRACKED_DOMAINS is explicitly defined
+    assert.strictEqual(result.summary.total_hits, 4); // filters out otherdomain.online when TRACKED_DOMAINS is explicitly defined
     assert.strictEqual(result.summary.total_mobile_hits, 3);
     assert.strictEqual(result.summary.total_web_hits, 1);
     assert.strictEqual(result.summary.unique_devices, 3);
-    assert.strictEqual(result.summary.domains['app.example.com'].hits, 2);
-    assert.strictEqual(result.summary.domains['app.example.com'].mobile_hits, 2);
-    assert.strictEqual(result.summary.domains['app.example.com'].web_hits, 0);
-    assert.strictEqual(result.summary.domains['app.example.com'].unique, 1);
-    assert.strictEqual(result.summary.domains['api.example.com'].hits, 1);
-    assert.strictEqual(result.summary.domains['api.example.com'].web_hits, 1);
-    assert.strictEqual(result.summary.domains['web.example.com'].hits, 1);
-    assert.strictEqual(result.summary.domains['web.example.com'].mobile_hits, 1);
+    assert.strictEqual(result.summary.domains['app.test.online'].hits, 2);
+    assert.strictEqual(result.summary.domains['app.test.online'].mobile_hits, 2);
+    assert.strictEqual(result.summary.domains['app.test.online'].web_hits, 0);
+    assert.strictEqual(result.summary.domains['app.test.online'].unique, 1);
+    assert.strictEqual(result.summary.domains['api.test.online'].hits, 1);
+    assert.strictEqual(result.summary.domains['api.test.online'].web_hits, 1);
+    assert.strictEqual(result.summary.domains['web.test.online'].hits, 1);
+    assert.strictEqual(result.summary.domains['web.test.online'].mobile_hits, 1);
 
     assert.strictEqual(result.os_stats.Android, 2);
     assert.strictEqual(result.os_stats.Windows, 1);

@@ -62,7 +62,9 @@ async function getResolvedDomains() {
       const parts = entry.split(':');
       const domain = parts[0].trim().toLowerCase();
       const label = parts[1] ? parts[1].trim() : formatDomainLabel(domain);
-      if (domain) map[domain] = label;
+      if (domain && !domain.includes('example.com') && !domain.includes('example.org') && !domain.includes('example.net')) {
+        map[domain] = label;
+      }
     });
   }
 
@@ -347,7 +349,7 @@ async function parseTrafficAnalytics(customLogPath = null) {
     if (domainUniqueDevices[dom]) {
       summary.domains[dom].unique = domainUniqueDevices[dom].size;
     }
-    if (dom.includes('example.com') && summary.domains[dom].hits === 0 && !process.env.TRACKED_DOMAINS) {
+    if (dom.includes('example.com') || dom.includes('example.org')) {
       delete summary.domains[dom];
     }
   });
