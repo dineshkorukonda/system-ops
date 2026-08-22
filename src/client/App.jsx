@@ -7,6 +7,7 @@ import { ServicesView } from './components/ServicesView';
 import { OllamaView } from './components/OllamaView';
 import { BackupsView } from './components/BackupsView';
 import { TrafficAnalyticsView } from './components/TrafficAnalyticsView';
+import { TroubleshootingView } from './components/TroubleshootingView';
 import { LoginView } from './components/LoginView';
 
 const MAX_HISTORY = 20;
@@ -255,6 +256,7 @@ export function App() {
     ollama: 'Ollama AI',
     backups: 'Backups & Recovery',
     traffic: 'Traffic Analytics',
+    troubleshooting: 'Troubleshooting & Diagnostics',
   };
 
   return (
@@ -334,6 +336,10 @@ export function App() {
 
           {activeTab === 'traffic' && (
             <TrafficAnalyticsView trafficData={trafficData} />
+          )}
+
+          {activeTab === 'troubleshooting' && (
+            <TroubleshootingView />
           )}
         </main>
       </div>

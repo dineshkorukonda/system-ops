@@ -65,6 +65,17 @@ export function Sidebar({
         },
       ],
     },
+    {
+      title: 'HELP & SYSTEM',
+      items: [
+        {
+          id: 'troubleshooting',
+          label: 'Troubleshooting',
+          tag: 'DIAG',
+          tagVariant: 'neutral',
+        },
+      ],
+    },
   ];
 
   return (
