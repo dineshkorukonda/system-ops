@@ -494,14 +494,82 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ════════════════════════════════════════════════════════
-  // TAB 3: SYSTEM HEALTH
+  // TAB 3: SYSTEM HEALTH & PROCESS MONITOR
   // ════════════════════════════════════════════════════════
+  let cachedProcesses = [];
+
   async function fetchSystemSnapshot() {
     try {
-      const res = await fetch('/api/v2/system/snapshot');
-      if (res.ok) renderSystemSnapshot(await res.json());
+      const [snapRes] = await Promise.all([
+        fetch('/api/v2/system/snapshot'),
+        fetchSystemProcesses()
+      ]);
+      if (snapRes.ok) renderSystemSnapshot(await snapRes.json());
     } catch (err) {}
   }
+
+  async function fetchSystemProcesses() {
+    const sortSelect = document.getElementById('sysProcessSortSelect');
+    const sort = sortSelect ? sortSelect.value : 'cpu';
+    try {
+      const res = await fetch(`/api/v2/system/processes?sort=${sort}&limit=50`);
+      if (res.ok) {
+        const data = await res.json();
+        cachedProcesses = data.processes || [];
+        renderSystemProcesses();
+      }
+    } catch (err) {
+      console.error('Failed to fetch system processes:', err);
+    }
+  }
+
+  function renderSystemProcesses() {
+    const tbody = document.getElementById('sysProcessesTableBody');
+    const badge = document.getElementById('sysProcessCountBadge');
+    const searchInput = document.getElementById('sysProcessSearchInput');
+    const searchVal = (searchInput ? searchInput.value : '').toLowerCase().trim();
+
+    if (!tbody) return;
+
+    let filtered = cachedProcesses;
+    if (searchVal) {
+      filtered = cachedProcesses.filter(p => 
+        String(p.pid).includes(searchVal) ||
+        p.user.toLowerCase().includes(searchVal) ||
+        p.command.toLowerCase().includes(searchVal) ||
+        (p.args && p.args.toLowerCase().includes(searchVal))
+      );
+    }
+
+    if (badge) {
+      badge.textContent = `${filtered.length} process${filtered.length === 1 ? '' : 'es'}`;
+    }
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-dim" style="padding:1rem; text-align:center;">No matching processes found.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(p => `
+      <tr style="border-bottom:1px solid var(--border-dim);">
+        <td style="padding-left:1rem;"><code>${p.pid}</code></td>
+        <td><code>${p.user}</code></td>
+        <td><strong style="color:${p.cpuPercent > 50 ? 'var(--red)' : p.cpuPercent > 10 ? 'var(--yellow)' : 'var(--text)'};">${p.cpuPercent}%</strong></td>
+        <td>${p.memPercent ? p.memPercent + '%' : '--'}</td>
+        <td>${p.formattedRss || '0 B'}</td>
+        <td><span class="status-tag ${p.state === 'R' ? 'ok' : ''}" style="font-size:10px;">[${p.state || 'S'}]</span></td>
+        <td style="padding-right:1rem; font-family:var(--font-mono); font-size:11px; max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${p.args || p.command}">${p.args || p.command}</td>
+      </tr>
+    `).join('');
+  }
+
+  const sysProcSearch = document.getElementById('sysProcessSearchInput');
+  const sysProcSort = document.getElementById('sysProcessSortSelect');
+  const sysProcRefresh = document.getElementById('sysProcessRefreshBtn');
+
+  if (sysProcSearch) sysProcSearch.addEventListener('input', renderSystemProcesses);
+  if (sysProcSort) sysProcSort.addEventListener('change', fetchSystemProcesses);
+  if (sysProcRefresh) sysProcRefresh.addEventListener('click', fetchSystemProcesses);
 
   function renderSystemSnapshot(data) {
     lastUpdatedVal.textContent = new Date(data.timestamp || Date.now()).toLocaleTimeString();
@@ -763,6 +831,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const usersTotalEl = document.getElementById('trafficUsersTotal');
     const mobileTotalEl = document.getElementById('trafficMobileTotal');
     const webTotalEl = document.getElementById('trafficWebTotal');
+    const bytesTotalEl = document.getElementById('trafficBytesTotal');
 
     if (hitsAppEl) hitsAppEl.textContent = appData.hits.toLocaleString();
     if (usersAppEl) usersAppEl.textContent = appData.unique.toLocaleString();
@@ -783,6 +852,80 @@ document.addEventListener('DOMContentLoaded', () => {
     if (usersTotalEl) usersTotalEl.textContent = (summary.unique_devices || 0).toLocaleString();
     if (mobileTotalEl) mobileTotalEl.textContent = (summary.total_mobile_hits || 0).toLocaleString();
     if (webTotalEl) webTotalEl.textContent = (summary.total_web_hits || 0).toLocaleString();
+    if (bytesTotalEl) bytesTotalEl.textContent = formatBytesClient(summary.total_bytes || 0);
+
+    // 2. Status Codes
+    const sc = data.status_codes || {};
+    const s2 = document.getElementById('status2xxVal');
+    const s3 = document.getElementById('status3xxVal');
+    const s4 = document.getElementById('status4xxVal');
+    const s5 = document.getElementById('status5xxVal');
+    if (s2) s2.textContent = (sc['2xx'] || 0).toLocaleString();
+    if (s3) s3.textContent = (sc['3xx'] || 0).toLocaleString();
+    if (s4) s4.textContent = (sc['4xx'] || 0).toLocaleString();
+    if (s5) s5.textContent = (sc['5xx'] || 0).toLocaleString();
+
+    // 3. Browsers
+    const browsersContainer = document.getElementById('browsersContainer');
+    const bMap = data.browsers || {};
+    const totalBrowserHits = Object.values(bMap).reduce((a, b) => a + b, 0) || 1;
+
+    if (browsersContainer) {
+      const bEntries = Object.entries(bMap).sort((a, b) => b[1] - a[1]).slice(0, 6);
+      if (bEntries.length === 0) {
+        browsersContainer.innerHTML = '<div class="text-dim" style="font-size:12px;">No client stats recorded</div>';
+      } else {
+        browsersContainer.innerHTML = bEntries.map(([bName, count]) => {
+          const pct = ((count / totalBrowserHits) * 100).toFixed(1);
+          return `
+            <div style="flex:1; min-width:110px; background:var(--panel-alt); border:1px solid var(--border); border-radius:var(--radius); padding:0.4rem 0.6rem;">
+              <div style="font-size:11px; color:var(--text-dim); text-transform:uppercase; font-weight:600;">${bName}</div>
+              <div style="font-size:15px; font-weight:700; color:var(--text); margin-top:2px;">${count.toLocaleString()}</div>
+              <div style="font-size:10px; color:var(--text-dim);">${pct}%</div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    // 4. Top Endpoints Table
+    const epTable = document.getElementById('trafficEndpointsTableBody');
+    const endpoints = data.top_endpoints || [];
+    if (epTable) {
+      if (endpoints.length === 0) {
+        epTable.innerHTML = `<tr><td colspan="3" class="text-dim" style="padding:1rem; text-align:center;">No endpoint data</td></tr>`;
+      } else {
+        const hostBadges = {
+          'iskconcommunity.com': '<span class="status-tag ok" style="font-size:10px;">APP</span>',
+          'dev.iskconcommunity.com': '<span class="status-tag warn" style="font-size:10px;">DEV</span>',
+          'msf.iskconcommunity.com': '<span class="status-tag" style="font-size:10px; background:rgba(139,92,246,0.15); color:#a855f7; border-color:#8b5cf6;">MSF</span>'
+        };
+        epTable.innerHTML = endpoints.map(ep => `
+          <tr style="border-bottom:1px solid var(--border-dim);">
+            <td style="padding:5px 10px;">${hostBadges[ep.host] || ep.host}</td>
+            <td style="padding:5px 10px; font-family:var(--font-mono); font-size:11px;">${ep.path}</td>
+            <td style="padding:5px 10px; text-align:right; font-weight:600;">${ep.hits.toLocaleString()}</td>
+          </tr>
+        `).join('');
+      }
+    }
+
+    // 5. Top Visitor IPs Table
+    const ipsTable = document.getElementById('trafficIpsTableBody');
+    const ips = data.top_ips || [];
+    if (ipsTable) {
+      if (ips.length === 0) {
+        ipsTable.innerHTML = `<tr><td colspan="3" class="text-dim" style="padding:1rem; text-align:center;">No IP data</td></tr>`;
+      } else {
+        ipsTable.innerHTML = ips.map(ip => `
+          <tr style="border-bottom:1px solid var(--border-dim);">
+            <td style="padding:5px 10px; font-family:var(--font-mono); font-size:11px;">${ip.ip}</td>
+            <td style="padding:5px 10px;">${(ip.city && ip.city !== 'Unknown') ? ip.city + ', ' + ip.country : ip.country}</td>
+            <td style="padding:5px 10px; text-align:right; font-weight:600;">${ip.hits.toLocaleString()}</td>
+          </tr>
+        `).join('');
+      }
+    }
 
     // 2. OS Breakdown
     const osStatsContainer = document.getElementById('osStatsContainer');

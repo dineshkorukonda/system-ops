@@ -413,6 +413,113 @@ function checkNetworkTlsCert(hostname, port = 443) {
 }
 
 /**
+ * Fetch top running system processes sorted by CPU or Memory.
+ */
+async function getSystemProcesses(options = {}) {
+  const limit = parseInt(options.limit, 10) || 30;
+  const sortBy = options.sortBy === 'mem' ? 'mem' : 'cpu';
+
+  const sortFlag = sortBy === 'mem' ? '-%mem' : '-%cpu';
+
+  // Try Linux ps first
+  const psRes = await runCommand('ps', ['-eo', 'pid,user,%cpu,%mem,vsz,rss,stat,comm,args', `--sort=${sortFlag}`]);
+  if (psRes.success && psRes.stdout) {
+    const lines = psRes.stdout.trim().split('\n');
+    const processes = [];
+    
+    // Skip header line
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const parts = line.split(/\s+/);
+      if (parts.length >= 9) {
+        const pid = parseInt(parts[0], 10);
+        const user = parts[1];
+        const cpuPercent = parseFloat(parts[2]) || 0;
+        const memPercent = parseFloat(parts[3]) || 0;
+        const vszBytes = (parseInt(parts[4], 10) || 0) * 1024;
+        const rssBytes = (parseInt(parts[5], 10) || 0) * 1024;
+        const state = parts[6];
+        const command = parts[7];
+        const args = parts.slice(8).join(' ');
+
+        if (!isNaN(pid)) {
+          processes.push({
+            pid,
+            user,
+            cpuPercent,
+            memPercent,
+            vszBytes,
+            rssBytes,
+            formattedRss: formatBytes(rssBytes),
+            state,
+            command,
+            args: args || command
+          });
+        }
+      }
+    }
+
+    return {
+      sortBy,
+      limit,
+      total: processes.length,
+      processes: processes.slice(0, limit)
+    };
+  }
+
+  // Cross-platform fallback (e.g. Windows dev machine)
+  const isWin = os.platform() === 'win32';
+  if (isWin) {
+    const psWin = await runCommand('powershell', [
+      '-NoProfile',
+      '-Command',
+      `Get-Process | Sort-Object -Property ${sortBy === 'mem' ? 'WorkingSet64' : 'CPU'} -Descending | Select-Object -First ${limit} -Property Id, ProcessName, CPU, WorkingSet64 | ConvertTo-Json`
+    ]);
+
+    if (psWin.success && psWin.stdout) {
+      try {
+        const rawJson = psWin.stdout.trim();
+        if (rawJson) {
+          const parsed = JSON.parse(rawJson);
+          const arr = Array.isArray(parsed) ? parsed : [parsed];
+          const processes = arr.filter(Boolean).map(p => {
+            const rss = p.WorkingSet64 || 0;
+            return {
+              pid: p.Id || 0,
+              user: os.userInfo().username || 'system',
+              cpuPercent: Math.round((p.CPU || 0) * 10) / 10,
+              memPercent: 0,
+              vszBytes: rss,
+              rssBytes: rss,
+              formattedRss: formatBytes(rss),
+              state: 'R',
+              command: p.ProcessName || 'Unknown',
+              args: p.ProcessName || 'Unknown'
+            };
+          });
+
+          return {
+            sortBy,
+            limit,
+            total: processes.length,
+            processes
+          };
+        }
+      } catch (e) {}
+    }
+  }
+
+  return {
+    sortBy,
+    limit,
+    total: 0,
+    processes: []
+  };
+}
+
+/**
  * GET /api/v2/system/snapshot - Combined System Snapshot.
  */
 async function getSystemSnapshot() {
@@ -440,6 +547,7 @@ async function getSystemSnapshot() {
 
 module.exports = {
   getSystemSnapshot,
+  getSystemProcesses,
   getUptimeAndLoad,
   getMemoryAndSwap,
   getDiskUsage,
@@ -447,3 +555,4 @@ module.exports = {
   getListeningPorts,
   getTlsCertStatus
 };
+

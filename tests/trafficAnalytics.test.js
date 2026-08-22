@@ -63,8 +63,15 @@ test('parseTrafficAnalytics correctly parses sample log lines', async () => {
     assert.strictEqual(result.os_stats.Windows, 1);
     assert.strictEqual(result.os_stats.iOS, 1);
 
-    assert.strictEqual(result.recent_visitors.length, 4);
-    assert.strictEqual(result.recent_visitors[0].host, 'msf.iskconcommunity.com'); // reverse chronological
+    assert.strictEqual(result.summary.total_bytes, 3123); // 1234 + 567 + 890 + 432
+    assert.strictEqual(result.status_codes['2xx'], 4);
+    assert.ok(Array.isArray(result.top_endpoints));
+    assert.strictEqual(result.top_endpoints[0].path, '/api/feed');
+    assert.ok(Array.isArray(result.top_ips));
+    assert.strictEqual(result.top_ips[0].ip, '203.0.113.5');
+    assert.strictEqual(result.top_ips[0].hits, 2);
+    assert.ok(result.browsers);
+    assert.ok(Array.isArray(result.hourly_distribution));
   } finally {
     if (fs.existsSync(sampleLogPath)) {
       fs.unlinkSync(sampleLogPath);

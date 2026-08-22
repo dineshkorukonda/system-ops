@@ -309,6 +309,44 @@
           </div>
         </div>
 
+        <!-- System Processes Monitor (Full Width Card) -->
+        <div class="v2-card" style="grid-column: 1 / -1;">
+          <div class="v2-card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+            <div style="display:flex; align-items:center; gap:0.75rem;">
+              <div class="v2-card-title">System Process Monitor</div>
+              <span id="sysProcessCountBadge" class="status-tag ok" style="font-size:11px;">0 processes</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <input type="text" id="sysProcessSearchInput" class="input-min" placeholder="Search by name, PID, user..." style="width:200px;">
+              <select id="sysProcessSortSelect" class="select-min">
+                <option value="cpu" selected>Sort by % CPU</option>
+                <option value="mem">Sort by % Memory</option>
+              </select>
+              <button id="sysProcessRefreshBtn" class="btn-min">↻ Refresh</button>
+            </div>
+          </div>
+          <div class="v2-card-body p-0">
+            <div style="max-height:380px; overflow-y:auto;">
+              <table class="models-table">
+                <thead>
+                  <tr>
+                    <th style="padding-left:1rem; width:80px;">PID</th>
+                    <th style="width:120px;">User</th>
+                    <th style="width:90px;">% CPU</th>
+                    <th style="width:90px;">% RAM</th>
+                    <th style="width:110px;">RSS Memory</th>
+                    <th style="width:80px;">State</th>
+                    <th style="padding-right:1rem;">Command / Arguments</th>
+                  </tr>
+                </thead>
+                <tbody id="sysProcessesTableBody">
+                  <tr><td colspan="7" class="text-dim" style="padding-left:1rem;">Loading active processes...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -484,8 +522,88 @@
               </div>
             </div>
             <div style="margin-top:0.6rem; padding-top:0.4rem; border-top:1px dashed var(--border-dim); display:flex; justify-content:space-between; font-size:11px; color:var(--text-dim);">
-              <span>📱 Total Mobile: <strong id="trafficMobileTotal" style="color:var(--text);">0</strong></span>
-              <span>💻 Total Web: <strong id="trafficWebTotal" style="color:var(--text);">0</strong></span>
+              <span>📱 Mobile: <strong id="trafficMobileTotal" style="color:var(--text);">0</strong></span>
+              <span>💻 Web: <strong id="trafficWebTotal" style="color:var(--text);">0</strong></span>
+              <span>📦 Bandwidth: <strong id="trafficBytesTotal" style="color:var(--text);">0 B</strong></span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Status Codes & Browsers Grid -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;" class="traffic-split-grid">
+          
+          <!-- HTTP Status Codes Breakdown -->
+          <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; display:flex; flex-direction:column; gap:0.75rem;">
+            <div class="section-title" style="margin-bottom:0;">HTTP Status Codes</div>
+            <div id="statusCodesContainer" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:0.5rem; text-align:center;">
+              <div style="background:var(--panel-alt); padding:0.6rem; border-radius:var(--radius); border:1px solid var(--border);">
+                <span class="status-tag ok" style="font-size:10px;">2xx OK</span>
+                <div style="font-size:18px; font-weight:700; margin-top:4px;" id="status2xxVal">0</div>
+              </div>
+              <div style="background:var(--panel-alt); padding:0.6rem; border-radius:var(--radius); border:1px solid var(--border);">
+                <span class="status-tag" style="font-size:10px; background:rgba(59,130,246,0.15); color:#3b82f6; border-color:#3b82f6;">3xx REDIR</span>
+                <div style="font-size:18px; font-weight:700; margin-top:4px;" id="status3xxVal">0</div>
+              </div>
+              <div style="background:var(--panel-alt); padding:0.6rem; border-radius:var(--radius); border:1px solid var(--border);">
+                <span class="status-tag warn" style="font-size:10px;">4xx CLIENT</span>
+                <div style="font-size:18px; font-weight:700; margin-top:4px;" id="status4xxVal">0</div>
+              </div>
+              <div style="background:var(--panel-alt); padding:0.6rem; border-radius:var(--radius); border:1px solid var(--border);">
+                <span class="status-tag err" style="font-size:10px;">5xx SERVER</span>
+                <div style="font-size:18px; font-weight:700; margin-top:4px;" id="status5xxVal">0</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Top Browsers & Agents -->
+          <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; display:flex; flex-direction:column; gap:0.75rem;">
+            <div class="section-title" style="margin-bottom:0;">Top Browsers &amp; Clients</div>
+            <div id="browsersContainer" style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+              <div class="text-dim" style="font-size:12px;">Loading browser stats...</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Top Endpoints & Top IPs Split Grid -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;" class="traffic-split-grid">
+          
+          <!-- Top Endpoints / Requested Paths -->
+          <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; display:flex; flex-direction:column; gap:0.75rem;">
+            <div class="section-title" style="margin-bottom:0;">Top Requested Endpoints</div>
+            <div style="max-height:260px; overflow-y:auto; border:1px solid var(--border-dim); border-radius:var(--radius);">
+              <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                <thead>
+                  <tr style="border-bottom:1px solid var(--border); background:var(--panel-alt); color:var(--text-dim); text-align:left;">
+                    <th style="padding:6px 10px;">Host</th>
+                    <th style="padding:6px 10px;">Path</th>
+                    <th style="padding:6px 10px; text-align:right;">Hits</th>
+                  </tr>
+                </thead>
+                <tbody id="trafficEndpointsTableBody">
+                  <tr><td colspan="3" class="text-dim" style="padding:1rem; text-align:center;">Loading top endpoints...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Top Visitor IPs -->
+          <div style="background:var(--panel-bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; display:flex; flex-direction:column; gap:0.75rem;">
+            <div class="section-title" style="margin-bottom:0;">Top Visitor IPs &amp; Geo Location</div>
+            <div style="max-height:260px; overflow-y:auto; border:1px solid var(--border-dim); border-radius:var(--radius);">
+              <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                <thead>
+                  <tr style="border-bottom:1px solid var(--border); background:var(--panel-alt); color:var(--text-dim); text-align:left;">
+                    <th style="padding:6px 10px;">IP Address</th>
+                    <th style="padding:6px 10px;">Location</th>
+                    <th style="padding:6px 10px; text-align:right;">Hits</th>
+                  </tr>
+                </thead>
+                <tbody id="trafficIpsTableBody">
+                  <tr><td colspan="3" class="text-dim" style="padding:1rem; text-align:center;">Loading top visitor IPs...</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
 

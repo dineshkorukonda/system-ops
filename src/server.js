@@ -11,7 +11,7 @@ const { checkApiHealth, runQuickChatTest, getCliModelList } = require('./service
 
 // v2 Collectors
 const { getPm2Snapshot, getPm2Logs } = require('./collectors/pm2');
-const { getSystemSnapshot } = require('./collectors/system');
+const { getSystemSnapshot, getSystemProcesses } = require('./collectors/system');
 const { getLogSourcesList, getLogSourceTail } = require('./collectors/logSources');
 const { listBackupFiles, getBackupFilePath } = require('./collectors/backupFiles');
 const { parseTrafficAnalytics } = require('./collectors/trafficAnalytics');
@@ -194,6 +194,16 @@ app.get('/api/v2/system/snapshot', async (req, res) => {
     return res.json(data);
   } catch (error) {
     return res.status(500).json({ error: 'Failed to fetch system snapshot', details: error.message });
+  }
+});
+
+app.get('/api/v2/system/processes', async (req, res) => {
+  try {
+    const { limit, sort } = req.query;
+    const data = await getSystemProcesses({ limit, sortBy: sort });
+    return res.json(data);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch system processes', details: error.message });
   }
 });
 
