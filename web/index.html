@@ -4,7 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>system-ops - Lightweight Systemd VPS Operations Console</title>
+<<<<<<< HEAD
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
+=======
+>>>>>>> origin/main
   <style>
     * {
       box-sizing: border-box;
@@ -54,6 +57,7 @@
       padding: 0.2rem 0.6rem;
       border-radius: 3px;
       font-size: 0.8rem;
+<<<<<<< HEAD
       margin-bottom: 0.5rem;
     }
     section {
@@ -76,6 +80,23 @@
       margin-top: 1.2rem;
       margin-bottom: 0.5rem;
     }
+=======
+      margin-bottom: 0.5rem;
+    }
+    section {
+      margin-bottom: 2.8rem;
+    }
+    h2 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      border-bottom: 1px solid #222222;
+      padding-bottom: 0.4rem;
+      margin-bottom: 1rem;
+      color: #ffffff;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+>>>>>>> origin/main
     p {
       color: #cccccc;
       margin-bottom: 1rem;
@@ -205,11 +226,16 @@
 (____/(__/  (____/ (__) (____)\_)(_/     (_____)(__)  (____/
     </div>
     <h1>&gt; system-ops</h1>
+<<<<<<< HEAD
     <div class="tagline">ARCHITECTURE: NATIVE SYSTEMD UNIFIED (0MB EXTRA RAM)</div>
+=======
+    <div class="tagline">ARCHITECTURE: NATIVE SYSTEMD UNIFIED</div>
+>>>>>>> origin/main
     <p class="subtitle">Self-hosted operations console and telemetry dashboard for single Ubuntu VPS deployments.</p>
   </header>
 
   <section>
+<<<<<<< HEAD
     <h2>Quick Upgrade / Clean Reinstall on VPS</h2>
     <p>If replacing an existing installation on your server, run these commands as root or with sudo:</p>
 
@@ -238,10 +264,61 @@ sudo bash scripts/install.sh</div>
       <button class="copy-btn" onclick="copyCode(this)">COPY</button>
       <div class="code-block">sudo systemctl restart system-ops.service
 sudo systemctl status system-ops.service</div>
+=======
+    <h2>Why Native Systemd over PM2?</h2>
+    <p>
+      Instead of running multi-user PM2 daemons that consume 50-100MB+ RAM and break on Node/NVM version updates, system-ops standardizes completely on native Linux <strong>systemd</strong>:
+    </p>
+    <ul>
+      <li><strong>0 MB Extra Overhead</strong>: Controlled directly by Linux kernel PID 1.</li>
+      <li><strong>Unified Operations</strong>: Manage Node.js backends, frontend web apps, Ollama AI, PostgreSQL, and Nginx with one standard tool (<code>systemctl</code>).</li>
+      <li><strong>Built-in Log Management</strong>: Clean, automated log rotation via <code>journalctl</code> with zero disk exhaustion.</li>
+      <li><strong>Hardened Sandboxing</strong>: Cgroup memory caps (<code>MemoryMax=600M</code>) and automatic reboot recovery (<code>Restart=always</code>).</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Core Capabilities</h2>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">System Health &amp; Sparklines</div>
+        <p class="card-desc">Real-time SVG sparklines for CPU Load, RAM %, and Swap %. Load averages (1m/5m/15m), disk partition meters, listening ports, and TLS cert expiry countdowns.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Systemd Services Fleet</div>
+        <p class="card-desc">Unified inspection of all tracked services with active state, memory consumption, PID, and live streaming journalctl log viewer.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Process Monitor</div>
+        <p class="card-desc">Interactive top system process table with fuzzy live search and instant sorting by % CPU or % RAM consumption.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Ollama AI Local Models</div>
+        <p class="card-desc">Service state, loopback socket binding, API latency probe, installed model registry, and token-capped quick inference probe.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">PostgreSQL Backups</div>
+        <p class="card-desc">Log tailing with heuristic status parsing (SUCCESS / FAILED), log source switching, and direct .dump file downloads.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Traffic &amp; GeoIP Analytics</div>
+        <p class="card-desc">Streaming Nginx access log parser, mobile vs desktop ratio meters, HTTP status code distribution (2xx/3xx/4xx/5xx), top requested endpoints, and Leaflet GeoIP visitor map.</p>
+      </div>
     </div>
   </section>
 
   <section>
+    <h2>Installation (Native Systemd)</h2>
+    <p>Automated installer for Ubuntu 22.04 / 24.04:</p>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block">git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops &amp;&amp; cd /opt/system-ops &amp;&amp; sudo bash scripts/install.sh</div>
+>>>>>>> origin/main
+    </div>
+  </section>
+
+  <section>
+<<<<<<< HEAD
     <h2>Environment File (.env) Reference</h2>
     <table>
       <thead>

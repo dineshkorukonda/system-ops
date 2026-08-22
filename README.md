@@ -147,7 +147,6 @@ sudo systemctl enable --now myapp.service
 ```
 
 Add `myapp` to `SYSTEMD_UNITS` in `/opt/system-ops/.env` to monitor it in `system-ops`.
-
 ---
 
 ## Deploy at Custom Subdomain & SSL
