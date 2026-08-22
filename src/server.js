@@ -255,9 +255,29 @@ app.get('/api/v2/backups/download/:filename', (req, res) => {
   }
 });
 
+app.get('/api/v2/backups/download', (req, res) => {
+  try {
+    const filename = req.query.filename;
+    const targetPath = getBackupFilePath(filename);
+    return res.download(targetPath, filename);
+  } catch (error) {
+    const statusCode = error.message.includes('Access denied') ? 403 : error.message.includes('not found') ? 404 : 400;
+    return res.status(statusCode).json({ error: error.message });
+  }
+});
+
 /**
- * Traffic & Geographic Analytics Endpoint
+ * Traffic & Geographic Analytics Endpoints (v2 & legacy)
  */
+app.get('/api/v2/traffic/analytics', async (req, res) => {
+  try {
+    const data = await parseTrafficAnalytics();
+    return res.json(data);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to parse traffic analytics', details: error.message });
+  }
+});
+
 app.get('/api/traffic-analytics', async (req, res) => {
   try {
     const data = await parseTrafficAnalytics();

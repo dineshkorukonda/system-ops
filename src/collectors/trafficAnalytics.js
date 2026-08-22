@@ -23,11 +23,13 @@ function normalizeOS(osName) {
  */
 function extractValidIP(cfIp, remoteUser) {
   if (cfIp && cfIp !== '-' && cfIp !== 'unknown') {
-    // If comma-separated (e.g., proxied multiple times), pick first IP
     const firstIp = cfIp.split(',')[0].trim();
-    if (firstIp && firstIp !== '-') return firstIp;
+    if (firstIp && firstIp !== '-' && !firstIp.includes(':') && /^\d{1,3}(\.\d{1,3}){3}$/.test(firstIp)) {
+      return firstIp;
+    }
+    if (firstIp && firstIp.includes(':')) return firstIp; // IPv6
   }
-  if (remoteUser && remoteUser !== '-' && /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(remoteUser)) {
+  if (remoteUser && remoteUser !== '-' && /^\d{1,3}(\.\d{1,3}){3}$/.test(remoteUser)) {
     return remoteUser.trim();
   }
   return null;
@@ -56,7 +58,7 @@ function getTrackedDomains() {
 
 /**
  * Parse Nginx access.log line-by-line using streaming readline
- * Nginx format: $host $http_cf_connecting_ip - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"
+ * Supports both Host-prefixed ($host $http_cf_connecting_ip ...) and standard combined formats.
  */
 async function parseTrafficAnalytics(customLogPath = null) {
   const logPath = customLogPath || process.env.NGINX_LOG_PATH || '/var/log/nginx/access.log';
@@ -68,6 +70,8 @@ async function parseTrafficAnalytics(customLogPath = null) {
     domainSummaries[dom] = { name: label, hits: 0, unique: 0, mobile_hits: 0, web_hits: 0, bytes: 0 };
     domainUniqueDevices[dom] = new Set();
   });
+
+  const defaultHost = Object.keys(TARGET_DOMAINS)[0] || 'localhost';
 
   const summary = {
     total_hits: 0,
@@ -100,8 +104,7 @@ async function parseTrafficAnalytics(customLogPath = null) {
   };
 
   const uniqueDevicesGlobal = new Set();
-
-  const locationMap = new Map(); // key: compoundKey, val: locObj
+  const locationMap = new Map();
   const recentVisitors = [];
 
   if (!fs.existsSync(logPath)) {
@@ -126,29 +129,73 @@ async function parseTrafficAnalytics(customLogPath = null) {
       crlfDelay: Infinity
     });
 
-    // Regex matching log line structure
-    // $host $http_cf_connecting_ip - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"
-    const logRegex = /^(\S+)\s+(\S+)\s+-\s+(\S+)\s+\[([^\]]+)\]\s+"([^"]*)"\s+(\d+)\s+(\d+|-)\s+"([^"]*)"\s+"([^"]*)"/;
+    // 1. Host-prefixed format: $host $http_cf_connecting_ip - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"
+    const hostLogRegex = /^(\S+)\s+(\S+)\s+-\s+(\S+)\s+\[([^\]]+)\]\s+"([^"]*)"\s+(\d+)\s+(\d+|-)\s+"([^"]*)"\s+"([^"]*)"/;
+
+    // 2. Standard combined format: $remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"
+    const standardLogRegex = /^(\S+)\s+-\s+(\S+)\s+\[([^\]]+)\]\s+"([^"]*)"\s+(\d+)\s+(\d+|-)\s+"([^"]*)"\s+"([^"]*)"/;
 
     for await (const line of rl) {
       if (!line || !line.trim()) continue;
 
-      const match = line.match(logRegex);
-      if (!match) continue;
+      let host = defaultHost;
+      let clientIp = null;
+      let timeLocal = '';
+      let requestStr = '';
+      let statusCode = 0;
+      let bodyBytes = 0;
+      let userAgent = '';
 
-      let host = match[1].toLowerCase().split(':')[0]; // Strip optional port
-      const cfIp = match[2];
-      const remoteUser = match[3];
-      const timeLocal = match[4];
-      const requestStr = match[5];
-      const statusCode = parseInt(match[6], 10) || 0;
-      const bodyBytes = parseInt(match[7], 10) || 0;
-      const userAgent = match[9];
+      const hostMatch = line.match(hostLogRegex);
+      if (hostMatch) {
+        const rawHost = hostMatch[1].toLowerCase().split(':')[0];
+        const cfIp = hostMatch[2];
+        const remoteUser = hostMatch[3];
+        timeLocal = hostMatch[4];
+        requestStr = hostMatch[5];
+        statusCode = parseInt(hostMatch[6], 10) || 0;
+        bodyBytes = parseInt(hostMatch[7], 10) || 0;
+        userAgent = hostMatch[9] || '';
+
+        // If first token is actually an IP address, fallback to standard combined format
+        if (/^\d{1,3}(\.\d{1,3}){3}$/.test(rawHost)) {
+          clientIp = rawHost;
+          host = defaultHost;
+        } else {
+          host = rawHost;
+          clientIp = extractValidIP(cfIp, remoteUser) || cfIp;
+        }
+      } else {
+        const stdMatch = line.match(standardLogRegex);
+        if (stdMatch) {
+          clientIp = stdMatch[1];
+          timeLocal = stdMatch[3];
+          requestStr = stdMatch[4];
+          statusCode = parseInt(stdMatch[5], 10) || 0;
+          bodyBytes = parseInt(stdMatch[6], 10) || 0;
+          userAgent = stdMatch[8] || '';
+          host = defaultHost;
+        } else {
+          continue;
+        }
+      }
 
       // Check if domain is one of target domains
-      if (!TARGET_DOMAINS[host]) continue;
+      if (TARGET_DOMAINS && !TARGET_DOMAINS[host]) continue;
 
-      const clientIp = extractValidIP(cfIp, remoteUser);
+      // Ensure domain exists in summary
+      if (!summary.domains[host]) {
+        summary.domains[host] = {
+          name: TARGET_DOMAINS[host] || host,
+          hits: 0,
+          unique: 0,
+          mobile_hits: 0,
+          web_hits: 0,
+          bytes: 0
+        };
+        domainUniqueDevices[host] = new Set();
+      }
+
       summary.total_hits += 1;
       summary.domains[host].hits += 1;
       summary.total_bytes += bodyBytes;
@@ -160,7 +207,7 @@ async function parseTrafficAnalytics(customLogPath = null) {
       else if (statusCode >= 400 && statusCode < 500) status_codes['4xx'] += 1;
       else if (statusCode >= 500) status_codes['5xx'] += 1;
 
-      // Unique device key: (IP + UserAgent + Host)
+      // Device keys
       const deviceKey = `${clientIp || 'no-ip'}|${userAgent}|${host}`;
       const globalDeviceKey = `${clientIp || 'no-ip'}|${userAgent}`;
 
@@ -201,7 +248,7 @@ async function parseTrafficAnalytics(customLogPath = null) {
 
       // GeoIP Lookup & IP Stats
       let geoData = null;
-      if (clientIp) {
+      if (clientIp && !clientIp.startsWith('127.') && !clientIp.startsWith('10.') && !clientIp.startsWith('192.168.')) {
         geoData = geoip.lookup(clientIp);
       }
 
@@ -218,14 +265,14 @@ async function parseTrafficAnalytics(customLogPath = null) {
         }
       }
 
-      // Hourly Distribution (Nginx time_local e.g. "21/Aug/2026:17:00:00 +0530")
+      // Hourly Distribution
       const timeMatch = timeLocal.match(/:(\d{2}):\d{2}:\d{2}/);
       if (timeMatch) {
         const hour = `${timeMatch[1]}:00`;
         hourlyMap.set(hour, (hourlyMap.get(hour) || 0) + 1);
       }
 
-      // Keep geographic locations if valid coords exist
+      // Geo marker
       if (lat !== null && lon !== null && lat !== 0 && lon !== 0) {
         locationMap.set(deviceKey, {
           lat,
@@ -233,7 +280,7 @@ async function parseTrafficAnalytics(customLogPath = null) {
           city,
           country,
           host,
-          host_label: TARGET_DOMAINS[host],
+          host_label: TARGET_DOMAINS[host] || host,
           device: deviceType,
           os: osCategory,
           browser: browserName,
@@ -242,44 +289,43 @@ async function parseTrafficAnalytics(customLogPath = null) {
         });
       }
 
-      // Add to recent visitors array (maintain up to 15 recent)
+      // Recent visitors (up to 15)
       recentVisitors.push({
         timestamp: timeLocal,
         host,
-        host_label: TARGET_DOMAINS[host],
+        host_label: TARGET_DOMAINS[host] || host,
         ip: clientIp || 'Unknown',
-        os: osCategory,
-        browser: browserName,
-        device: deviceType,
         city,
-        country
+        country,
+        os: osCategory,
+        device: deviceType,
+        browser: browserName
       });
 
-      if (recentVisitors.length > 50) {
-        recentVisitors.shift(); // Keep buffer manageable while streaming
+      if (recentVisitors.length > 15) {
+        recentVisitors.shift();
       }
     }
 
-    // Set unique counts
-    summary.unique_devices = uniqueDevicesGlobal.size;
-    Object.keys(domainUniqueDevices).forEach(dom => {
-      summary.domains[dom].unique = domainUniqueDevices[dom].size;
+    // Assign unique devices counts
+    Object.keys(domainSummaries).forEach(dom => {
+      if (domainUniqueDevices[dom]) {
+        domainSummaries[dom].unique = domainUniqueDevices[dom].size;
+      }
     });
+    summary.unique_devices = uniqueDevicesGlobal.size;
 
+    // Top endpoints sorted by hits desc (limit 25)
     const top_endpoints = Array.from(endpointMap.values())
       .sort((a, b) => b.hits - a.hits)
-      .slice(0, 10);
+      .slice(0, 25);
 
+    // Top IPs sorted by hits desc (limit 25)
     const top_ips = Array.from(ipMap.values())
       .sort((a, b) => b.hits - a.hits)
-      .slice(0, 10);
+      .slice(0, 25);
 
-    const hourly_distribution = Array.from(hourlyMap.entries())
-      .map(([hour, hits]) => ({ hour, hits }))
-      .sort((a, b) => a.hour.localeCompare(b.hour));
-
-    // Recent 15 visitors (reverse for most recent first)
-    const recent_visitors = recentVisitors.slice(-15).reverse();
+    // Locations array for map
     const locations = Array.from(locationMap.values());
 
     return {
@@ -288,12 +334,12 @@ async function parseTrafficAnalytics(customLogPath = null) {
       top_endpoints,
       top_ips,
       browsers,
-      hourly_distribution,
+      hourly_distribution: Array.from(hourlyMap.entries()).map(([hour, hits]) => ({ hour, hits })),
       os_stats,
       locations,
-      recent_visitors
+      recent_visitors: recentVisitors.reverse()
     };
-  } catch (err) {
+  } catch (error) {
     return {
       summary,
       status_codes,
@@ -304,7 +350,7 @@ async function parseTrafficAnalytics(customLogPath = null) {
       os_stats,
       locations: [],
       recent_visitors: [],
-      error: `Error parsing log file: ${err.message}`
+      error: `Failed reading access log: ${error.message}`
     };
   }
 }
@@ -312,6 +358,5 @@ async function parseTrafficAnalytics(customLogPath = null) {
 module.exports = {
   parseTrafficAnalytics,
   normalizeOS,
-  extractValidIP,
-  getTrackedDomains
+  extractValidIP
 };
