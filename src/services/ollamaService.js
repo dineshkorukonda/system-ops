@@ -1,6 +1,6 @@
 const { performance } = require('perf_hooks');
 const { execFile } = require('child_process');
-const { formatBytes } = require('./systemService');
+const { formatBytes } = require('../utils/formatters');
 
 /**
  * Checks Ollama HTTP API health via GET /api/tags

@@ -1,32 +1,8 @@
-const { execFile } = require('child_process');
 const net = require('net');
 const os = require('os');
 const fs = require('fs');
-
-/**
- * Executes a shell command securely via execFile with standard options and timeouts.
- */
-function runCommand(file, args, timeoutMs = 4000) {
-  return new Promise((resolve) => {
-    execFile(file, args, { timeout: timeoutMs }, (error, stdout, stderr) => {
-      if (error) {
-        resolve({ success: false, stdout: stdout || '', stderr: stderr || error.message, code: error.code });
-      } else {
-        resolve({ success: true, stdout: stdout || '', stderr: stderr || '', code: 0 });
-      }
-    });
-  });
-}
-
-/**
- * Formats byte counts into human readable strings (MB, GB).
- */
-function formatBytes(bytes) {
-  if (!bytes || isNaN(bytes) || bytes <= 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${units[i]}`;
-}
+const { runCommand } = require('../utils/exec');
+const { formatBytes } = require('../utils/formatters');
 
 /**
  * Inspect systemd service status for Ollama

@@ -1,20 +1,5 @@
-const { execFile } = require('child_process');
 const fs = require('fs');
-
-/**
- * Run shell command via execFile.
- */
-function runCommand(file, args, timeoutMs = 5000) {
-  return new Promise((resolve) => {
-    execFile(file, args, { timeout: timeoutMs }, (error, stdout, stderr) => {
-      if (error) {
-        resolve({ success: false, stdout: stdout || '', stderr: stderr || error.message, code: error.code });
-      } else {
-        resolve({ success: true, stdout: stdout || '', stderr: stderr || '', code: 0 });
-      }
-    });
-  });
-}
+const { runCommand } = require('../utils/exec');
 
 /**
  * Parse LOG_SOURCES from environment or fallback default.
