@@ -116,12 +116,29 @@ async function resolvePm2Binary(user) {
     }
   }
 
-  // 4. Try dynamic find across user's home directory (scoped strictly to user's home)
+  // 4. Try dynamic find across user's home directory
   try {
-    const findRes = await runCommand('sudo', ['-n', 'find', homeDir, '-name', 'pm2', '-type', 'f', '-path', '*/bin/pm2'], 4000);
+    const findRes = await runCommand('sudo', ['-n', 'find', homeDir, '-name', 'pm2', '-type', 'f'], 4000);
     if (findRes.success && findRes.stdout) {
       const discoveredPaths = findRes.stdout.split('\n').map(l => l.trim()).filter(Boolean);
       for (const p of discoveredPaths) {
+        if (!p.includes('/bin/pm2') && !p.endsWith('/pm2')) continue;
+        const testRes = await runPm2Command(user, p, 'jlist', [], 4000);
+        if (testRes.success && testRes.stdout && testRes.stdout.trim().startsWith('[')) {
+          pm2BinaryCache[user] = { path: p, ts: Date.now() };
+          return p;
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 5. Try global search in /usr, /opt, /snap
+  try {
+    const globalFind = await runCommand('sudo', ['-n', 'find', '/usr', '/opt', '/snap', '-name', 'pm2', '-type', 'f'], 4000);
+    if (globalFind.success && globalFind.stdout) {
+      const discoveredPaths = globalFind.stdout.split('\n').map(l => l.trim()).filter(Boolean);
+      for (const p of discoveredPaths) {
+        if (!p.includes('/bin/pm2') && !p.endsWith('/pm2')) continue;
         const testRes = await runPm2Command(user, p, 'jlist', [], 4000);
         if (testRes.success && testRes.stdout && testRes.stdout.trim().startsWith('[')) {
           pm2BinaryCache[user] = { path: p, ts: Date.now() };
