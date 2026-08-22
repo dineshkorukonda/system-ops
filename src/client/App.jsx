@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { SystemHealthView } from './components/SystemHealthView';
@@ -45,6 +45,16 @@ export function App() {
   const [backupFiles, setBackupFiles] = useState([]);
   const [trafficData, setTrafficData] = useState(null);
 
+  // Refs to avoid infinite effect re-trigger loops
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
+  const processSortRef = useRef(processSort);
+  processSortRef.current = processSort;
+
+  const ollamaLogLinesRef = useRef(ollamaLogLines);
+  ollamaLogLinesRef.current = ollamaLogLines;
+
   // Theme synchronization with DOM
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -86,8 +96,8 @@ export function App() {
     });
   };
 
-  // ── Telemetry Fetchers ──
-  const fetchSystemSnapshot = useCallback(async () => {
+  // ── Individual Data Fetchers ──
+  const fetchSystemSnapshot = async () => {
     try {
       const res = await fetch('/api/v2/system/snapshot');
       if (res.status === 401) { setIsAuthenticated(false); return; }
@@ -99,19 +109,19 @@ export function App() {
         if (data.swap?.usagePercent) pushMetric(setSwapHistory, data.swap.usagePercent);
       }
     } catch (e) {}
-  }, []);
+  };
 
-  const fetchProcesses = useCallback(async () => {
+  const fetchProcesses = async () => {
     try {
-      const res = await fetch(`/api/v2/system/processes?sort=${processSort}&limit=50`);
+      const res = await fetch(`/api/v2/system/processes?sort=${processSortRef.current}&limit=50`);
       if (res.ok) {
         const data = await res.json();
         setProcesses(data.processes || []);
       }
     } catch (e) {}
-  }, [processSort]);
+  };
 
-  const fetchPm2Snapshot = useCallback(async () => {
+  const fetchPm2Snapshot = async () => {
     try {
       const res = await fetch('/api/v2/pm2/snapshot');
       if (res.ok) {
@@ -119,14 +129,14 @@ export function App() {
         setPm2Data(data);
       }
     } catch (e) {}
-  }, []);
+  };
 
-  const fetchOllamaData = useCallback(async () => {
+  const fetchOllamaData = async () => {
     try {
       const [statusRes, modelsRes, logsRes] = await Promise.all([
         fetch('/api/status'),
         fetch('/api/models'),
-        fetch(`/api/logs?lines=${ollamaLogLines}`),
+        fetch(`/api/logs?lines=${ollamaLogLinesRef.current}`),
       ]);
       if (statusRes.ok) setOllamaStatus(await statusRes.json());
       if (modelsRes.ok) {
@@ -138,9 +148,9 @@ export function App() {
         setOllamaLogs(lData.logs || '');
       }
     } catch (e) {}
-  }, [ollamaLogLines]);
+  };
 
-  const fetchBackupData = useCallback(async () => {
+  const fetchBackupData = async () => {
     try {
       const [sourcesRes, filesRes] = await Promise.all([
         fetch('/api/v2/logs/sources'),
@@ -155,9 +165,9 @@ export function App() {
         setBackupFiles(fData.files || []);
       }
     } catch (e) {}
-  }, []);
+  };
 
-  const fetchTrafficData = useCallback(async () => {
+  const fetchTrafficData = async () => {
     try {
       const res = await fetch('/api/v2/traffic/analytics');
       if (res.ok) {
@@ -165,46 +175,64 @@ export function App() {
         setTrafficData(data);
       }
     } catch (e) {}
-  }, []);
+  };
 
-  // Synchronize all data
-  const syncAllData = useCallback(async () => {
+  // Fetch only what is needed for the current active tab + system overview
+  const syncCurrentView = async () => {
     if (!isAuthenticated) return;
     setIsSyncing(true);
-    await Promise.allSettled([
-      fetchSystemSnapshot(),
-      fetchProcesses(),
-      fetchPm2Snapshot(),
-      fetchOllamaData(),
-      fetchBackupData(),
-      fetchTrafficData(),
-    ]);
+    const tab = activeTabRef.current;
+
+    const promises = [fetchSystemSnapshot()];
+
+    if (tab === 'system') {
+      promises.push(fetchProcesses(), fetchPm2Snapshot());
+    } else if (tab === 'processes') {
+      promises.push(fetchProcesses());
+    } else if (tab === 'pm2') {
+      promises.push(fetchPm2Snapshot());
+    } else if (tab === 'ollama') {
+      promises.push(fetchOllamaData());
+    } else if (tab === 'backups') {
+      promises.push(fetchBackupData());
+    } else if (tab === 'traffic') {
+      promises.push(fetchTrafficData());
+    }
+
+    await Promise.allSettled(promises);
     setLastUpdated(new Date());
     setIsSyncing(false);
-  }, [
-    isAuthenticated,
-    fetchSystemSnapshot,
-    fetchProcesses,
-    fetchPm2Snapshot,
-    fetchOllamaData,
-    fetchBackupData,
-    fetchTrafficData,
-  ]);
+  };
 
-  // Initial sync & timer polling
+  // Full initial sync once after login
   useEffect(() => {
-    if (isAuthenticated) {
-      syncAllData();
+    if (isAuthenticated === true) {
+      Promise.allSettled([
+        fetchSystemSnapshot(),
+        fetchProcesses(),
+        fetchPm2Snapshot(),
+        fetchOllamaData(),
+        fetchBackupData(),
+        fetchTrafficData(),
+      ]).then(() => setLastUpdated(new Date()));
     }
   }, [isAuthenticated]);
 
+  // Fetch immediately when user switches tab
+  useEffect(() => {
+    if (isAuthenticated === true) {
+      syncCurrentView();
+    }
+  }, [activeTab, isAuthenticated]);
+
+  // Polling timer (uses stable interval, no infinite dependencies)
   useEffect(() => {
     if (!isAuthenticated || refreshInterval === 0) return;
     const timer = setInterval(() => {
-      syncAllData();
+      syncCurrentView();
     }, refreshInterval * 1000);
     return () => clearInterval(timer);
-  }, [isAuthenticated, refreshInterval, syncAllData]);
+  }, [isAuthenticated, refreshInterval]);
 
   // Loading state during auth check
   if (isAuthenticated === null) {
@@ -259,7 +287,7 @@ export function App() {
           activeTabTitle={tabTitles[activeTab] || 'Console'}
           lastUpdated={lastUpdated}
           isSyncing={isSyncing}
-          onSync={syncAllData}
+          onSync={syncCurrentView}
           refreshInterval={refreshInterval}
           setRefreshInterval={setRefreshInterval}
           theme={theme}
