@@ -40,7 +40,7 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
       );
       if (res.ok) {
         const data = await res.json();
-        setAppLogs(data.output || data.logs || data.error || 'No log lines found for this app.');
+        setAppLogs(data.logs || 'No log lines found for this app.');
       } else {
         setAppLogs(`Failed to fetch PM2 logs (HTTP ${res.status})`);
       }

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>system-ops - Self-Hosted VPS Operations Console</title>
+  <title>system-ops - Lightweight VPS Operations Console</title>
   <style>
     * {
       box-sizing: border-box;
@@ -14,158 +14,75 @@
       background-color: #000000;
       color: #ffffff;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      padding: 2.5rem 1.25rem;
+      padding: 2rem 1rem;
       line-height: 1.6;
-      max-width: 860px;
+      max-width: 800px;
       margin: 0 auto;
     }
     header {
       border-bottom: 1px solid #333333;
-      padding-bottom: 1.5rem;
-      margin-bottom: 2.5rem;
-    }
-    .ascii-logo {
-      color: #00ff66;
-      font-size: 0.75rem;
-      line-height: 1.2;
-      margin-bottom: 1.2rem;
-      white-space: pre;
-      overflow-x: auto;
-      user-select: none;
+      padding-bottom: 1rem;
+      margin-bottom: 2rem;
     }
     h1 {
       font-size: 1.8rem;
-      font-weight: 600;
-      letter-spacing: -0.02em;
-      margin-bottom: 0.4rem;
-      color: #ffffff;
-    }
-    .subtitle {
-      color: #888888;
-      font-size: 0.95rem;
-      margin-bottom: 0.8rem;
-    }
-    .tagline {
-      display: inline-block;
-      background-color: #111111;
-      border: 1px solid #262626;
-      color: #00ff66;
-      padding: 0.2rem 0.6rem;
-      border-radius: 3px;
-      font-size: 0.8rem;
+      font-weight: normal;
       margin-bottom: 0.5rem;
-    }
-    section {
-      margin-bottom: 2.8rem;
-    }
-    h2 {
-      font-size: 1.15rem;
-      font-weight: 600;
-      border-bottom: 1px solid #222222;
-      padding-bottom: 0.4rem;
-      margin-bottom: 1rem;
-      color: #ffffff;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
     }
     p {
       color: #cccccc;
       margin-bottom: 1rem;
-      font-size: 0.9rem;
+      font-size: 0.95rem;
     }
-    .code-container {
-      position: relative;
-      margin-bottom: 1.2rem;
+    section {
+      margin-bottom: 2.5rem;
+    }
+    h2 {
+      font-size: 1.2rem;
+      font-weight: normal;
+      border-bottom: 1px solid #222222;
+      padding-bottom: 0.4rem;
+      margin-bottom: 1rem;
+      color: #ffffff;
     }
     .code-block {
-      background-color: #0a0a0a;
-      border: 1px solid #262626;
-      padding: 0.9rem 1.1rem;
+      background-color: #111111;
+      border: 1px solid #333333;
+      padding: 0.8rem 1rem;
       border-radius: 4px;
       overflow-x: auto;
+      margin-bottom: 1rem;
       color: #00ff66;
-      font-size: 0.88rem;
-      line-height: 1.55;
-    }
-    .code-block.dim {
-      color: #aaaaaa;
-    }
-    .copy-btn {
-      position: absolute;
-      top: 0.5rem;
-      right: 0.5rem;
-      background-color: #1a1a1a;
-      border: 1px solid #333333;
-      color: #888888;
-      font-family: inherit;
-      font-size: 0.75rem;
-      padding: 0.2rem 0.5rem;
-      border-radius: 3px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-    .copy-btn:hover {
-      background-color: #262626;
-      color: #ffffff;
-      border-color: #555555;
-    }
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-      margin-bottom: 1.2rem;
-    }
-    @media (max-width: 640px) {
-      .grid-2 {
-        grid-template-columns: 1fr;
-      }
-    }
-    .card {
-      background-color: #0d0d0d;
-      border: 1px solid #222222;
-      border-radius: 4px;
-      padding: 1rem;
-    }
-    .card-title {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #ffffff;
-      margin-bottom: 0.4rem;
-    }
-    .card-desc {
-      font-size: 0.82rem;
-      color: #888888;
-      line-height: 1.45;
-      margin-bottom: 0;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 1.5rem;
-      font-size: 0.84rem;
-    }
-    th, td {
-      border: 1px solid #222222;
-      padding: 0.55rem 0.75rem;
-      text-align: left;
-    }
-    th {
-      background-color: #0d0d0d;
-      color: #ffffff;
-      font-weight: 600;
-    }
-    td {
-      color: #cccccc;
+      font-size: 0.9rem;
+      line-height: 1.5;
     }
     ul {
       list-style-type: square;
       padding-left: 1.2rem;
       color: #cccccc;
-      font-size: 0.88rem;
+      font-size: 0.9rem;
       margin-bottom: 1rem;
     }
     li {
-      margin-bottom: 0.45rem;
+      margin-bottom: 0.4rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5rem;
+      font-size: 0.85rem;
+    }
+    th, td {
+      border: 1px solid #262626;
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+    }
+    th {
+      background-color: #111111;
+      color: #ffffff;
+    }
+    td {
+      color: #cccccc;
     }
     a {
       color: #3399ff;
@@ -177,112 +94,78 @@
     footer {
       border-top: 1px solid #222222;
       padding-top: 1.5rem;
-      margin-top: 3.5rem;
-      font-size: 0.82rem;
-      color: #666666;
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 0.8rem;
+      margin-top: 3rem;
+      font-size: 0.85rem;
+      color: #888888;
     }
   </style>
 </head>
 <body>
 
   <header>
-    <div class="ascii-logo">
- ____  _  _  ____  ____  ____  _  _       _____  ____  ____ 
-/ ___)( \/ )/ ___)(_  _)(  __)( \/ ) ___ (  _  )(  _ \/ ___)
-\___ \ )  / \___ \  )(   ) _) / \/ \(___) )(_)(  )___/\___ \
-(____/(__/  (____/ (__) (____)\_)(_/     (_____)(__)  (____/
-    </div>
     <h1>&gt; system-ops</h1>
-    <div class="tagline">MEMORY FOOTPRINT: &lt;35MB RAM</div>
-    <p class="subtitle">Self-hosted operations console and telemetry dashboard for single Ubuntu VPS deployments.</p>
+    <p>Lightweight operations console and telemetry dashboard for single Ubuntu VPS deployments.</p>
   </header>
 
   <section>
     <h2>What is it?</h2>
     <p>
-      system-ops is a zero-bloat web console that gives you single-pane-of-glass observability over your VPS without the memory footprint of Prometheus, Grafana, or Datadog.
+      system-ops is a fast, low-overhead operations dashboard engineered specifically for single-node Ubuntu servers. It monitors Ollama local LLMs, PM2 process fleets, system health, PostgreSQL backup logs, and real-time Nginx traffic with GeoIP mapping.
     </p>
     <p>
-      Built for developers, indie hackers, and ops engineers running workloads on a single cloud VPS (Hetzner, DigitalOcean, Linode, AWS EC2). It monitors Ollama LLMs, PM2 process fleets, host health metrics, PostgreSQL backup dumps, and Nginx visitor traffic with real-time GeoIP mapping.
+      Unlike Prometheus or Grafana stacks that consume 500MB+ of RAM, system-ops operates in under 35MB of memory as a single self-contained Node.js service.
     </p>
   </section>
 
   <section>
     <h2>Core Capabilities</h2>
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-title">System Health &amp; Telemetry</div>
-        <p class="card-desc">Real-time SVG sparklines for CPU Load, RAM %, and Swap %. Load averages (1m/5m/15m), systemd unit health, disk partition meters, listening ports, and TLS cert expiry countdowns.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">Process Monitor</div>
-        <p class="card-desc">Interactive top system process table with fuzzy live search and instant sorting by % CPU or % RAM consumption.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">PM2 Process Fleet</div>
-        <p class="card-desc">Multi-user process inspection (deploy, root), process states, restart counters, memory/CPU utilization, and live app log tailing.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">Ollama AI Local Models</div>
-        <p class="card-desc">Service state, loopback socket binding, API latency probe, installed model registry, and token-capped quick inference probe.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">PostgreSQL Backups</div>
-        <p class="card-desc">Log tailing with heuristic status parsing (SUCCESS / FAILED), log source switching, and direct .dump file downloads.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">Traffic &amp; GeoIP Analytics</div>
-        <p class="card-desc">Streaming Nginx access log parser, mobile vs desktop ratio meters, HTTP status code distribution (2xx/3xx/4xx/5xx), top requested endpoints, and Leaflet GeoIP visitor map.</p>
-      </div>
-    </div>
+    <ul>
+      <li>System Health: Live CPU load, RAM utilization, Swap trends, disk partitions, listening ports, and TLS cert expiry.</li>
+      <li>Process Monitor: Real-time top process list with instant search and sort by CPU or memory.</li>
+      <li>PM2 Fleet: Multi-user process monitoring (deploy, root), restarts, CPU/RAM, and live app log tailing.</li>
+      <li>Ollama AI: Local model registry, service state, token-capped inference probe, and journalctl log viewer.</li>
+      <li>PostgreSQL Backups: Automated log analysis (SUCCESS / FAILED), log sources, and direct dump file downloads.</li>
+      <li>Traffic Analytics: Nginx access log parser, mobile vs desktop breakdown, status codes, and GeoIP visitor map.</li>
+    </ul>
   </section>
 
   <section>
     <h2>Installation (Native Systemd)</h2>
-    <p>Automated one-line installer for Ubuntu 22.04 / 24.04:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops &amp;&amp; cd /opt/system-ops &amp;&amp; sudo bash scripts/install.sh</div>
+    <p>Automated installer on Ubuntu 22.04 / 24.04:</p>
+    <div class="code-block">
+git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops<br>
+cd /opt/system-ops<br>
+sudo bash scripts/install.sh
     </div>
 
-    <p>Manual step-by-step installation:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block dim"># 1. Create ops user
-useradd -r -s /bin/false -d /opt/system-ops ops
-usermod -aG systemd-journal,adm ops
-
-# 2. Install production dependencies &amp; configure env
-cd /opt/system-ops
-npm ci --omit=dev
-cp .env.example .env
-nano .env   # Set APP_PASSWORD and SESSION_SECRET
-
-# 3. Secure file permissions and install sudoers rules
-chown -R ops:ops /opt/system-ops
-chmod 750 /opt/system-ops &amp;&amp; chmod 600 /opt/system-ops/.env
-cp sudoers/system-ops-sudoers /etc/sudoers.d/system-ops
-chmod 0440 /etc/sudoers.d/system-ops
-
-# 4. Enable and start systemd unit
-cp systemd/system-ops.service /etc/systemd/system/
-systemctl daemon-reload &amp;&amp; systemctl enable --now system-ops.service</div>
+    <p>Manual installation:</p>
+    <div class="code-block">
+# 1. Create unprivileged ops user<br>
+useradd -r -s /bin/false -d /opt/system-ops ops<br>
+usermod -aG systemd-journal,adm ops<br><br>
+# 2. Install dependencies & configure env<br>
+npm ci --omit=dev<br>
+cp .env.example .env<br>
+nano .env<br><br>
+# 3. Setup permissions and sudoers rules<br>
+chown -R ops:ops /opt/system-ops<br>
+chmod 750 /opt/system-ops && chmod 600 /opt/system-ops/.env<br>
+cp sudoers/system-ops-sudoers /etc/sudoers.d/system-ops<br>
+chmod 0440 /etc/sudoers.d/system-ops<br><br>
+# 4. Enable systemd service<br>
+cp systemd/system-ops.service /etc/systemd/system/<br>
+systemctl daemon-reload && systemctl enable --now system-ops.service
     </div>
   </section>
 
   <section>
     <h2>Installation (Docker Compose)</h2>
-    <p>Launch in an isolated container with read-only host introspection mounts:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">git clone https://github.com/dineshkorukonda/system-ops.git
-cd system-ops
-cp .env.example .env
-docker compose up -d</div>
+    <p>Run containerized with read-only host mounts:</p>
+    <div class="code-block">
+git clone https://github.com/dineshkorukonda/system-ops.git<br>
+cd system-ops<br>
+cp .env.example .env<br>
+docker compose up -d
     </div>
   </section>
 
@@ -300,7 +183,7 @@ docker compose up -d</div>
         <tr>
           <td>APP_PASSWORD</td>
           <td>(required)</td>
-          <td>Dashboard login password</td>
+          <td>Console login password</td>
         </tr>
         <tr>
           <td>SESSION_SECRET</td>
@@ -310,49 +193,44 @@ docker compose up -d</div>
         <tr>
           <td>PORT</td>
           <td>9080</td>
-          <td>Local loopback listen port</td>
+          <td>Loopback HTTP listen port</td>
         </tr>
         <tr>
           <td>HOST</td>
           <td>127.0.0.1</td>
-          <td>Interface binding (loopback recommended)</td>
+          <td>Network interface binding</td>
         </tr>
         <tr>
           <td>PM2_USERS</td>
           <td>deploy,root</td>
-          <td>Users whose PM2 daemons to monitor</td>
+          <td>Users whose PM2 daemons to inspect</td>
         </tr>
         <tr>
           <td>OLLAMA_URL</td>
           <td>http://127.0.0.1:11434</td>
-          <td>Local Ollama API base URL</td>
+          <td>Local Ollama API endpoint</td>
         </tr>
         <tr>
           <td>NGINX_LOG_PATH</td>
           <td>/var/log/nginx/access.log</td>
-          <td>Path to Nginx access log file</td>
+          <td>Access log path for traffic analytics</td>
         </tr>
         <tr>
           <td>BACKUPS_DIR</td>
           <td>/var/backups</td>
           <td>Directory where backup dump files are stored</td>
         </tr>
-        <tr>
-          <td>TRACKED_DOMAINS</td>
-          <td>app.example.com:App,api.example.com:API</td>
-          <td>Domain-to-label mapping for Traffic Analytics</td>
-        </tr>
       </tbody>
     </table>
   </section>
 
   <section>
-    <h2>REST API Reference</h2>
+    <h2>API Reference</h2>
     <table>
       <thead>
         <tr>
           <th>Method</th>
-          <th>Route</th>
+          <th>Endpoint</th>
           <th>Auth</th>
           <th>Description</th>
         </tr>
@@ -360,120 +238,72 @@ docker compose up -d</div>
       <tbody>
         <tr>
           <td>GET</td>
-          <td>/health / /api/health</td>
+          <td>/health</td>
           <td>No</td>
-          <td>Unauthenticated liveness probe</td>
+          <td>Liveness health check</td>
         </tr>
         <tr>
           <td>POST</td>
           <td>/api/login</td>
           <td>No</td>
-          <td>Session login with password</td>
+          <td>Session login</td>
         </tr>
         <tr>
           <td>POST</td>
           <td>/api/logout</td>
           <td>No</td>
-          <td>Session invalidation</td>
+          <td>Session logout</td>
         </tr>
         <tr>
           <td>GET</td>
           <td>/api/v2/system/snapshot</td>
           <td>Yes</td>
-          <td>CPU, RAM, Swap, Disk, Ports, and TLS</td>
+          <td>Host health snapshot</td>
         </tr>
         <tr>
           <td>GET</td>
           <td>/api/v2/system/processes</td>
           <td>Yes</td>
-          <td>Top processes sorted by CPU or Memory</td>
+          <td>Top process table</td>
         </tr>
         <tr>
           <td>GET</td>
           <td>/api/v2/pm2/snapshot</td>
           <td>Yes</td>
-          <td>PM2 process fleet across all users</td>
+          <td>PM2 process fleet</td>
         </tr>
         <tr>
           <td>GET</td>
           <td>/api/v2/pm2/logs</td>
           <td>Yes</td>
-          <td>Tail live logs for PM2 application</td>
-        </tr>
-        <tr>
-          <td>GET</td>
-          <td>/api/status</td>
-          <td>Yes</td>
-          <td>Ollama service status &amp; host summary</td>
-        </tr>
-        <tr>
-          <td>GET</td>
-          <td>/api/models</td>
-          <td>Yes</td>
-          <td>Installed Ollama models registry</td>
-        </tr>
-        <tr>
-          <td>POST</td>
-          <td>/api/test-chat</td>
-          <td>Yes</td>
-          <td>Execute token-capped inference probe</td>
-        </tr>
-        <tr>
-          <td>GET</td>
-          <td>/api/v2/logs/sources</td>
-          <td>Yes</td>
-          <td>Configured backup log sources</td>
-        </tr>
-        <tr>
-          <td>GET</td>
-          <td>/api/v2/logs/tail</td>
-          <td>Yes</td>
-          <td>Tail backup log with status analysis</td>
+          <td>PM2 application logs</td>
         </tr>
         <tr>
           <td>GET</td>
           <td>/api/v2/backups/files</td>
           <td>Yes</td>
-          <td>List PostgreSQL dump files</td>
-        </tr>
-        <tr>
-          <td>GET</td>
-          <td>/api/v2/backups/download</td>
-          <td>Yes</td>
-          <td>Download a backup dump file</td>
+          <td>Backup dump files</td>
         </tr>
         <tr>
           <td>GET</td>
           <td>/api/v2/traffic/analytics</td>
           <td>Yes</td>
-          <td>Traffic analytics with GeoIP and device breakdown</td>
+          <td>Traffic analytics & GeoIP</td>
         </tr>
       </tbody>
     </table>
   </section>
 
   <section>
-    <h2>Architecture &amp; Security</h2>
+    <h2>Architecture & Security</h2>
     <p>
-      system-ops runs strictly on loopback (127.0.0.1:9080) behind Nginx with SSL termination. All host inspection commands (systemctl, journalctl, pm2) execute through narrow, passwordless sudo rules located in /etc/sudoers.d/system-ops.
+      system-ops runs strictly on localhost (127.0.0.1:9080) behind Nginx with SSL termination. All host inspection commands (systemctl, journalctl, pm2) execute through fine-grained passwordless sudo rules in /etc/sudoers.d/system-ops.
     </p>
   </section>
 
   <footer>
-    <div>Developed by <a href="https://dineshkorukonda.in" target="_blank">dineshkorukonda.in</a></div>
-    <div><a href="https://github.com/dineshkorukonda/system-ops" target="_blank">GitHub Repository</a> | MIT License</div>
+    <p>Developed by <a href="https://dineshkorukonda.in" target="_blank">dineshkorukonda.in</a> | <a href="https://github.com/dineshkorukonda/system-ops" target="_blank">GitHub Repository</a></p>
   </footer>
-
-  <script>
-    function copyCode(btn) {
-      const codeBlock = btn.nextElementSibling;
-      const text = codeBlock.innerText;
-      navigator.clipboard.writeText(text).then(() => {
-        btn.textContent = 'COPIED!';
-        setTimeout(() => { btn.textContent = 'COPY'; }, 1500);
-      });
-    }
-  </script>
 
 </body>
 </html>
