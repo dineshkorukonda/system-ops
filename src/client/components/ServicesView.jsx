@@ -111,11 +111,11 @@ export function ServicesView({ servicesData, onRefresh }) {
             <div className="flex justify-between items-center text-xs text-neutral-400">
               <span>PM2 APPS DETECTED</span>
               <Badge variant={totalPm2Processes > 0 ? 'ok' : 'neutral'}>
-                {totalPm2Processes > 0 ? 'ACTIVE' : 'NONE'}
+                {totalPm2Processes > 0 ? 'ACTIVE' : 'IDLE / NONE'}
               </Badge>
             </div>
             <div className="text-2xl font-bold text-white">
-              {totalPm2Processes} <span className="text-xs text-neutral-500 font-normal">processes</span>
+              {totalPm2Processes} <span className="text-xs text-neutral-500 font-normal">processes ({pm2Users.map(u => `${u.user}:${(u.processes || []).length}`).join(', ') || 'root,deploy'})</span>
             </div>
           </CardContent>
         </Card>
@@ -133,94 +133,125 @@ export function ServicesView({ servicesData, onRefresh }) {
         </Card>
       </div>
 
-      {/* ─── PM2 Fleet Section (Only if active PM2 apps exist on host) ─── */}
-      {totalPm2Processes > 0 && (
-        <Card>
-          <CardHeader className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CardTitle>PM2 Fleet Auto-Discovered ({totalPm2Processes})</CardTitle>
-              <Badge variant="ok">NODE DAEMONS</Badge>
+      {/* ─── PM2 Fleet Section ─── */}
+      <Card>
+        <CardHeader className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CardTitle>PM2 Fleet Auto-Discovered ({totalPm2Processes} active)</CardTitle>
+            <Badge variant={totalPm2Processes > 0 ? 'ok' : 'neutral'}>NODE DAEMONS</Badge>
+          </div>
+          <Button variant="secondary" size="sm" onClick={onRefresh} className="font-mono text-[11px]">
+            SCAN / REFRESH
+          </Button>
+        </CardHeader>
+        <CardContent className="p-0">
+          {pm2Users.length === 0 || totalPm2Processes === 0 ? (
+            <div className="p-5 font-mono text-xs text-neutral-400 space-y-2">
+              <div className="text-white font-semibold flex items-center gap-2">
+                <span>Scanned users: {pm2Users.map(u => u.user).join(', ') || 'deploy, root'}</span>
+                <Badge variant="neutral">0 ONLINE</Badge>
+              </div>
+              {pm2Users.map(u => u.error && (
+                <div key={u.user} className="text-rose-400 bg-rose-950/30 border border-rose-900/50 p-2 rounded text-[11px]">
+                  <strong>[{u.user}]</strong> {u.error}
+                </div>
+              ))}
+              <div className="text-neutral-500 text-[11px]">
+                Tip: If your PM2 binary was installed via custom NVM or Volta, add <code className="text-neutral-300">PM2_PATH=$(which pm2)</code> to <code className="text-neutral-300">/opt/system-ops/.env</code> and click Scan.
+              </div>
             </div>
-          </CardHeader>
-          <CardContent className="p-0">
+          ) : (
             <div className="divide-y divide-[#1f1f1f]">
               {pm2Users.map((userGroup) => (
                 <div key={userGroup.user} className="p-4 space-y-3">
                   <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="text-neutral-400 font-bold uppercase">USER: {userGroup.user}</span>
-                    <span className="text-neutral-500">{userGroup.processes?.length || 0} apps</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-neutral-300 font-bold uppercase">USER: {userGroup.user}</span>
+                      <span className="text-neutral-500">({userGroup.processes?.length || 0} apps)</span>
+                    </div>
+                    {userGroup.error ? (
+                      <span className="text-rose-400 text-[10px]">{userGroup.error}</span>
+                    ) : (
+                      <span className="text-neutral-500 text-[10px]">{userGroup.pm2Path || 'pm2'}</span>
+                    )}
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left font-mono text-xs">
-                      <thead>
-                        <tr className="border-b border-[#222222] text-neutral-500 text-[11px]">
-                          <th className="pb-2">APP</th>
-                          <th className="pb-2">STATUS</th>
-                          <th className="pb-2">PID</th>
-                          <th className="pb-2">CPU</th>
-                          <th className="pb-2">MEM</th>
-                          <th className="pb-2">RESTARTS</th>
-                          <th className="pb-2">UPTIME</th>
-                          <th className="pb-2 text-right">ACTION</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#141414]">
-                        {(userGroup.processes || []).map((app) => (
-                          <tr key={app.name || app.pm_id} className="hover:bg-[#0d0d0d]">
-                            <td className="py-2.5 font-medium text-white">{app.name}</td>
-                            <td className="py-2.5">
-                              <Badge variant={app.status === 'online' ? 'ok' : 'err'} className="text-[9px]">
-                                {(app.status || 'UNKNOWN').toUpperCase()}
-                              </Badge>
-                            </td>
-                            <td className="py-2.5 text-neutral-400">{app.pid || '--'}</td>
-                            <td className="py-2.5 text-neutral-300">{app.cpu || 0}%</td>
-                            <td className="py-2.5 text-neutral-300">{app.memoryFormatted || app.memory || '--'}</td>
-                            <td className="py-2.5 text-neutral-400">{app.restart_time || 0}</td>
-                            <td className="py-2.5 text-neutral-400">{app.uptimeText || app.uptime || '--'}</td>
-                            <td className="py-2.5 text-right">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-6 text-[10px] px-2 font-mono"
-                                onClick={() => fetchPm2Logs(userGroup.user, app.name)}
-                              >
-                                LOGS
-                              </Button>
-                            </td>
+                  {userGroup.processes && userGroup.processes.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left font-mono text-xs">
+                        <thead>
+                          <tr className="border-b border-[#222222] text-neutral-500 text-[11px]">
+                            <th className="pb-2">APP</th>
+                            <th className="pb-2">STATUS</th>
+                            <th className="pb-2">PID</th>
+                            <th className="pb-2">CPU</th>
+                            <th className="pb-2">MEM</th>
+                            <th className="pb-2">RESTARTS</th>
+                            <th className="pb-2">UPTIME</th>
+                            <th className="pb-2 text-right">ACTION</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody className="divide-y divide-[#141414]">
+                          {userGroup.processes.map((app) => (
+                            <tr key={app.name || app.pm_id} className="hover:bg-[#0d0d0d]">
+                              <td className="py-2.5 font-medium text-white">{app.name}</td>
+                              <td className="py-2.5">
+                                <Badge variant={app.status === 'online' ? 'ok' : 'err'} className="text-[9px]">
+                                  {(app.status || 'UNKNOWN').toUpperCase()}
+                                </Badge>
+                              </td>
+                              <td className="py-2.5 text-neutral-400">{app.pid || '--'}</td>
+                              <td className="py-2.5 text-neutral-300">{app.cpu || 0}%</td>
+                              <td className="py-2.5 text-neutral-300">{app.memoryFormatted || app.memory || '--'}</td>
+                              <td className="py-2.5 text-neutral-400">{app.restart_time || 0}</td>
+                              <td className="py-2.5 text-neutral-400">{app.uptimeText || app.uptime || '--'}</td>
+                              <td className="py-2.5 text-right">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 text-[10px] px-2 font-mono"
+                                  onClick={() => fetchPm2Logs(userGroup.user, app.name)}
+                                >
+                                  LOGS
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-neutral-500 text-[11px] font-mono">
+                      No PM2 processes running under user '{userGroup.user}'.
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
+          )}
 
-            {/* PM2 Modal / Inline Log Box */}
-            {selectedPm2App && (
-              <div className="border-t border-[#1f1f1f] bg-[#020202] p-4 font-mono text-[11px]">
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#141414]">
-                  <span className="text-emerald-400 font-bold">
-                    PM2 LOGS: {selectedPm2App.user} / {selectedPm2App.app}
-                  </span>
-                  <div className="flex gap-2">
-                    <Button variant="secondary" size="sm" onClick={() => handleCopyLogs(pm2Logs)} className="h-6 text-[10px]">
-                      COPY
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => setSelectedPm2App(null)} className="h-6 text-[10px]">
-                      CLOSE
-                    </Button>
-                  </div>
-                </div>
-                <div className="max-h-60 overflow-y-auto text-neutral-300 whitespace-pre-wrap select-text">
-                  {isLoadingPm2Logs ? 'Tailing PM2 application logs...' : pm2Logs}
+          {/* PM2 Modal / Inline Log Box */}
+          {selectedPm2App && (
+            <div className="border-t border-[#1f1f1f] bg-[#020202] p-4 font-mono text-[11px]">
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#141414]">
+                <span className="text-emerald-400 font-bold">
+                  PM2 LOGS: {selectedPm2App.user} / {selectedPm2App.app}
+                </span>
+                <div className="flex gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => handleCopyLogs(pm2Logs)} className="h-6 text-[10px]">
+                    COPY
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setSelectedPm2App(null)} className="h-6 text-[10px]">
+                    CLOSE
+                  </Button>
                 </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+              <div className="max-h-60 overflow-y-auto text-neutral-300 whitespace-pre-wrap select-text">
+                {isLoadingPm2Logs ? 'Tailing PM2 application logs...' : pm2Logs}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* ─── Main Grid: Services Fleet & Live Journal Terminal ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-[calc(100vh-260px)]">

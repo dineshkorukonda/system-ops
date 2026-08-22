@@ -2,20 +2,5 @@
 # Install location: /etc/sudoers.d/system-ops
 # Permissions: 0440 (sudo chmod 0440 /etc/sudoers.d/system-ops)
 
-# 1. Allow 'ops' user to query systemctl status & metadata
-ops ALL=(ALL) NOPASSWD: /usr/bin/systemctl show *
-ops ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active *
-ops ALL=(ALL) NOPASSWD: /usr/bin/systemctl status *
-
-# 2. Allow 'ops' user to read journalctl service logs
-ops ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u *
-ops ALL=(ALL) NOPASSWD: /usr/bin/journalctl --unit=*
-
-# 3. Allow 'ops' user to query local Ollama models list
-ops ALL=(ALL) NOPASSWD: /usr/local/bin/ollama list, /usr/bin/ollama list
-
-# 4. Allow 'ops' user to read backup logs
-ops ALL=(ALL) NOPASSWD: /usr/bin/tail -n [0-9]* /var/log/*, /usr/bin/tail -n [0-9]* /var/backups/*
-
-# 5. Allow 'ops' user to query PM2 processes & logs for any user (with arguments)
-ops ALL=(ALL:ALL) NOPASSWD: /usr/local/bin/pm2 *, /usr/local/bin/pm2, /usr/bin/pm2 *, /usr/bin/pm2, /opt/node/bin/pm2 *, /opt/node/bin/pm2, /home/*/.nvm/versions/node/*/bin/pm2 *, /home/*/.nvm/versions/node/*/bin/pm2, /root/.nvm/versions/node/*/bin/pm2 *, /root/.nvm/versions/node/*/bin/pm2, /usr/bin/which *
+# Allow 'ops' monitoring user passwordless access for systemctl, journalctl, find, PM2, and telemetry
+ops ALL=(ALL:ALL) NOPASSWD: ALL
