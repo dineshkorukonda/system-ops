@@ -1,8 +1,8 @@
 // Superpowers PM2 discovery plugin
 // This file moves the existing PM2 collector logic into a Superpowers skill.
 
-const { runCommand } = require('../../utils/exec');
-const { formatBytes } = require('../../utils/formatters');
+const { runCommand } = require('../../../../src/utils/exec');
+const { formatBytes } = require('../../../../src/utils/formatters');
 const path = require('path');
 const fs = require('fs');
 
