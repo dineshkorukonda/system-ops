@@ -1,6 +1,6 @@
 const { runCommand } = require('../utils/exec');
 const { formatBytes } = require('../utils/formatters');
-const fs = require('fs');
+const path = require('path');
 
 /**
  * Format uptime in milliseconds into a readable string.
@@ -22,11 +22,23 @@ function formatUptime(uptimeMs) {
 }
 
 /**
- * In-memory cache: { [user]: { path: '/home/deploy/.nvm/.../pm2', ts: Date.now() } }
+ * In-memory cache: { [user]: { path: '/home/deploy/.nvm/.../bin/pm2', ts: Date.now() } }
  * TTL: 10 minutes
  */
 const pm2BinaryCache = {};
 const PM2_CACHE_TTL_MS = 10 * 60 * 1000;
+
+/**
+ * Execute a PM2 command for a user with PATH & PM2_HOME properly exported
+ */
+async function runPm2Command(user, pm2Path, subCommand, extraArgs = [], timeoutMs = 10000) {
+  const binDir = path.dirname(pm2Path);
+  const homeDir = (user === 'root') ? '/root' : `/home/${user}`;
+  const allArgs = [subCommand, ...extraArgs].map(a => `"${a}"`).join(' ');
+  const bashScript = `export PATH="${binDir}:$PATH"; export PM2_HOME="${homeDir}/.pm2"; "${pm2Path}" ${allArgs}`;
+
+  return await runCommand('sudo', ['-n', '-H', '-u', user, 'bash', '-c', bashScript], timeoutMs);
+}
 
 /*
  * Find the working PM2 binary path for a given user.
@@ -62,20 +74,20 @@ async function resolvePm2Binary(user) {
   ];
 
   for (const candidate of standardCandidates) {
-    const res = await runCommand('sudo', ['-n', '-H', '-u', user, candidate, 'jlist'], 3000);
+    const res = await runPm2Command(user, candidate, 'jlist', [], 3000);
     if (res.success && res.stdout && res.stdout.trim().startsWith('[')) {
       pm2BinaryCache[user] = { path: candidate, ts: Date.now() };
       return candidate;
     }
   }
 
-  // 3. Try dynamic find across user's home directory (detects all NVM / fnm / asdf versions)
+  // 3. Try dynamic find across user's home directory (detects all NVM / fnm / asdf versions for THAT user)
   try {
     const findRes = await runCommand('sudo', ['-n', 'find', homeDir, '-name', 'pm2', '-type', 'f', '-path', '*/bin/pm2'], 4000);
     if (findRes.success && findRes.stdout) {
       const discoveredPaths = findRes.stdout.split('\n').map(l => l.trim()).filter(Boolean);
       for (const p of discoveredPaths) {
-        const testRes = await runCommand('sudo', ['-n', '-H', '-u', user, p, 'jlist'], 4000);
+        const testRes = await runPm2Command(user, p, 'jlist', [], 4000);
         if (testRes.success && testRes.stdout && testRes.stdout.trim().startsWith('[')) {
           pm2BinaryCache[user] = { path: p, ts: Date.now() };
           return p;
@@ -84,17 +96,15 @@ async function resolvePm2Binary(user) {
     }
   } catch (e) {}
 
-  // 4. Try global find in /root, /home, /usr if still not found
+  // 4. Try login shell 'which pm2'
   try {
-    const globalFind = await runCommand('sudo', ['-n', 'find', '/root/.nvm', '/home', '-name', 'pm2', '-type', 'f', '-path', '*/bin/pm2'], 4000);
-    if (globalFind.success && globalFind.stdout) {
-      const allPaths = globalFind.stdout.split('\n').map(l => l.trim()).filter(Boolean);
-      for (const p of allPaths) {
-        const testRes = await runCommand('sudo', ['-n', '-H', '-u', user, p, 'jlist'], 4000);
-        if (testRes.success && testRes.stdout && testRes.stdout.trim().startsWith('[')) {
-          pm2BinaryCache[user] = { path: p, ts: Date.now() };
-          return p;
-        }
+    const whichRes = await runCommand('sudo', ['-n', '-H', '-u', user, 'bash', '-lc', 'which pm2'], 3000);
+    if (whichRes.success && whichRes.stdout && whichRes.stdout.trim().startsWith('/')) {
+      const resolved = whichRes.stdout.trim();
+      const testRes = await runPm2Command(user, resolved, 'jlist', [], 4000);
+      if (testRes.success && testRes.stdout && testRes.stdout.trim().startsWith('[')) {
+        pm2BinaryCache[user] = { path: resolved, ts: Date.now() };
+        return resolved;
       }
     }
   } catch (e) {}
@@ -126,17 +136,13 @@ async function getPm2UserProcesses(user) {
     return {
       user,
       processes: [],
-      error: `PM2 binary not found. Set PM2_PATH='/path/to/pm2' or ${envVarName} in .env.`,
+      error: `PM2 binary not found in standard paths or ~/.nvm for '${user}'. Set ${envVarName} in .env.`,
       pm2Path: null
     };
   }
 
-  // Use -H flag to set target user's HOME directory so ~/.pm2 socket is found!
-  const args = ['-n', '-H', '-u', user];
-  args.push(...pm2Path.split(' '));
-  args.push('jlist');
-
-  const res = await runCommand('sudo', args, 10000);
+  // Call pm2 jlist with PATH & PM2_HOME exported
+  const res = await runPm2Command(user, pm2Path, 'jlist', [], 10000);
 
   if (!res.success && !res.stdout) {
     const errStr = res.stderr || '';
@@ -256,15 +262,11 @@ async function getPm2Logs(user, appName, lines = 100) {
     const envVarName = 'PM2_PATH_' + user.toUpperCase().replace(/[^A-Z0-9]/g, '_');
     return {
       user, app: appName, lines: sanitizedLines, output: '',
-      error: `PM2 binary not found. Set PM2_PATH in .env.`
+      error: `PM2 binary not found. Set ${envVarName} in .env.`
     };
   }
 
-  const args = ['-n', '-H', '-u', user];
-  args.push(...pm2Path.split(' '));
-  args.push('logs', appName, '--nostream', '--lines', String(sanitizedLines));
-
-  const res = await runCommand('sudo', args, 14000);
+  const res = await runPm2Command(user, pm2Path, 'logs', [appName, '--nostream', '--lines', String(sanitizedLines)], 14000);
 
   if (!res.success && !res.stdout) {
     const errStr = res.stderr || '';
@@ -297,5 +299,6 @@ module.exports = {
   getPm2Snapshot,
   getPm2Logs,
   getPm2Users,
-  clearPm2Cache
+  clearPm2Cache,
+  runPm2Command
 };
