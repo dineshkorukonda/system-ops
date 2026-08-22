@@ -191,9 +191,11 @@ export function ServicesView({ servicesData, onRefresh }) {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[#141414]">
-                          {userGroup.processes.map((app) => (
-                            <tr key={app.name || app.pm_id} className="hover:bg-[#0d0d0d]">
-                              <td className="py-2.5 font-medium text-white">{app.name}</td>
+                          {userGroup.processes.map((app, idx) => (
+                            <tr key={`${userGroup.user}-${app.pm_id ?? idx}-${app.name}`} className="hover:bg-[#0d0d0d]">
+                              <td className="py-2.5 font-medium text-white">
+                                {app.name} {app.pm_id !== null && <span className="text-[10px] text-neutral-500 font-normal">#{app.pm_id}</span>}
+                              </td>
                               <td className="py-2.5">
                                 <Badge variant={app.status === 'online' ? 'ok' : 'err'} className="text-[9px]">
                                   {(app.status || 'UNKNOWN').toUpperCase()}

@@ -154,11 +154,30 @@ async function resolvePm2Binary(user) {
 }
 
 /**
- * Get configured PM2 users list from environment (e.g., 'deploy,root').
+ * Get configured PM2 users list or auto-discover users with active ~/.pm2 directories
  */
 function getPm2Users() {
-  const envUsers = process.env.PM2_USERS || 'deploy,root';
-  return envUsers.split(',').map(u => u.trim()).filter(Boolean);
+  const usersSet = new Set(['deploy', 'root', 'ubuntu']);
+
+  if (process.env.PM2_USERS) {
+    process.env.PM2_USERS.split(',').forEach(u => {
+      const clean = u.trim();
+      if (clean) usersSet.add(clean);
+    });
+  }
+
+  try {
+    if (fs.existsSync('/home')) {
+      const homeDirs = fs.readdirSync('/home');
+      for (const d of homeDirs) {
+        if (fs.existsSync(`/home/${d}/.pm2`)) {
+          usersSet.add(d);
+        }
+      }
+    }
+  } catch (e) {}
+
+  return Array.from(usersSet);
 }
 
 /**
