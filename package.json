@@ -1,7 +1,7 @@
 {
-  "name": "system-ops-site",
-  "version": "1.0.0",
-  "description": "Self-hosted operations web app for single Ubuntu VPS - Ollama status, health, models, and service logs",
+  "name": "system-ops",
+  "version": "2.0.0",
+  "description": "Fast, lightweight (<35MB RAM) operations console for single Ubuntu VPS - Ollama, PM2, system health, Postgres backups, and GeoIP traffic analytics",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
@@ -9,12 +9,17 @@
     "test": "node --test tests/*.test.js"
   },
   "keywords": [
+    "nodejs",
+    "express",
+    "devops",
+    "vps-monitoring",
+    "pm2",
+    "nginx",
+    "self-hosted",
+    "docker",
     "ollama",
-    "ops",
-    "dashboard",
     "systemd",
-    "monitoring",
-    "ubuntu"
+    "grafana-alternative"
   ],
   "author": "Antigravity AI",
   "license": "MIT",

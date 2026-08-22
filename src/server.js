@@ -44,9 +44,13 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, '../public'), { index: false }));
 
 /**
- * Public Health Endpoint (Leak-free per security spec)
+ * Public Health Endpoints (Leak-free per security spec)
  */
 app.get('/health', (req, res) => {
+  return res.status(200).json({ ok: true });
+});
+
+app.get('/api/health', (req, res) => {
   return res.status(200).json({ ok: true });
 });
 

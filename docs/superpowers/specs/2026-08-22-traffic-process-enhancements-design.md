@@ -29,7 +29,7 @@ This specification outlines the technical design for expanding system-ops capabi
       "5xx": 0
     },
     "top_endpoints": [
-      { "path": "/api/v2/system/snapshot", "hits": 120, "host": "dev.iskconcommunity.com" }
+      { "path": "/api/v2/system/snapshot", "hits": 120, "host": "api.example.com" }
     ],
     "top_ips": [
       { "ip": "1.2.3.4", "hits": 45, "city": "London", "country": "GB" }
