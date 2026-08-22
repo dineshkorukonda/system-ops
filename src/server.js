@@ -10,7 +10,8 @@ const { apiLimiter, chatTestLimiter, logTailLimiter } = require('./middleware/ra
 const { getServiceStatus, checkPortListener, getJournalLogs, getHostMetrics } = require('./services/systemService');
 const { checkApiHealth, runQuickChatTest, getCliModelList } = require('./services/ollamaService');
 
-// v2 Collectors
+// Collectors
+const { getServicesSnapshot, getServiceLogs } = require('./collectors/services');
 const { getPm2Snapshot, getPm2Logs } = require('./collectors/pm2');
 const { getSystemSnapshot, getSystemProcesses } = require('./collectors/system');
 const { getLogSourcesList, getLogSourceTail } = require('./collectors/logSources');
@@ -176,7 +177,29 @@ app.post('/api/test-chat', chatTestLimiter, async (req, res) => {
 });
 
 /**
- * v2 API Endpoints: PM2, System Health, PostgreSQL & Backup Logs
+ * Services API Endpoints (Native Systemd Supervision)
+ */
+app.get('/api/v2/services/snapshot', async (req, res) => {
+  try {
+    const data = await getServicesSnapshot();
+    return res.json(data);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch services snapshot', details: error.message });
+  }
+});
+
+app.get('/api/v2/services/logs', logTailLimiter, async (req, res) => {
+  try {
+    const { unit, lines } = req.query;
+    const data = await getServiceLogs(unit, lines);
+    return res.json(data);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch service logs', details: error.message });
+  }
+});
+
+/**
+ * Legacy PM2 & System Endpoints
  */
 app.get('/api/v2/pm2/snapshot', async (req, res) => {
   try {
