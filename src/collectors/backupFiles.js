@@ -1,17 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { execFile } = require('child_process');
-
-function runCommand(file, args, timeoutMs = 5000) {
-  return new Promise((resolve) => {
-    execFile(file, args, { timeout: timeoutMs }, (error, stdout, stderr) => {
-      if (error) {
-        return resolve({ success: false, error, stdout: stdout || '', stderr: stderr || '' });
-      }
-      return resolve({ success: true, stdout: stdout || '', stderr: stderr || '' });
-    });
-  });
-}
+const { runCommand } = require('../utils/exec');
 
 function getBackupDir() {
   return process.env.BACKUP_DIR || '/var/backups/postgres';
