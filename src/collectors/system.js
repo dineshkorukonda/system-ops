@@ -308,7 +308,7 @@ async function getListeningPorts() {
  * Inspect TLS certificate validity for hostnames or cert paths.
  */
 async function getTlsCertStatus() {
-  const envHosts = process.env.TLS_HOSTS || 'system-health.iskconcommunity';
+  const envHosts = process.env.TLS_HOSTS || 'ops.example.com';
   const hosts = envHosts.split(',').map(h => h.trim()).filter(Boolean);
 
   const results = await Promise.all(hosts.map(async (hostOrPath) => {

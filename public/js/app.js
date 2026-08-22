@@ -807,10 +807,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Metric Cards
     const summary = data.summary || {};
     const doms = summary.domains || {};
+    const domainKeys = Object.keys(doms);
 
-    const appData = doms['iskconcommunity.com'] || { hits: 0, unique: 0, mobile_hits: 0, web_hits: 0 };
-    const devData = doms['dev.iskconcommunity.com'] || { hits: 0, unique: 0, mobile_hits: 0, web_hits: 0 };
-    const msfData = doms['msf.iskconcommunity.com'] || { hits: 0, unique: 0, mobile_hits: 0, web_hits: 0 };
+    const appKey = domainKeys[0] || 'app.example.com';
+    const devKey = domainKeys[1] || 'api.example.com';
+    const msfKey = domainKeys[2] || 'web.example.com';
+
+    const appData = doms[appKey] || { name: 'App API', hits: 0, unique: 0, mobile_hits: 0, web_hits: 0 };
+    const devData = doms[devKey] || { name: 'Backend API', hits: 0, unique: 0, mobile_hits: 0, web_hits: 0 };
+    const msfData = doms[msfKey] || { name: 'Web App', hits: 0, unique: 0, mobile_hits: 0, web_hits: 0 };
+
+    const domAppLabel = document.getElementById('trafficDomainAppLabel');
+    const domDevLabel = document.getElementById('trafficDomainDevLabel');
+    const domMsfLabel = document.getElementById('trafficDomainMsfLabel');
+    if (domAppLabel) domAppLabel.textContent = appKey;
+    if (domDevLabel) domDevLabel.textContent = devKey;
+    if (domMsfLabel) domMsfLabel.textContent = msfKey;
 
     const hitsAppEl = document.getElementById('trafficHitsApp');
     const usersAppEl = document.getElementById('trafficUsersApp');
@@ -936,9 +948,9 @@ document.addEventListener('DOMContentLoaded', () => {
         epTable.innerHTML = `<tr><td colspan="3" class="text-dim" style="padding:1rem; text-align:center;">No endpoint data</td></tr>`;
       } else {
         const hostBadges = {
-          'iskconcommunity.com': '<span class="status-tag ok" style="font-size:10px;">APP</span>',
-          'dev.iskconcommunity.com': '<span class="status-tag warn" style="font-size:10px;">DEV</span>',
-          'msf.iskconcommunity.com': '<span class="status-tag" style="font-size:10px; background:rgba(139,92,246,0.15); color:#a855f7; border-color:#8b5cf6;">MSF</span>'
+          'app.example.com': '<span class="status-tag ok" style="font-size:10px;">APP</span>',
+          'api.example.com': '<span class="status-tag warn" style="font-size:10px;">API</span>',
+          'web.example.com': '<span class="status-tag" style="font-size:10px; background:rgba(139,92,246,0.15); color:#a855f7; border-color:#8b5cf6;">WEB</span>'
         };
         epTable.innerHTML = endpoints.map(ep => `
           <tr style="border-bottom:1px solid var(--border-dim);">
@@ -1014,9 +1026,9 @@ document.addEventListener('DOMContentLoaded', () => {
         recentTableBody.innerHTML = `<tr><td colspan="4" class="text-dim" style="padding:1rem; text-align:center;">No recent traffic recorded</td></tr>`;
       } else {
         const hostBadges = {
-          'iskconcommunity.com': '<span class="status-tag ok" style="font-size:10px;">APP</span>',
-          'dev.iskconcommunity.com': '<span class="status-tag warn" style="font-size:10px;">DEV</span>',
-          'msf.iskconcommunity.com': '<span class="status-tag" style="font-size:10px; background:rgba(139,92,246,0.15); color:#a855f7; border-color:#8b5cf6;">MSF</span>'
+          'app.example.com': '<span class="status-tag ok" style="font-size:10px;">APP</span>',
+          'api.example.com': '<span class="status-tag warn" style="font-size:10px;">API</span>',
+          'web.example.com': '<span class="status-tag" style="font-size:10px; background:rgba(139,92,246,0.15); color:#a855f7; border-color:#8b5cf6;">WEB</span>'
         };
 
         recentTableBody.innerHTML = recent.map(v => {
@@ -1061,9 +1073,9 @@ document.addEventListener('DOMContentLoaded', () => {
     mapMarkersLayer.clearLayers();
 
     const hostColors = {
-      'iskconcommunity.com': '#10b981',
-      'dev.iskconcommunity.com': '#0ea5e9',
-      'msf.iskconcommunity.com': '#8b5cf6'
+      'app.example.com': '#10b981',
+      'api.example.com': '#0ea5e9',
+      'web.example.com': '#8b5cf6'
     };
 
     const bounds = [];

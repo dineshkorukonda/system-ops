@@ -442,13 +442,13 @@
         <!-- TOP SECTION 1: DOMAIN SITE CARDS (PHONES VS LAPTOPS FOCUS) -->
         <div class="traffic-metrics-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:1rem;">
           
-          <!-- Site 1: Mobile App -->
+          <!-- Site 1: App API -->
           <div class="metric-card" style="background:var(--panel-bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; border-top: 3px solid #10b981;">
             <div style="font-size:12px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.05em; display:flex; align-items:center; justify-content:space-between;">
-              <span>Mobile App</span>
+              <span>App API</span>
               <span class="status-tag ok" style="font-size:10px;">APP</span>
             </div>
-            <div style="font-size:13px; font-weight:600; margin-top:0.2rem; color:var(--text);">iskconcommunity.com</div>
+            <div style="font-size:13px; font-weight:600; margin-top:0.2rem; color:var(--text);" id="trafficDomainAppLabel">app.example.com</div>
             <div style="display:flex; justify-content:space-between; margin-top:0.8rem;">
               <div>
                 <div style="font-size:22px; font-weight:700;" id="trafficHitsApp">0</div>
@@ -470,13 +470,13 @@
             </div>
           </div>
 
-          <!-- Site 2: Web Dev -->
+          <!-- Site 2: Backend API -->
           <div class="metric-card" style="background:var(--panel-bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; border-top: 3px solid #0ea5e9;">
             <div style="font-size:12px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.05em; display:flex; align-items:center; justify-content:space-between;">
-              <span>Web Dev</span>
-              <span class="status-tag warn" style="font-size:10px;">DEV</span>
+              <span>Backend API</span>
+              <span class="status-tag warn" style="font-size:10px;">API</span>
             </div>
-            <div style="font-size:13px; font-weight:600; margin-top:0.2rem; color:var(--text);">dev.iskconcommunity.com</div>
+            <div style="font-size:13px; font-weight:600; margin-top:0.2rem; color:var(--text);" id="trafficDomainDevLabel">api.example.com</div>
             <div style="display:flex; justify-content:space-between; margin-top:0.8rem;">
               <div>
                 <div style="font-size:22px; font-weight:700;" id="trafficHitsDev">0</div>
@@ -498,13 +498,13 @@
             </div>
           </div>
 
-          <!-- Site 3: Web MSF -->
+          <!-- Site 3: Web App -->
           <div class="metric-card" style="background:var(--panel-bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; border-top: 3px solid #8b5cf6;">
             <div style="font-size:12px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.05em; display:flex; align-items:center; justify-content:space-between;">
-              <span>Web MSF</span>
-              <span class="status-tag" style="font-size:10px; background:rgba(139,92,246,0.15); color:#a855f7; border-color:#8b5cf6;">MSF</span>
+              <span>Web App</span>
+              <span class="status-tag" style="font-size:10px; background:rgba(139,92,246,0.15); color:#a855f7; border-color:#8b5cf6;">WEB</span>
             </div>
-            <div style="font-size:13px; font-weight:600; margin-top:0.2rem; color:var(--text);">msf.iskconcommunity.com</div>
+            <div style="font-size:13px; font-weight:600; margin-top:0.2rem; color:var(--text);" id="trafficDomainMsfLabel">web.example.com</div>
             <div style="display:flex; justify-content:space-between; margin-top:0.8rem;">
               <div>
                 <div style="font-size:22px; font-weight:700;" id="trafficHitsMsf">0</div>

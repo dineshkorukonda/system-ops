@@ -125,7 +125,7 @@ Place this at `/var/backups/postgres/backup.sh` and add to root's crontab:
 # /var/backups/postgres/backup.sh
 #!/bin/bash
 DATE=$(date +%F)
-DB_NAME="iskcon_family_v5"
+DB_NAME="app_production"
 BACKUP_DIR="/var/backups/postgres"
 LOG_FILE="$BACKUP_DIR/logs/backup.log"
 KEEP_DAYS=7

@@ -34,13 +34,25 @@ function extractValidIP(cfIp, remoteUser) {
 }
 
 /**
- * Target domain definitions
+ * Get configured target domains or fallback to generic defaults
  */
-const TARGET_DOMAINS = {
-  'iskconcommunity.com': 'Mobile App',
-  'dev.iskconcommunity.com': 'Web Dev',
-  'msf.iskconcommunity.com': 'Web MSF'
-};
+function getTrackedDomains() {
+  if (process.env.TRACKED_DOMAINS) {
+    const map = {};
+    process.env.TRACKED_DOMAINS.split(',').forEach(entry => {
+      const parts = entry.split(':');
+      const domain = parts[0].trim();
+      const label = parts[1] ? parts[1].trim() : domain;
+      if (domain) map[domain] = label;
+    });
+    if (Object.keys(map).length > 0) return map;
+  }
+  return {
+    'app.example.com': 'App API',
+    'api.example.com': 'Backend API',
+    'web.example.com': 'Web App'
+  };
+}
 
 /**
  * Parse Nginx access.log line-by-line using streaming readline
@@ -48,6 +60,14 @@ const TARGET_DOMAINS = {
  */
 async function parseTrafficAnalytics(customLogPath = null) {
   const logPath = customLogPath || process.env.NGINX_LOG_PATH || '/var/log/nginx/access.log';
+  const TARGET_DOMAINS = getTrackedDomains();
+
+  const domainSummaries = {};
+  const domainUniqueDevices = {};
+  Object.entries(TARGET_DOMAINS).forEach(([dom, label]) => {
+    domainSummaries[dom] = { name: label, hits: 0, unique: 0, mobile_hits: 0, web_hits: 0, bytes: 0 };
+    domainUniqueDevices[dom] = new Set();
+  });
 
   const summary = {
     total_hits: 0,
@@ -55,11 +75,7 @@ async function parseTrafficAnalytics(customLogPath = null) {
     total_web_hits: 0,
     total_bytes: 0,
     unique_devices: 0,
-    domains: {
-      'iskconcommunity.com': { name: 'Mobile App', hits: 0, unique: 0, mobile_hits: 0, web_hits: 0, bytes: 0 },
-      'dev.iskconcommunity.com': { name: 'Web Dev', hits: 0, unique: 0, mobile_hits: 0, web_hits: 0, bytes: 0 },
-      'msf.iskconcommunity.com': { name: 'Web MSF', hits: 0, unique: 0, mobile_hits: 0, web_hits: 0, bytes: 0 }
-    }
+    domains: domainSummaries
   };
 
   const status_codes = {
@@ -84,11 +100,6 @@ async function parseTrafficAnalytics(customLogPath = null) {
   };
 
   const uniqueDevicesGlobal = new Set();
-  const domainUniqueDevices = {
-    'iskconcommunity.com': new Set(),
-    'dev.iskconcommunity.com': new Set(),
-    'msf.iskconcommunity.com': new Set()
-  };
 
   const locationMap = new Map(); // key: compoundKey, val: locObj
   const recentVisitors = [];
@@ -301,5 +312,6 @@ async function parseTrafficAnalytics(customLogPath = null) {
 module.exports = {
   parseTrafficAnalytics,
   normalizeOS,
-  extractValidIP
+  extractValidIP,
+  getTrackedDomains
 };
