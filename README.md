@@ -150,6 +150,25 @@ Add `myapp` to `SYSTEMD_UNITS` in `/opt/system-ops/.env` to monitor it in `syste
 
 ---
 
+## Deploy at Custom Subdomain & SSL
+
+You can deploy `system-ops` at any subdomain of your choice (e.g., `ops.yourdomain.com`).
+
+### 1-Line Automated Domain & SSL Setup
+
+```bash
+sudo bash /opt/system-ops/scripts/setup-domain.sh ops.yourdomain.com admin@yourdomain.com
+```
+
+This automatically:
+1. Installs Nginx and Certbot if missing.
+2. Creates the `/etc/nginx/sites-available/` reverse proxy config pointing to `127.0.0.1:9080`.
+3. Tests syntax and symlinks to `sites-enabled`.
+4. Provisions a free Let's Encrypt SSL certificate and enables HTTP->HTTPS redirect.
+5. Reloads Nginx.
+
+---
+
 ## Configuration
 
 Configure environment variables in `/opt/system-ops/.env`:
