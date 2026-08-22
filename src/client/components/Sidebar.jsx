@@ -6,7 +6,7 @@ export function Sidebar({
   activeTab,
   setActiveTab,
   hostData,
-  pm2Count,
+  servicesCount,
   ollamaStatus,
   backupStatus,
   trafficHits,
@@ -32,13 +32,13 @@ export function Sidebar({
       ],
     },
     {
-      title: 'RUNTIMES & SERVICES',
+      title: 'SERVICES & RUNTIMES',
       items: [
         {
-          id: 'pm2',
-          label: 'PM2 Fleet',
-          tag: pm2Count !== undefined ? `${pm2Count} APPS` : 'PM2',
-          tagVariant: pm2Count > 0 ? 'blue' : 'warn',
+          id: 'services',
+          label: 'Systemd Services',
+          tag: servicesCount !== undefined ? `${servicesCount} UP` : 'SYSTEMD',
+          tagVariant: 'ok',
         },
         {
           id: 'ollama',
@@ -150,7 +150,7 @@ export function Sidebar({
           <div className="flex items-center justify-between text-[11px] pt-1 border-t border-[#141414]">
             <span className="text-neutral-500 font-mono">STATUS</span>
             <span className="font-mono text-emerald-400 text-[10px] uppercase font-semibold">
-              LOOPBACK SAFE
+              SYSTEMD UNIFIED
             </span>
           </div>
         </div>

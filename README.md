@@ -2,22 +2,31 @@
 
 Lightweight self-hosted operations console and telemetry dashboard for a single Ubuntu VPS.
 
-Monitors Ollama local LLMs, PM2 process fleets, system health, PostgreSQL backup logs, and real-time Nginx traffic with GeoIP mapping from a single browser tab.
+Monitors native systemd services, Ollama local LLMs, system health metrics, PostgreSQL backup dumps, and real-time Nginx traffic with GeoIP mapping from a single browser console.
 
 ---
 
 ## Overview
 
-Full-scale monitoring tools like Prometheus and Grafana often consume 500MB to 2GB of RAM. `system-ops` provides single-node visibility in under 35MB of memory without external databases or daemon bloat.
+Traditional monitoring stacks (Prometheus, Grafana, Datadog) often consume 500MB to 2GB of RAM on a VPS. `system-ops` standardizes on native Linux `systemd` and kernel metrics to provide full-stack visibility in under 35MB of RAM without external databases or supervisor daemons.
 
-### Features
+### Why Native Systemd over PM2?
 
-- System Health: Live CPU load, RAM utilization, Swap trends, disk usage, systemd services, listening ports, and TLS cert expiry.
-- Process Monitor: Searchable, sortable process table with PID, user, CPU%, RAM%, RSS, and commands.
-- PM2 Fleet: Per-user process lists (deploy, root), CPU/memory stats, restart counts, and live app log viewer.
-- Ollama AI: Model registry, service status, token-capped inference probe, and journalctl log viewer.
-- PostgreSQL Backups: Backup log tail with status analysis (SUCCESS / FAILED), and direct dump file downloads.
-- Traffic Analytics: Nginx access log parser, device breakdown (mobile vs desktop), HTTP status codes, and GeoIP visitor map.
+- Zero Extra RAM: Uses Linux PID 1 (0MB overhead vs 50-100MB+ for PM2).
+- Universal Supervision: One tool (`systemctl`) controls Node.js apps, Ollama, Nginx, PostgreSQL, and background workers.
+- Rock-Solid Recovery: Native `Restart=always` with cgroup memory and CPU limits.
+- Centralized Logging: Automatic log rotation and retention via `journalctl` with zero disk leaks.
+
+---
+
+## Core Capabilities
+
+- System Health: Live SVG sparklines for CPU Load (1m), RAM %, and Swap %. Load averages (1m/5m/15m), disk partition meters, loopback listening ports, and TLS cert expiry countdowns.
+- Process Monitor: Searchable, sortable process table with PID, user, CPU%, RAM%, RSS, and command execution details.
+- Systemd Services: Unified inspection of all tracked services (Node apps, Ollama, Nginx, Postgres) with active state, memory consumption, PID, and live streaming `journalctl` log viewer.
+- Ollama AI: Model registry (`ollama list`), loopback socket bound check, API latency probe, and token-capped quick inference test.
+- PostgreSQL Backups: Backup log tail with status analysis (SUCCESS / FAILED), and direct `.dump` file downloads.
+- Traffic & GeoIP Analytics: Nginx access log parser, mobile vs desktop breakdown, status codes, top requested endpoints, and Leaflet GeoIP visitor map.
 
 ---
 
@@ -31,10 +40,10 @@ Nginx (SSL Termination + Real IP)
    | http://127.0.0.1:9080
    v
 Express App (User: ops, Port: 9080)
-   ├── systemService.js    -> systemctl / journalctl (sudoers)
-   ├── pm2.js              -> pm2 jlist (per user via sudoers)
+   ├── services.js         -> systemctl show / journalctl (sudoers)
    ├── system.js           -> /proc/loadavg, /proc/meminfo, df, ss
    ├── backupFiles.js      -> /var/backups dump directory
+   ├── logSources.js       -> tail backup logs
    └── trafficAnalytics.js -> Nginx access.log + GeoIP
 ```
 
@@ -59,7 +68,7 @@ sudo bash scripts/install.sh
 useradd -r -s /bin/false -d /opt/system-ops ops
 usermod -aG systemd-journal,adm ops
 
-# 2. Install dependencies & configure env
+# 2. Install dependencies & build React SPA
 cd /opt/system-ops
 npm ci --omit=dev
 cp .env.example .env
@@ -91,7 +100,44 @@ cp .env.example .env
 docker compose up -d
 ```
 
-Host metrics are read via read-only volume mounts (`/proc`, `/sys`, `/var/log/nginx`, `/var/backups`).
+---
+
+## Standardizing Node.js Apps on Systemd
+
+To run your Node.js apps under systemd instead of PM2, create `/etc/systemd/system/myapp.service`:
+
+```ini
+[Unit]
+Description=My Node Production App
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=deploy
+WorkingDirectory=/var/www/myapp
+ExecStart=/usr/bin/node src/server.js
+Restart=always
+RestartSec=5s
+Environment=NODE_ENV=production
+EnvironmentFile=/var/www/myapp/.env
+
+# Safety limits (Protects VPS from OOM crashes)
+MemoryMax=600M
+CPUQuota=90%
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start your app:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now myapp.service
+```
+
+Add `myapp` to `SYSTEMD_UNITS` in `/opt/system-ops/.env` to monitor it in `system-ops`.
 
 ---
 
@@ -105,9 +151,8 @@ Configure environment variables in `/opt/system-ops/.env`:
 | `SESSION_SECRET` | *(required)* | Cookie signing secret |
 | `PORT` | `9080` | Local loopback listen port |
 | `HOST` | `127.0.0.1` | Network interface binding |
-| `PM2_USERS` | `deploy,root` | Comma-separated users whose PM2 daemons to monitor |
+| `SYSTEMD_UNITS` | `nginx,ollama,system-ops,postgresql` | Comma-separated systemd services to track |
 | `DISK_PATHS` | `/,/var,/var/backups` | Filesystem paths to track disk usage |
-| `SYSTEMD_UNITS` | `nginx,ollama,system-ops,postgresql` | Systemd services to monitor |
 | `TLS_HOSTS` | `ops.example.com,api.example.com` | Hostnames or cert files for TLS expiry checks |
 | `TRACKED_DOMAINS` | `app.example.com:App,api.example.com:API` | Domain-to-label mapping for traffic analytics |
 | `NGINX_LOG_PATH` | `/var/log/nginx/access.log` | Access log path for traffic analytics |
@@ -117,7 +162,7 @@ Configure environment variables in `/opt/system-ops/.env`:
 
 ---
 
-## API Reference
+## REST API Reference
 
 All `/api/*` endpoints (except login, logout, and health) require session authentication.
 
@@ -129,8 +174,8 @@ All `/api/*` endpoints (except login, logout, and health) require session authen
 | `GET` | `/api/auth/status` | No | Check session validity |
 | `GET` | `/api/v2/system/snapshot` | Yes | Host health snapshot (CPU, RAM, Swap, Disk, Ports, TLS) |
 | `GET` | `/api/v2/system/processes` | Yes | Top process table (sort by cpu/mem) |
-| `GET` | `/api/v2/pm2/snapshot` | Yes | PM2 processes across all configured users |
-| `GET` | `/api/v2/pm2/logs` | Yes | Tail logs for a PM2 application |
+| `GET` | `/api/v2/services/snapshot` | Yes | Status and memory for all systemd services |
+| `GET` | `/api/v2/services/logs` | Yes | Tail live journalctl logs for any service |
 | `GET` | `/api/status` | Yes | Ollama service state & host summary |
 | `GET` | `/api/models` | Yes | Installed Ollama models list |
 | `POST` | `/api/test-chat` | Yes | Quick inference probe on Ollama |
@@ -140,97 +185,6 @@ All `/api/*` endpoints (except login, logout, and health) require session authen
 | `GET` | `/api/v2/backups/files` | Yes | List PostgreSQL dump files |
 | `GET` | `/api/v2/backups/download` | Yes | Download a backup dump file |
 | `GET` | `/api/v2/traffic/analytics` | Yes | Traffic analytics with GeoIP and device stats |
-
----
-
-## PostgreSQL Backup Script Setup
-
-Place this script at `/var/backups/postgres/backup.sh` and add to root crontab:
-
-```bash
-#!/bin/bash
-set -euo pipefail
-
-DATE=$(date +%F)
-DB_NAME="app_production"
-BACKUP_DIR="/var/backups/postgres"
-LOG_FILE="$BACKUP_DIR/logs/backup.log"
-KEEP_DAYS=7
-
-mkdir -p "$BACKUP_DIR/logs"
-echo "=== Backup started at $(date) ===" >> "$LOG_FILE"
-
-if /usr/bin/pg_dump -F c "$DB_NAME" > "$BACKUP_DIR/${DB_NAME}_$DATE.dump" 2>> "$LOG_FILE"; then
-    SIZE=$(stat -c%s "$BACKUP_DIR/${DB_NAME}_$DATE.dump")
-    if [ "$SIZE" -gt 1000000 ]; then
-        echo "Backup successful: ${DB_NAME}_$DATE.dump ($SIZE bytes)" >> "$LOG_FILE"
-        find "$BACKUP_DIR" -maxdepth 1 -name "${DB_NAME}_*.dump" -type f \
-            -printf "%T@ %p\n" | sort -n | head -n -${KEEP_DAYS} | \
-            cut -d' ' -f2- | while IFS= read -r f; do
-                rm -- "$f" && echo "  Deleted old archive: $(basename "$f")" >> "$LOG_FILE"
-            done
-    else
-        echo "FAILED: Backup file too small ($SIZE bytes)" >> "$LOG_FILE"
-        rm -f "$BACKUP_DIR/${DB_NAME}_$DATE.dump"
-    fi
-else
-    echo "FAILED: pg_dump error" >> "$LOG_FILE"
-    rm -f "$BACKUP_DIR/${DB_NAME}_$DATE.dump"
-fi
-echo "" >> "$LOG_FILE"
-```
-
-Add to crontab (`sudo crontab -e`):
-```cron
-0 2 * * * /bin/bash /var/backups/postgres/backup.sh
-```
-
----
-
-## Nginx Reverse Proxy Configuration
-
-```nginx
-server {
-    listen 80;
-    server_name ops.example.com;
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name ops.example.com;
-
-    ssl_certificate /etc/letsencrypt/live/ops.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/ops.example.com/privkey.pem;
-
-    location / {
-        proxy_pass http://127.0.0.1:9080;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
----
-
-## Development
-
-```bash
-# Install dependencies
-npm install
-
-# Build React SPA
-npm run build
-
-# Start server
-npm start
-
-# Run test suite
-npm test
-```
 
 ---
 
