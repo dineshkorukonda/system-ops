@@ -4,10 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>system-ops - Lightweight Systemd VPS Operations Console</title>
-<<<<<<< HEAD
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
-=======
->>>>>>> origin/main
   <style>
     * {
       box-sizing: border-box;
@@ -57,7 +54,6 @@
       padding: 0.2rem 0.6rem;
       border-radius: 3px;
       font-size: 0.8rem;
-<<<<<<< HEAD
       margin-bottom: 0.5rem;
     }
     section {
@@ -80,23 +76,6 @@
       margin-top: 1.2rem;
       margin-bottom: 0.5rem;
     }
-=======
-      margin-bottom: 0.5rem;
-    }
-    section {
-      margin-bottom: 2.8rem;
-    }
-    h2 {
-      font-size: 1.15rem;
-      font-weight: 600;
-      border-bottom: 1px solid #222222;
-      padding-bottom: 0.4rem;
-      margin-bottom: 1rem;
-      color: #ffffff;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
->>>>>>> origin/main
     p {
       color: #cccccc;
       margin-bottom: 1rem;
@@ -225,56 +204,19 @@
 \___ \ )  / \___ \  )(   ) _) / \/ \(___) )(_)(  )___/\___ \
 (____/(__/  (____/ (__) (____)\_)(_/     (_____)(__)  (____/
     </div>
-    <h1>&gt; system-ops</h1>
-<<<<<<< HEAD
+    <h1>system-ops</h1>
     <div class="tagline">ARCHITECTURE: NATIVE SYSTEMD UNIFIED (0MB EXTRA RAM)</div>
-=======
-    <div class="tagline">ARCHITECTURE: NATIVE SYSTEMD UNIFIED</div>
->>>>>>> origin/main
-    <p class="subtitle">Self-hosted operations console and telemetry dashboard for single Ubuntu VPS deployments.</p>
+    <p class="subtitle">Lightweight self-hosted operations console and telemetry dashboard for single Ubuntu VPS deployments.</p>
   </header>
 
   <section>
-<<<<<<< HEAD
-    <h2>Quick Upgrade / Clean Reinstall on VPS</h2>
-    <p>If replacing an existing installation on your server, run these commands as root or with sudo:</p>
-
-    <h3>1. Remove Old Deployment</h3>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">sudo systemctl stop system-ops.service 2>/dev/null || true
-sudo rm -rf /opt/system-ops</div>
-    </div>
-
-    <h3>2. Clone Latest &amp; Run Automated Installer</h3>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">sudo git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops
-cd /opt/system-ops
-sudo bash scripts/install.sh</div>
-    </div>
-
-    <h3>3. Configure Environment Variables</h3>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block dim">sudo nano /opt/system-ops/.env</div>
-    </div>
-    <p>Set your secure <code>APP_PASSWORD</code>, then restart the service:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">sudo systemctl restart system-ops.service
-sudo systemctl status system-ops.service</div>
-=======
-    <h2>Why Native Systemd over PM2?</h2>
+    <h2>What is it?</h2>
     <p>
-      Instead of running multi-user PM2 daemons that consume 50-100MB+ RAM and break on Node/NVM version updates, system-ops standardizes completely on native Linux <strong>systemd</strong>:
+      system-ops is a zero-bloat web console that gives you single-pane-of-glass observability over your VPS without the 500MB+ memory footprint of Prometheus, Grafana, or Datadog.
     </p>
-    <ul>
-      <li><strong>0 MB Extra Overhead</strong>: Controlled directly by Linux kernel PID 1.</li>
-      <li><strong>Unified Operations</strong>: Manage Node.js backends, frontend web apps, Ollama AI, PostgreSQL, and Nginx with one standard tool (<code>systemctl</code>).</li>
-      <li><strong>Built-in Log Management</strong>: Clean, automated log rotation via <code>journalctl</code> with zero disk exhaustion.</li>
-      <li><strong>Hardened Sandboxing</strong>: Cgroup memory caps (<code>MemoryMax=600M</code>) and automatic reboot recovery (<code>Restart=always</code>).</li>
-    </ul>
+    <p>
+      Built for developers and ops engineers running workloads on a single cloud VPS. It monitors systemd services, Ollama LLMs, host health metrics, PostgreSQL backup dumps, and Nginx visitor traffic with real-time GeoIP mapping.
+    </p>
   </section>
 
   <section>
@@ -308,89 +250,125 @@ sudo systemctl status system-ops.service</div>
   </section>
 
   <section>
-    <h2>Installation (Native Systemd)</h2>
-    <p>Automated installer for Ubuntu 22.04 / 24.04:</p>
+    <h2>Quick Upgrade / Clean Reinstall on VPS</h2>
+    <p>If replacing an existing installation on your server, run these commands as root or with sudo:</p>
+
+    <h3>1. Remove Old Deployment</h3>
     <div class="code-container">
       <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops &amp;&amp; cd /opt/system-ops &amp;&amp; sudo bash scripts/install.sh</div>
->>>>>>> origin/main
+      <div class="code-block">sudo systemctl stop system-ops.service 2>/dev/null || true
+sudo rm -rf /opt/system-ops</div>
+    </div>
+
+    <h3>2. Clone Latest &amp; Run Automated Installer</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block">sudo git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops
+cd /opt/system-ops
+sudo bash scripts/install.sh</div>
+    </div>
+
+    <h3>3. Configure Environment Variables</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block dim">sudo nano /opt/system-ops/.env</div>
+    </div>
+    <p>Set your secure <code>APP_PASSWORD</code>, then restart the service:</p>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block">sudo systemctl restart system-ops.service
+sudo systemctl status system-ops.service</div>
     </div>
   </section>
 
   <section>
-<<<<<<< HEAD
-    <h2>Environment File (.env) Reference</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Variable</th>
-          <th>Example / Default</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>APP_PASSWORD</td>
-          <td>MySecurePassword123!</td>
-          <td>Console web login password (required)</td>
-        </tr>
-        <tr>
-          <td>SESSION_SECRET</td>
-          <td>(auto-generated)</td>
-          <td>Cookie signing secret token (required)</td>
-        </tr>
-        <tr>
-          <td>PORT</td>
-          <td>9080</td>
-          <td>Internal loopback listen port</td>
-        </tr>
-        <tr>
-          <td>HOST</td>
-          <td>127.0.0.1</td>
-          <td>Interface binding (keep 127.0.0.1 for safety)</td>
-        </tr>
-        <tr>
-          <td>SYSTEMD_UNITS</td>
-          <td>nginx,ollama,system-ops,postgresql,myapp</td>
-          <td>Comma-separated list of systemd services to track</td>
-        </tr>
-        <tr>
-          <td>DISK_PATHS</td>
-          <td>/,/var,/var/backups</td>
-          <td>Filesystem mounts to monitor for disk utilization</td>
-        </tr>
-        <tr>
-          <td>TLS_HOSTS</td>
-          <td>ops.example.com,api.example.com</td>
-          <td>Domains or cert files to check for SSL/TLS expiry</td>
-        </tr>
-        <tr>
-          <td>TRACKED_DOMAINS</td>
-          <td>app.example.com:App,api.example.com:API</td>
-          <td>Domain-to-label mappings for Traffic Analytics</td>
-        </tr>
-        <tr>
-          <td>NGINX_LOG_PATH</td>
-          <td>/var/log/nginx/access.log</td>
-          <td>Path to Nginx access log for visitor analytics</td>
-        </tr>
-        <tr>
-          <td>BACKUPS_DIR</td>
-          <td>/var/backups</td>
-          <td>Directory where PostgreSQL dump files are stored</td>
-        </tr>
-        <tr>
-          <td>LOG_SOURCES</td>
-          <td>pg-backup:/var/backups/postgres/logs/backup.log:200</td>
-          <td>Backup log sources (id:path:lines)</td>
-        </tr>
-        <tr>
-          <td>OLLAMA_URL</td>
-          <td>http://127.0.0.1:11434</td>
-          <td>Local Ollama API endpoint</td>
-        </tr>
-      </tbody>
-    </table>
+    <h2>Environment File (.env) Complete Template</h2>
+    <p>Copy and paste this template directly into <code>/opt/system-ops/.env</code>:</p>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block dim"># ==========================================
+# System-Ops Environment Configuration
+# Location: /opt/system-ops/.env
+# ==========================================
+
+# Security & Authentication (REQUIRED)
+APP_PASSWORD=ChangeThisToYourSecurePassword123!
+SESSION_SECRET=a8f5643573f95b0730a8023aae4afdc9
+
+# Server Network Binding
+PORT=9080
+HOST=127.0.0.1
+ENABLE_SYSTEM_COLLECTOR=true
+
+# Systemd Services to Track (Comma-separated)
+SYSTEMD_UNITS=nginx,ollama,system-ops,postgresql
+
+# Host Health Mounts & Expiry Probes
+DISK_PATHS=/,/var,/var/backups
+TLS_HOSTS=ops.example.com,api.example.com
+
+# Traffic & Geographic Analytics
+NGINX_LOG_PATH=/var/log/nginx/access.log
+TRACKED_DOMAINS=app.example.com:App API,api.example.com:Backend API
+
+# PostgreSQL Backup Dumps & Log Tailer
+BACKUPS_DIR=/var/backups
+LOG_SOURCES=pg-backup:/var/backups/postgres/logs/backup.log:200
+
+# Ollama AI Local Service
+OLLAMA_URL=http://127.0.0.1:11434
+OLLAMA_SERVICE_NAME=ollama
+ENABLE_CHAT_TEST=true
+
+# Rate Limiting Guardrails
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=3000
+CHAT_TEST_RATE_LIMIT_MAX=30
+LOG_TAIL_RATE_LIMIT_MAX=300</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Deploy at Custom Subdomain &amp; SSL (HTTPS)</h2>
+    <p>Deploy system-ops at any subdomain of your choice (e.g., <code>ops.yourdomain.com</code>):</p>
+
+    <h3>Option A: 1-Line Automated Domain &amp; SSL Setup (Recommended)</h3>
+    <p>Run the built-in domain setup script with your chosen subdomain and email for SSL notifications:</p>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block">sudo bash /opt/system-ops/scripts/setup-domain.sh ops.yourdomain.com admin@yourdomain.com</div>
+    </div>
+    <p class="card-desc" style="margin-bottom: 1.2rem;">
+      This automatically verifies Nginx &amp; Certbot, generates the secure proxy block, requests a Let's Encrypt SSL certificate, enables auto-renewal, and reloads Nginx in seconds.
+    </p>
+
+    <h3>Option B: Manual Nginx Configuration</h3>
+    <p>Create <code>/etc/nginx/sites-available/ops.yourdomain.com.conf</code>:</p>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block dim">server {
+    listen 80;
+    server_name ops.yourdomain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:9080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}</div>
+    </div>
+    <p>Enable the site, test syntax, and issue Let's Encrypt SSL:</p>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block">sudo ln -sf /etc/nginx/sites-available/ops.yourdomain.com.conf /etc/nginx/sites-enabled/
+sudo nginx -t &amp;&amp; sudo systemctl reload nginx
+sudo certbot --nginx -d ops.yourdomain.com</div>
+    </div>
   </section>
 
   <section>
@@ -425,49 +403,6 @@ WantedBy=multi-user.target</div>
     <div class="code-container">
       <button class="copy-btn" onclick="copyCode(this)">COPY</button>
       <div class="code-block">sudo systemctl daemon-reload &amp;&amp; sudo systemctl enable --now myapp.service</div>
-    </div>
-  </section>
-
-  <section>
-    <h2>Deploy at Custom Subdomain &amp; SSL (HTTPS)</h2>
-    <p>You can deploy system-ops at any subdomain of your choice (e.g., <code>ops.yourdomain.com</code> or <code>status.yourdomain.com</code>).</p>
-
-    <h3>Option A: 1-Line Automated Domain &amp; SSL Setup (Recommended)</h3>
-    <p>Run the built-in domain setup script with your chosen subdomain and email for SSL notifications:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">sudo bash /opt/system-ops/scripts/setup-domain.sh ops.yourdomain.com admin@yourdomain.com</div>
-    </div>
-    <p class="card-desc" style="margin-bottom: 1.2rem;">
-      This automatically verifies Nginx &amp; Certbot, generates the secure proxy block, requests a Let's Encrypt SSL certificate, enables auto-renewal, and reloads Nginx in seconds.
-    </p>
-
-    <h3>Option B: Manual Nginx &amp; Certbot Configuration</h3>
-    <p>Create <code>/etc/nginx/sites-available/ops.yourdomain.com.conf</code>:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block dim">server {
-    listen 80;
-    server_name ops.yourdomain.com;
-
-    location / {
-        proxy_pass http://127.0.0.1:9080;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}</div>
-    </div>
-    <p>Enable the site, test syntax, and issue Let's Encrypt SSL:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">sudo ln -sf /etc/nginx/sites-available/ops.yourdomain.com.conf /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d ops.yourdomain.com</div>
     </div>
   </section>
 
