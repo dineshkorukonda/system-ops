@@ -256,28 +256,24 @@
     <h3>1. Remove Old Deployment</h3>
     <div class="code-container">
       <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">sudo systemctl stop system-ops.service 2>/dev/null || true
-sudo rm -rf /opt/system-ops</div>
+      <div class="code-block">systemctl stop system-ops.service 2>/dev/null || true && rm -rf /opt/system-ops</div>
     </div>
 
     <h3>2. Clone Latest &amp; Run Automated Installer</h3>
     <div class="code-container">
       <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">sudo git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops
-cd /opt/system-ops
-sudo bash scripts/install.sh</div>
+      <div class="code-block">git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops &amp;&amp; cd /opt/system-ops &amp;&amp; bash scripts/install.sh</div>
     </div>
 
     <h3>3. Configure Environment Variables</h3>
     <div class="code-container">
       <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block dim">sudo nano /opt/system-ops/.env</div>
+      <div class="code-block dim">nano /opt/system-ops/.env</div>
     </div>
     <p>Set your secure <code>APP_PASSWORD</code>, then restart the service:</p>
     <div class="code-container">
       <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">sudo systemctl restart system-ops.service
-sudo systemctl status system-ops.service</div>
+      <div class="code-block">systemctl restart system-ops.service &amp;&amp; systemctl status system-ops.service</div>
     </div>
   </section>
 
