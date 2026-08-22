@@ -16,3 +16,6 @@ ops ALL=(ALL) NOPASSWD: /usr/local/bin/ollama list, /usr/bin/ollama list
 
 # 4. Allow 'ops' user to read backup logs
 ops ALL=(ALL) NOPASSWD: /usr/bin/tail -n [0-9]* /var/log/*, /usr/bin/tail -n [0-9]* /var/backups/*
+
+# 5. Allow 'ops' user to query PM2 processes & logs if PM2 is present on host
+ops ALL=(ALL) NOPASSWD: /usr/local/bin/pm2, /usr/bin/pm2, /opt/node/bin/pm2, /home/*/.nvm/versions/node/*/bin/pm2, /root/.nvm/versions/node/*/bin/pm2

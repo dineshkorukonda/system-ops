@@ -69,7 +69,7 @@ async function getResolvedDomains() {
   // 2. Auto-discover from Nginx sites-enabled & conf.d
   const nginxDomains = discoverNginxDomains();
   nginxDomains.forEach(dom => {
-    if (!map[dom]) {
+    if (!map[dom] && !dom.includes('example.com')) {
       map[dom] = formatDomainLabel(dom);
     }
   });
@@ -78,7 +78,7 @@ async function getResolvedDomains() {
   try {
     const dockerDomains = await discoverDockerDomains();
     dockerDomains.forEach(dom => {
-      if (!map[dom]) {
+      if (!map[dom] && !dom.includes('example.com')) {
         map[dom] = formatDomainLabel(dom);
       }
     });
@@ -166,7 +166,8 @@ async function parseTrafficAnalytics(customLogPath = null) {
       });
 
       // Default fallback host if log is standard combined
-      const defaultHost = Object.keys(TARGET_DOMAINS)[0] || path.basename(logPath).replace(/\.access\.log|\.log/, '') || 'primary';
+      const nonExampleHost = Object.keys(TARGET_DOMAINS).find(d => !d.includes('example.com'));
+      const defaultHost = nonExampleHost || Object.keys(TARGET_DOMAINS)[0] || path.basename(logPath).replace(/\.access\.log|\.log/, '') || 'primary';
 
       for await (const line of rl) {
         if (!line || !line.trim()) continue;
@@ -345,6 +346,9 @@ async function parseTrafficAnalytics(customLogPath = null) {
   Object.keys(summary.domains).forEach(dom => {
     if (domainUniqueDevices[dom]) {
       summary.domains[dom].unique = domainUniqueDevices[dom].size;
+    }
+    if (dom.includes('example.com') && summary.domains[dom].hits === 0 && !process.env.TRACKED_DOMAINS) {
+      delete summary.domains[dom];
     }
   });
   summary.unique_devices = uniqueDevicesGlobal.size;

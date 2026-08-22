@@ -133,8 +133,8 @@ export function ServicesView({ servicesData, onRefresh }) {
         </Card>
       </div>
 
-      {/* ─── PM2 Fleet Section (If PM2 apps exist on host) ─── */}
-      {pm2Users.length > 0 && (
+      {/* ─── PM2 Fleet Section (Only if active PM2 apps exist on host) ─── */}
+      {totalPm2Processes > 0 && (
         <Card>
           <CardHeader className="flex items-center justify-between">
             <div className="flex items-center gap-2">

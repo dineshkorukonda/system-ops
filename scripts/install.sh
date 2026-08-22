@@ -173,10 +173,10 @@ ENABLE_SYSTEM_COLLECTOR=true
 
 SYSTEMD_UNITS=$DETECTED_UNITS_STR
 DISK_PATHS=/,/var,/var/backups
-TLS_HOSTS=ops.example.com,api.example.com
+TLS_HOSTS=
 
 NGINX_LOG_PATH=/var/log/nginx/access.log
-TRACKED_DOMAINS=app.example.com:App API,api.example.com:Backend API
+TRACKED_DOMAINS=
 
 BACKUPS_DIR=/var/backups
 LOG_SOURCES=pg-backup:/var/backups/postgres/logs/backup.log:200
