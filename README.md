@@ -53,12 +53,21 @@ Express App (User: ops, Port: 9080)
 
 ### Option 1: Native Systemd Service (Recommended)
 
-#### Automated Script (Ubuntu 22.04 / 24.04)
+#### Quick Upgrade / Clean Reinstall (Ubuntu 22.04 / 24.04)
 
 ```bash
-git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops
+# 1. Stop and remove old deployment
+sudo systemctl stop system-ops.service 2>/dev/null || true
+sudo rm -rf /opt/system-ops
+
+# 2. Clone latest and run automated installer
+sudo git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops
 cd /opt/system-ops
 sudo bash scripts/install.sh
+
+# 3. Configure environment and restart
+sudo nano /opt/system-ops/.env   # Set your secure APP_PASSWORD
+sudo systemctl restart system-ops.service
 ```
 
 #### Manual Setup
@@ -138,6 +147,24 @@ sudo systemctl enable --now myapp.service
 ```
 
 Add `myapp` to `SYSTEMD_UNITS` in `/opt/system-ops/.env` to monitor it in `system-ops`.
+---
+
+## Deploy at Custom Subdomain & SSL
+
+You can deploy `system-ops` at any subdomain of your choice (e.g., `ops.yourdomain.com`).
+
+### 1-Line Automated Domain & SSL Setup
+
+```bash
+sudo bash /opt/system-ops/scripts/setup-domain.sh ops.yourdomain.com admin@yourdomain.com
+```
+
+This automatically:
+1. Installs Nginx and Certbot if missing.
+2. Creates the `/etc/nginx/sites-available/` reverse proxy config pointing to `127.0.0.1:9080`.
+3. Tests syntax and symlinks to `sites-enabled`.
+4. Provisions a free Let's Encrypt SSL certificate and enables HTTP->HTTPS redirect.
+5. Reloads Nginx.
 
 ---
 
