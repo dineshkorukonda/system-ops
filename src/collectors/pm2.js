@@ -1,5 +1,6 @@
 // Wrapper collector delegating to Superpowers PM2 discovery plugin
-const pm2Discovery = require('../../plugins/superpowers/skills/pm2_discovery');
+const path = require('path');
+const pm2Discovery = require(path.join(__dirname, '..', '..', 'plugins', 'superpowers', 'skills', 'pm2_discovery'));
 
 module.exports = {
   // UI expects getPm2Snapshot
