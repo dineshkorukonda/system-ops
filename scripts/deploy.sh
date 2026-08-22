@@ -41,13 +41,21 @@ if [ -f "$INSTALL_DIR/.env" ]; then
   chmod 600 "$INSTALL_DIR/.env"
 fi
 
-echo "[3/4] Updating narrow sudoers configuration..."
+echo "[3/4] Updating sudoers & systemd configuration..."
 if [ -f "$INSTALL_DIR/sudoers/system-ops-sudoers" ]; then
   cp "$INSTALL_DIR/sudoers/system-ops-sudoers" /etc/sudoers.d/system-ops
   chmod 0440 /etc/sudoers.d/system-ops
 fi
 
-echo "[4/4] Restarting system-ops service..."
+if [ -f "$INSTALL_DIR/systemd/system-ops.service" ]; then
+  cp "$INSTALL_DIR/systemd/system-ops.service" /etc/systemd/system/system-ops.service
+fi
+
+echo "[4/4] Building production frontend and restarting service..."
+if [ -f "$INSTALL_DIR/package.json" ]; then
+  npm run build --silent || true
+fi
+
 systemctl daemon-reload
 systemctl restart system-ops.service
 

@@ -195,11 +195,9 @@ EOF
 echo ""
 echo "[5/6] Building production artifacts & securing permissions..."
 
-npm ci --omit=dev --silent
-if [ ! -d "$INSTALL_DIR/dist" ] || [ ! -f "$INSTALL_DIR/dist/index.html" ]; then
-  echo "  -> Building React SPA..."
-  npm run build --silent
-fi
+npm ci --silent 2>/dev/null || npm install --silent
+echo "  -> Building React SPA production bundle..."
+npm run build --silent || true
 
 chown -R "$OPS_USER:$OPS_USER" "$INSTALL_DIR"
 chmod 750 "$INSTALL_DIR"

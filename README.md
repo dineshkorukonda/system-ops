@@ -12,6 +12,9 @@ For the full interactive guide, copyable `.env` configurations, and custom subdo
 
 **[https://system-ops.dineshkorukonda.online/](https://system-ops.dineshkorukonda.online/)**
 
+### [Troubleshooting & Operations Guide](docs/TROUBLESHOOTING.md)
+Comprehensive diagnostics and solutions for PM2 discovery, permissions, systemd configuration, Nginx logs, and backups.
+
 ---
 
 ## 1-Command Zero-Friction Installation
