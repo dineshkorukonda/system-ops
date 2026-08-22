@@ -4,6 +4,7 @@
   "description": "Fast, lightweight (<35MB RAM) operations console for single Ubuntu VPS - Ollama, PM2, system health, Postgres backups, and GeoIP traffic analytics",
   "main": "src/server.js",
   "scripts": {
+    "build": "vite build",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "node --test tests/*.test.js"
@@ -24,11 +25,23 @@
   "author": "Antigravity AI",
   "license": "MIT",
   "dependencies": {
+    "clsx": "^2.1.1",
     "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "geoip-lite": "^2.0.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tailwind-merge": "^3.6.0",
     "ua-parser-js": "^2.0.10"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^6.1.0",
+    "autoprefixer": "^10.5.4",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.2.2"
   }
 }
