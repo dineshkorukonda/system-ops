@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { SystemHealthView } from './components/SystemHealthView';
 import { ProcessMonitorView } from './components/ProcessMonitorView';
-import { Pm2FleetView } from './components/Pm2FleetView';
+import { ServicesView } from './components/ServicesView';
 import { OllamaView } from './components/OllamaView';
 import { BackupsView } from './components/BackupsView';
 import { TrafficAnalyticsView } from './components/TrafficAnalyticsView';
@@ -36,7 +36,7 @@ export function App() {
   const [systemData, setSystemData] = useState(null);
   const [processes, setProcesses] = useState([]);
   const [processSort, setProcessSort] = useState('cpu');
-  const [pm2Data, setPm2Data] = useState(null);
+  const [servicesData, setServicesData] = useState(null);
   const [ollamaStatus, setOllamaStatus] = useState(null);
   const [ollamaModels, setOllamaModels] = useState([]);
   const [ollamaLogs, setOllamaLogs] = useState('');
@@ -121,12 +121,12 @@ export function App() {
     } catch (e) {}
   };
 
-  const fetchPm2Snapshot = async () => {
+  const fetchServices = async () => {
     try {
-      const res = await fetch('/api/v2/pm2/snapshot');
+      const res = await fetch('/api/v2/services/snapshot');
       if (res.ok) {
         const data = await res.json();
-        setPm2Data(data);
+        setServicesData(data);
       }
     } catch (e) {}
   };
@@ -186,11 +186,11 @@ export function App() {
     const promises = [fetchSystemSnapshot()];
 
     if (tab === 'system') {
-      promises.push(fetchProcesses(), fetchPm2Snapshot());
+      promises.push(fetchProcesses(), fetchServices());
     } else if (tab === 'processes') {
       promises.push(fetchProcesses());
-    } else if (tab === 'pm2') {
-      promises.push(fetchPm2Snapshot());
+    } else if (tab === 'services') {
+      promises.push(fetchServices());
     } else if (tab === 'ollama') {
       promises.push(fetchOllamaData());
     } else if (tab === 'backups') {
@@ -210,7 +210,7 @@ export function App() {
       Promise.allSettled([
         fetchSystemSnapshot(),
         fetchProcesses(),
-        fetchPm2Snapshot(),
+        fetchServices(),
         fetchOllamaData(),
         fetchBackupData(),
         fetchTrafficData(),
@@ -225,7 +225,7 @@ export function App() {
     }
   }, [activeTab, isAuthenticated]);
 
-  // Polling timer (uses stable interval, no infinite dependencies)
+  // Polling timer
   useEffect(() => {
     if (!isAuthenticated || refreshInterval === 0) return;
     const timer = setInterval(() => {
@@ -248,16 +248,10 @@ export function App() {
     return <LoginView onLoginSuccess={() => setIsAuthenticated(true)} />;
   }
 
-  // Compute summary values for sidebar
-  let totalPm2 = 0;
-  (pm2Data?.users || []).forEach((u) => {
-    totalPm2 += (u.processes || []).length;
-  });
-
   const tabTitles = {
     system: 'System Health',
     processes: 'Process Monitor',
-    pm2: 'PM2 Fleet',
+    services: 'Systemd Services',
     ollama: 'Ollama AI',
     backups: 'Backups & Recovery',
     traffic: 'Traffic Analytics',
@@ -273,7 +267,7 @@ export function App() {
           uptime: systemData?.uptime,
           processCount: processes.length,
         }}
-        pm2Count={totalPm2}
+        servicesCount={servicesData?.activeCount}
         ollamaStatus={ollamaStatus?.systemd?.isActive ? 'ONLINE' : 'STOPPED'}
         backupStatus={backupSources.length > 0 ? 'SUCCESS' : 'IDLE'}
         trafficHits={trafficData?.summary?.total_hits || 0}
@@ -315,8 +309,8 @@ export function App() {
             />
           )}
 
-          {activeTab === 'pm2' && (
-            <Pm2FleetView pm2Data={pm2Data} onRefresh={fetchPm2Snapshot} />
+          {activeTab === 'services' && (
+            <ServicesView servicesData={servicesData} onRefresh={fetchServices} />
           )}
 
           {activeTab === 'ollama' && (

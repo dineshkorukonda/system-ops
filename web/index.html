@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>system-ops - Self-Hosted VPS Operations Console</title>
+  <title>system-ops - Lightweight Systemd VPS Operations Console</title>
   <style>
     * {
       box-sizing: border-box;
@@ -197,34 +197,37 @@
 (____/(__/  (____/ (__) (____)\_)(_/     (_____)(__)  (____/
     </div>
     <h1>&gt; system-ops</h1>
-    <div class="tagline">MEMORY FOOTPRINT: &lt;35MB RAM</div>
+    <div class="tagline">ARCHITECTURE: NATIVE SYSTEMD UNIFIED</div>
     <p class="subtitle">Self-hosted operations console and telemetry dashboard for single Ubuntu VPS deployments.</p>
   </header>
 
   <section>
-    <h2>What is it?</h2>
+    <h2>Why Native Systemd over PM2?</h2>
     <p>
-      system-ops is a zero-bloat web console that gives you single-pane-of-glass observability over your VPS without the memory footprint of Prometheus, Grafana, or Datadog.
+      Instead of running multi-user PM2 daemons that consume 50-100MB+ RAM and break on Node/NVM version updates, system-ops standardizes completely on native Linux <strong>systemd</strong>:
     </p>
-    <p>
-      Built for developers, indie hackers, and ops engineers running workloads on a single cloud VPS (Hetzner, DigitalOcean, Linode, AWS EC2). It monitors Ollama LLMs, PM2 process fleets, host health metrics, PostgreSQL backup dumps, and Nginx visitor traffic with real-time GeoIP mapping.
-    </p>
+    <ul>
+      <li><strong>0 MB Extra Overhead</strong>: Controlled directly by Linux kernel PID 1.</li>
+      <li><strong>Unified Operations</strong>: Manage Node.js backends, frontend web apps, Ollama AI, PostgreSQL, and Nginx with one standard tool (<code>systemctl</code>).</li>
+      <li><strong>Built-in Log Management</strong>: Clean, automated log rotation via <code>journalctl</code> with zero disk exhaustion.</li>
+      <li><strong>Hardened Sandboxing</strong>: Cgroup memory caps (<code>MemoryMax=600M</code>) and automatic reboot recovery (<code>Restart=always</code>).</li>
+    </ul>
   </section>
 
   <section>
     <h2>Core Capabilities</h2>
     <div class="grid-2">
       <div class="card">
-        <div class="card-title">System Health &amp; Telemetry</div>
-        <p class="card-desc">Real-time SVG sparklines for CPU Load, RAM %, and Swap %. Load averages (1m/5m/15m), systemd unit health, disk partition meters, listening ports, and TLS cert expiry countdowns.</p>
+        <div class="card-title">System Health &amp; Sparklines</div>
+        <p class="card-desc">Real-time SVG sparklines for CPU Load, RAM %, and Swap %. Load averages (1m/5m/15m), disk partition meters, listening ports, and TLS cert expiry countdowns.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Systemd Services Fleet</div>
+        <p class="card-desc">Unified inspection of all tracked services with active state, memory consumption, PID, and live streaming journalctl log viewer.</p>
       </div>
       <div class="card">
         <div class="card-title">Process Monitor</div>
         <p class="card-desc">Interactive top system process table with fuzzy live search and instant sorting by % CPU or % RAM consumption.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">PM2 Process Fleet</div>
-        <p class="card-desc">Multi-user process inspection (deploy, root), process states, restart counters, memory/CPU utilization, and live app log tailing.</p>
       </div>
       <div class="card">
         <div class="card-title">Ollama AI Local Models</div>
@@ -243,107 +246,46 @@
 
   <section>
     <h2>Installation (Native Systemd)</h2>
-    <p>Automated one-line installer for Ubuntu 22.04 / 24.04:</p>
+    <p>Automated installer for Ubuntu 22.04 / 24.04:</p>
     <div class="code-container">
       <button class="copy-btn" onclick="copyCode(this)">COPY</button>
       <div class="code-block">git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops &amp;&amp; cd /opt/system-ops &amp;&amp; sudo bash scripts/install.sh</div>
     </div>
-
-    <p>Manual step-by-step installation:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block dim"># 1. Create ops user
-useradd -r -s /bin/false -d /opt/system-ops ops
-usermod -aG systemd-journal,adm ops
-
-# 2. Install production dependencies &amp; configure env
-cd /opt/system-ops
-npm ci --omit=dev
-cp .env.example .env
-nano .env   # Set APP_PASSWORD and SESSION_SECRET
-
-# 3. Secure file permissions and install sudoers rules
-chown -R ops:ops /opt/system-ops
-chmod 750 /opt/system-ops &amp;&amp; chmod 600 /opt/system-ops/.env
-cp sudoers/system-ops-sudoers /etc/sudoers.d/system-ops
-chmod 0440 /etc/sudoers.d/system-ops
-
-# 4. Enable and start systemd unit
-cp systemd/system-ops.service /etc/systemd/system/
-systemctl daemon-reload &amp;&amp; systemctl enable --now system-ops.service</div>
-    </div>
   </section>
 
   <section>
-    <h2>Installation (Docker Compose)</h2>
-    <p>Launch in an isolated container with read-only host introspection mounts:</p>
+    <h2>Standardizing Node.js Apps on Systemd</h2>
+    <p>Create <code>/etc/systemd/system/myapp.service</code>:</p>
     <div class="code-container">
       <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">git clone https://github.com/dineshkorukonda/system-ops.git
-cd system-ops
-cp .env.example .env
-docker compose up -d</div>
-    </div>
-  </section>
+      <div class="code-block dim">[Unit]
+Description=My Node Production App
+After=network.target postgresql.service
 
-  <section>
-    <h2>Environment Configuration</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Variable</th>
-          <th>Default</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>APP_PASSWORD</td>
-          <td>(required)</td>
-          <td>Dashboard login password</td>
-        </tr>
-        <tr>
-          <td>SESSION_SECRET</td>
-          <td>(required)</td>
-          <td>Cookie signing secret</td>
-        </tr>
-        <tr>
-          <td>PORT</td>
-          <td>9080</td>
-          <td>Local loopback listen port</td>
-        </tr>
-        <tr>
-          <td>HOST</td>
-          <td>127.0.0.1</td>
-          <td>Interface binding (loopback recommended)</td>
-        </tr>
-        <tr>
-          <td>PM2_USERS</td>
-          <td>deploy,root</td>
-          <td>Users whose PM2 daemons to monitor</td>
-        </tr>
-        <tr>
-          <td>OLLAMA_URL</td>
-          <td>http://127.0.0.1:11434</td>
-          <td>Local Ollama API base URL</td>
-        </tr>
-        <tr>
-          <td>NGINX_LOG_PATH</td>
-          <td>/var/log/nginx/access.log</td>
-          <td>Path to Nginx access log file</td>
-        </tr>
-        <tr>
-          <td>BACKUPS_DIR</td>
-          <td>/var/backups</td>
-          <td>Directory where backup dump files are stored</td>
-        </tr>
-        <tr>
-          <td>TRACKED_DOMAINS</td>
-          <td>app.example.com:App,api.example.com:API</td>
-          <td>Domain-to-label mapping for Traffic Analytics</td>
-        </tr>
-      </tbody>
-    </table>
+[Service]
+Type=simple
+User=deploy
+WorkingDirectory=/var/www/myapp
+ExecStart=/usr/bin/node src/server.js
+Restart=always
+RestartSec=5s
+Environment=NODE_ENV=production
+EnvironmentFile=/var/www/myapp/.env
+
+# Built-in resource caps (Protects VPS from OOM crashes)
+MemoryMax=600M
+CPUQuota=90%
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target</div>
+    </div>
+    <p>Enable and start the service:</p>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block">sudo systemctl daemon-reload &amp;&amp; sudo systemctl enable --now myapp.service</div>
+    </div>
   </section>
 
   <section>
@@ -368,7 +310,7 @@ docker compose up -d</div>
           <td>POST</td>
           <td>/api/login</td>
           <td>No</td>
-          <td>Session login with password</td>
+          <td>Session authentication</td>
         </tr>
         <tr>
           <td>POST</td>
@@ -380,25 +322,25 @@ docker compose up -d</div>
           <td>GET</td>
           <td>/api/v2/system/snapshot</td>
           <td>Yes</td>
-          <td>CPU, RAM, Swap, Disk, Ports, and TLS</td>
+          <td>Host health (CPU, RAM, Swap, Disk, Ports, TLS)</td>
         </tr>
         <tr>
           <td>GET</td>
           <td>/api/v2/system/processes</td>
           <td>Yes</td>
-          <td>Top processes sorted by CPU or Memory</td>
+          <td>Top process table (sort by cpu/mem)</td>
         </tr>
         <tr>
           <td>GET</td>
-          <td>/api/v2/pm2/snapshot</td>
+          <td>/api/v2/services/snapshot</td>
           <td>Yes</td>
-          <td>PM2 process fleet across all users</td>
+          <td>All tracked systemd units &amp; memory metrics</td>
         </tr>
         <tr>
           <td>GET</td>
-          <td>/api/v2/pm2/logs</td>
+          <td>/api/v2/services/logs</td>
           <td>Yes</td>
-          <td>Tail live logs for PM2 application</td>
+          <td>Tail live journalctl logs for any service</td>
         </tr>
         <tr>
           <td>GET</td>
@@ -408,39 +350,9 @@ docker compose up -d</div>
         </tr>
         <tr>
           <td>GET</td>
-          <td>/api/models</td>
-          <td>Yes</td>
-          <td>Installed Ollama models registry</td>
-        </tr>
-        <tr>
-          <td>POST</td>
-          <td>/api/test-chat</td>
-          <td>Yes</td>
-          <td>Execute token-capped inference probe</td>
-        </tr>
-        <tr>
-          <td>GET</td>
-          <td>/api/v2/logs/sources</td>
-          <td>Yes</td>
-          <td>Configured backup log sources</td>
-        </tr>
-        <tr>
-          <td>GET</td>
-          <td>/api/v2/logs/tail</td>
-          <td>Yes</td>
-          <td>Tail backup log with status analysis</td>
-        </tr>
-        <tr>
-          <td>GET</td>
           <td>/api/v2/backups/files</td>
           <td>Yes</td>
           <td>List PostgreSQL dump files</td>
-        </tr>
-        <tr>
-          <td>GET</td>
-          <td>/api/v2/backups/download</td>
-          <td>Yes</td>
-          <td>Download a backup dump file</td>
         </tr>
         <tr>
           <td>GET</td>
@@ -450,13 +362,6 @@ docker compose up -d</div>
         </tr>
       </tbody>
     </table>
-  </section>
-
-  <section>
-    <h2>Architecture &amp; Security</h2>
-    <p>
-      system-ops runs strictly on loopback (127.0.0.1:9080) behind Nginx with SSL termination. All host inspection commands (systemctl, journalctl, pm2) execute through narrow, passwordless sudo rules located in /etc/sudoers.d/system-ops.
-    </p>
   </section>
 
   <footer>
