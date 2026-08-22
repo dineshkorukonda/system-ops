@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>system-ops // login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css?v=4">
+</head>
+<body style="display:flex; align-items:center; justify-content:center; min-height:100vh; background:radial-gradient(ellipse at top, #161b2b, #090a0f);">
+  <div style="width:100%; max-width:380px; padding:1.5rem;">
+    <div class="v2-card" style="box-shadow:0 12px 36px rgba(0,0,0,0.6); border:1px solid var(--border-light);">
+      <div style="padding:1.75rem 1.5rem 1rem; text-align:center;">
+        <div class="brand-icon" style="width:40px; height:40px; font-size:18px; margin:0 auto 0.85rem; border-radius:8px;">⚡</div>
+        <div style="font-size:16px; font-weight:700; color:var(--text); letter-spacing:-0.02em;">system-ops console</div>
+        <div style="font-size:12px; color:var(--text-dim); margin-top:0.25rem;">Authenticate to access VPS telemetry</div>
+      </div>
+
+      <div class="v2-card-body" style="padding:1.5rem;">
+        <form id="loginForm" style="display:flex; flex-direction:column; gap:1rem;">
+          <div>
+            <label style="display:block; color:var(--text-dim); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.4rem;">Console Password</label>
+            <input type="password" id="password" class="input-min" style="width:100%; padding:0.6rem 0.8rem; font-size:13px;" required placeholder="••••••••••••" autocomplete="current-password" autofocus>
+          </div>
+          <div id="loginError" class="login-err hidden" style="color:var(--red); font-size:12px; font-weight:500;">Invalid password</div>
+          <button type="submit" id="loginBtn" class="btn-min btn-accent" style="width:100%; padding:0.6rem 0.8rem; font-size:13px; justify-content:center; border-radius:var(--radius-sm);">Authenticate</button>
+        </form>
+      </div>
+
+      <div style="padding:0.75rem 1.5rem; background:var(--panel-alt); border-top:1px solid var(--border); font-size:11px; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center;">
+        <span>Status: <span class="text-green" style="font-weight:600;">Encrypted Session</span></span>
+        <span>Node: <code>127.0.0.1</code></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const loginForm = document.getElementById('loginForm');
+    const passwordInput = document.getElementById('password');
+    const loginError = document.getElementById('loginError');
+    const loginBtn = document.getElementById('loginBtn');
+
+    fetch('/api/auth/status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.authenticated) window.location.href = '/';
+      })
+      .catch(() => {});
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loginError.classList.add('hidden');
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Authenticating...';
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: passwordInput.value })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          window.location.href = '/';
+        } else {
+          loginError.textContent = data.error || 'Invalid password';
+          loginError.classList.remove('hidden');
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Authenticate';
+        }
+      } catch (err) {
+        loginError.textContent = 'Connection error. Check host status.';
+        loginError.classList.remove('hidden');
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Authenticate';
+      }
+    });
+  </script>
+</body>
+</html>

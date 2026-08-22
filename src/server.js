@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const path = require('path');
+const fs = require('fs');
 
 const { requireAuth, handleLogin, handleLogout, generateSessionToken } = require('./middleware/auth');
 const { apiLimiter, chatTestLimiter, logTailLimiter } = require('./middleware/rateLimiter');
@@ -23,6 +24,11 @@ const HOST = process.env.HOST || '127.0.0.1';
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
 const OLLAMA_SERVICE = process.env.OLLAMA_SERVICE_NAME || 'ollama';
 
+// Determine static assets directory (dist for React SPA, fallback to public)
+const distDir = path.join(__dirname, '../dist');
+const publicDir = path.join(__dirname, '../public');
+const staticDir = fs.existsSync(distDir) ? distDir : publicDir;
+
 // Global Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -38,10 +44,9 @@ app.use((req, res, next) => {
 });
 
 /**
- * SERVE PUBLIC STATIC ASSETS (CSS, JS, Images, Login Page)
- * Critical Fix: Do NOT require auth for css/js/static files so login.html and index.html can load stylesheets cleanly!
+ * SERVE STATIC ASSETS (CSS, JS, Bundled React SPA)
  */
-app.use(express.static(path.join(__dirname, '../public'), { index: false }));
+app.use(express.static(staticDir, { index: false }));
 
 /**
  * Public Health Endpoints (Leak-free per security spec)
@@ -263,15 +268,15 @@ app.get('/api/traffic-analytics', async (req, res) => {
 });
 
 /**
- * Root Dashboard SPA (Protected)
+ * Root Dashboard SPA
  */
-app.get('/', requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
+app.get('/', (req, res) => {
+  res.sendFile(path.join(staticDir, 'index.html'));
 });
 
 // Fallback for SPA routing
-app.get('*', requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(staticDir, 'index.html'));
 });
 
 // Start Server bound strictly to loopback IP
