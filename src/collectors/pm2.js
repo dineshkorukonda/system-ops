@@ -42,7 +42,12 @@ async function runPm2Command(user, pm2Path, subCommand, extraArgs = [], timeoutM
     return { success: false, stdout: '', stderr: `User '${user}' cannot execute binary in /root` };
   }
 
-  const binDir = path.dirname(pm2Path);
+  let binDir = path.dirname(pm2Path);
+  if (pm2Path.includes('/lib/node_modules/')) {
+    const nodeRoot = pm2Path.split('/lib/node_modules/')[0];
+    binDir = `${nodeRoot}/bin:${binDir}`;
+  }
+
   const homeDir = (user === 'root') ? '/root' : `/home/${user}`;
   const allArgs = [subCommand, ...extraArgs].map(a => `"${a}"`).join(' ');
   const bashScript = `export PATH="${binDir}:$PATH"; export PM2_HOME="${homeDir}/.pm2"; "${pm2Path}" ${allArgs}`;
@@ -56,7 +61,6 @@ async function runPm2Command(user, pm2Path, subCommand, extraArgs = [], timeoutM
 async function resolvePm2Binary(user) {
   const cached = pm2BinaryCache[user];
   if (cached && (Date.now() - cached.ts) < PM2_CACHE_TTL_MS) {
-    // Quick validation of cached path
     const testRes = await runPm2Command(user, cached.path, 'jlist', [], 3000);
     if (testRes.success && testRes.stdout && testRes.stdout.trim().startsWith('[')) {
       return cached.path;
@@ -66,7 +70,7 @@ async function resolvePm2Binary(user) {
 
   const homeDir = (user === 'root') ? '/root' : `/home/${user}`;
 
-  // 1. Check explicit user-specific or global PM2_PATH env var, but VALIDATE it first!
+  // 1. Check explicit user-specific or global PM2_PATH env var
   const envVarName = 'PM2_PATH_' + user.toUpperCase().replace(/[^A-Z0-9]/g, '_');
   const envCandidate = process.env[envVarName] || (user === 'root' ? process.env.PM2_PATH : null);
   if (envCandidate) {
@@ -97,7 +101,23 @@ async function resolvePm2Binary(user) {
     } catch (e) {}
   }
 
-  // 3. Try global & standard system paths
+  // 3. Try dynamic find across user's home directory (detects all versions of NVM / fnm / Volta)
+  try {
+    const findRes = await runCommand('sudo', ['-n', 'find', homeDir, '-name', 'pm2', '-type', 'f'], 4000);
+    if (findRes.success && findRes.stdout) {
+      const discoveredPaths = findRes.stdout.split('\n').map(l => l.trim()).filter(Boolean);
+      for (const p of discoveredPaths) {
+        if (!p.includes('bin/pm2')) continue;
+        const testRes = await runPm2Command(user, p, 'jlist', [], 4000);
+        if (testRes.success && testRes.stdout && testRes.stdout.trim().startsWith('[')) {
+          pm2BinaryCache[user] = { path: p, ts: Date.now() };
+          return p;
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 4. Try global & standard system paths
   const standardCandidates = [
     '/usr/local/bin/pm2',
     '/usr/bin/pm2',
@@ -116,38 +136,6 @@ async function resolvePm2Binary(user) {
     }
   }
 
-  // 4. Try dynamic find across user's home directory
-  try {
-    const findRes = await runCommand('sudo', ['-n', 'find', homeDir, '-name', 'pm2', '-type', 'f'], 4000);
-    if (findRes.success && findRes.stdout) {
-      const discoveredPaths = findRes.stdout.split('\n').map(l => l.trim()).filter(Boolean);
-      for (const p of discoveredPaths) {
-        if (!p.includes('/bin/pm2') && !p.endsWith('/pm2')) continue;
-        const testRes = await runPm2Command(user, p, 'jlist', [], 4000);
-        if (testRes.success && testRes.stdout && testRes.stdout.trim().startsWith('[')) {
-          pm2BinaryCache[user] = { path: p, ts: Date.now() };
-          return p;
-        }
-      }
-    }
-  } catch (e) {}
-
-  // 5. Try global search in /usr, /opt, /snap
-  try {
-    const globalFind = await runCommand('sudo', ['-n', 'find', '/usr', '/opt', '/snap', '-name', 'pm2', '-type', 'f'], 4000);
-    if (globalFind.success && globalFind.stdout) {
-      const discoveredPaths = globalFind.stdout.split('\n').map(l => l.trim()).filter(Boolean);
-      for (const p of discoveredPaths) {
-        if (!p.includes('/bin/pm2') && !p.endsWith('/pm2')) continue;
-        const testRes = await runPm2Command(user, p, 'jlist', [], 4000);
-        if (testRes.success && testRes.stdout && testRes.stdout.trim().startsWith('[')) {
-          pm2BinaryCache[user] = { path: p, ts: Date.now() };
-          return p;
-        }
-      }
-    }
-  } catch (e) {}
-
   // 5. Try login shell 'which pm2'
   try {
     const whichRes = await runCommand('sudo', ['-n', '-H', '-u', user, 'bash', '--noprofile', '-lc', 'which pm2'], 3000);
@@ -161,7 +149,7 @@ async function resolvePm2Binary(user) {
     }
   } catch (e) {}
 
-  console.warn(`[pm2] Exhausted all candidate paths for '${user}'. Set PM2_PATH or ${envVarName} in .env`);
+  console.warn(`[pm2] Exhausted all candidate paths for '${user}'. Set ${envVarName} in .env`);
   return null;
 }
 
@@ -188,7 +176,7 @@ async function getPm2UserProcesses(user) {
     return {
       user,
       processes: [],
-      error: `PM2 binary not found in standard paths or ~/.nvm for '${user}'. Set ${envVarName}='/path/to/pm2' in .env.`,
+      error: `PM2 binary not found for '${user}'. Set ${envVarName} in .env.`,
       pm2Path: null
     };
   }
