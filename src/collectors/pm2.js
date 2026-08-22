@@ -1,5 +1,6 @@
 const { runCommand } = require('../utils/exec');
 const { formatBytes } = require('../utils/formatters');
+const fs = require('fs');
 
 /**
  * Format uptime in milliseconds into a readable string.
@@ -22,14 +23,13 @@ function formatUptime(uptimeMs) {
 
 /**
  * In-memory cache: { [user]: { path: '/home/deploy/.nvm/.../pm2', ts: Date.now() } }
- * TTL: 10 minutes — avoids repeated `find` scans on every auto-refresh.
+ * TTL: 10 minutes
  */
 const pm2BinaryCache = {};
 const PM2_CACHE_TTL_MS = 10 * 60 * 1000;
 
 /*
- * Find the working PM2 binary path by trying the allowed sudoers paths.
- * We try them directly via sudo to avoid bash environment issues.
+ * Find the working PM2 binary path for a given user.
  */
 async function resolvePm2Binary(user) {
   const cached = pm2BinaryCache[user];
@@ -37,50 +37,57 @@ async function resolvePm2Binary(user) {
     return cached.path;
   }
 
-  // 1. Check if user explicitly provided a path in .env
+  // 1. Check explicit user-specific or global PM2_PATH env var
   const envVarName = 'PM2_PATH_' + user.toUpperCase().replace(/[^A-Z0-9]/g, '_');
   if (process.env[envVarName]) {
     pm2BinaryCache[user] = { path: process.env[envVarName], ts: Date.now() };
     return process.env[envVarName];
   }
+  if (process.env.PM2_PATH) {
+    pm2BinaryCache[user] = { path: process.env.PM2_PATH, ts: Date.now() };
+    return process.env.PM2_PATH;
+  }
 
   const homeDir = (user === 'root') ? '/root' : '/home/' + user;
 
-  // 2. Discover NVM paths via glob
-  const nvmGlobCmd = 'ls -t "' + homeDir + '/.nvm/versions/node/"*/bin/pm2 2>/dev/null | head -5';
-  const nvmRes = await runCommand('sudo', ['-n', '-u', user, 'bash', '-c', nvmGlobCmd], 3000);
-  const nvmPaths = nvmRes.stdout ? nvmRes.stdout.split('\n').map(l => l.trim()).filter(Boolean) : [];
+  // 2. Try 'which pm2' running under target user with their environment
+  try {
+    const whichRes = await runCommand('sudo', ['-n', '-H', '-u', user, 'which', 'pm2'], 3000);
+    if (whichRes.success && whichRes.stdout && whichRes.stdout.trim().startsWith('/')) {
+      const resolved = whichRes.stdout.trim();
+      pm2BinaryCache[user] = { path: resolved, ts: Date.now() };
+      return resolved;
+    }
+  } catch (e) {}
 
-  // 3. Compile all candidates
+  // 3. Compile candidate binary paths
   const candidates = [
-    ...nvmPaths,
     '/usr/local/bin/pm2',
     '/usr/bin/pm2',
+    homeDir + '/.nvm/versions/node/v22.0.0/bin/pm2',
+    homeDir + '/.nvm/versions/node/v20.0.0/bin/pm2',
+    homeDir + '/.nvm/versions/node/v18.0.0/bin/pm2',
     homeDir + '/.npm-global/bin/pm2',
     homeDir + '/.yarn/bin/pm2',
-    '/opt/node/bin/pm2',
-    '/usr/bin/env pm2'
+    '/opt/node/bin/pm2'
   ];
 
   for (const candidate of candidates) {
-    const args = ['-n', '-u', user];
+    const args = ['-n', '-H', '-u', user];
     const cmdParts = candidate.split(' ');
     args.push(...cmdParts);
     args.push('jlist');
 
-    // Run directly via sudo to avoid bash startup errors (like .bashrc permission denied)
     const res = await runCommand('sudo', args, 4000);
-    if (res.success && res.stdout.trim().startsWith('[')) {
+    if (res.success && res.stdout && res.stdout.trim().startsWith('[')) {
       pm2BinaryCache[user] = { path: candidate, ts: Date.now() };
-      console.log(`[pm2] Found working binary for '${user}': ${candidate}`);
       return candidate;
     }
   }
 
-  console.warn(`[pm2] Exhausted all candidate paths for '${user}'. User can set ${envVarName} in .env`);
+  console.warn(`[pm2] Exhausted all candidate paths for '${user}'. Set PM2_PATH or ${envVarName} in .env`);
   return null;
 }
-
 
 /**
  * Get configured PM2 users list from environment (e.g., 'deploy,root').
@@ -92,10 +99,6 @@ function getPm2Users() {
 
 /**
  * Fetch PM2 process list for a single user.
- *
- * Uses 2-step resolution:
- *   1. Find binary path (running as target user via sudo)
- *   2. Call <binary> jlist with full absolute path (no PATH dependency)
  */
 async function getPm2UserProcesses(user) {
   if (!/^[a-zA-Z0-9_-]+$/.test(user)) {
@@ -109,23 +112,21 @@ async function getPm2UserProcesses(user) {
     return {
       user,
       processes: [],
-      error: `PM2 binary not found. Set ${envVarName}='/path/to/pm2' in .env file and restart.`,
+      error: `PM2 binary not found. Set PM2_PATH='/path/to/pm2' or ${envVarName}='/path/to/pm2' in .env.`,
       pm2Path: null
     };
   }
 
-  // Step 2: Call pm2 jlist with the resolved working command
-  const args = ['-n', '-u', user];
+  // Use -H flag to set target user's HOME directory so ~/.pm2 socket is found!
+  const args = ['-n', '-H', '-u', user];
   args.push(...pm2Path.split(' '));
   args.push('jlist');
 
   const res = await runCommand('sudo', args, 10000);
 
-
   if (!res.success && !res.stdout) {
     const errStr = res.stderr || '';
 
-    // Clear cache if the binary was not found or path changed
     if (errStr.includes('No such file') || errStr.includes('not found') ||
         errStr.includes('command not found')) {
       delete pm2BinaryCache[user];
@@ -144,79 +145,108 @@ async function getPm2UserProcesses(user) {
 /**
  * Parse PM2 JSON output into structured process list.
  */
-function parsePm2Json(user, stdout) {
+function parsePm2Json(user, rawJson) {
   try {
-    const raw = JSON.parse(stdout);
-    if (!Array.isArray(raw)) {
-      return { user, processes: [], error: 'Invalid PM2 JSON response format' };
+    const trimmed = (rawJson || '').trim();
+    if (!trimmed) {
+      return { user, processes: [], error: 'Empty output from PM2' };
     }
 
-    const processes = raw.map(proc => {
-      const pm2Env = proc.pm2_env || {};
-      const monit = proc.monit || {};
-      const memBytes = monit.memory || 0;
+    const firstBracket = trimmed.indexOf('[');
+    const lastBracket = trimmed.lastIndexOf(']');
+    if (firstBracket === -1 || lastBracket === -1 || lastBracket <= firstBracket) {
+      return { user, processes: [], error: 'Unexpected PM2 output format' };
+    }
+
+    const jsonSlice = trimmed.slice(firstBracket, lastBracket + 1);
+    const parsed = JSON.parse(jsonSlice);
+
+    if (!Array.isArray(parsed)) {
+      return { user, processes: [], error: 'PM2 output is not an array' };
+    }
+
+    const processes = parsed.map(proc => {
+      const mon = proc.monit || {};
+      const env = proc.pm2_env || {};
+      const memBytes = mon.memory || 0;
+      const uptimeMs = env.pm_uptime || 0;
 
       return {
         name: proc.name || 'unnamed',
-        status: pm2Env.status || 'unknown',
-        pid: proc.pid || 0,
-        cpu: typeof monit.cpu === 'number' ? `${monit.cpu}%` : '0%',
-        memoryBytes: memBytes,
-        formattedMemory: formatBytes(memBytes),
-        uptime: formatUptime(pm2Env.pm_uptime),
-        restarts: pm2Env.restart_time || 0,
-        script: pm2Env.pm2_exec_path || pm2Env.script?.path || 'N/A',
-        mode: pm2Env.exec_mode || 'fork',
-        nodeVersion: pm2Env.node_version || 'N/A'
+        pm_id: proc.pm_id !== undefined ? proc.pm_id : null,
+        pid: proc.pid || null,
+        status: env.status || 'unknown',
+        cpu: mon.cpu !== undefined ? mon.cpu : 0,
+        memory: memBytes,
+        memoryFormatted: memBytes > 0 ? formatBytes(memBytes) : '0 B',
+        restart_time: env.restart_time || 0,
+        unstable_restarts: env.unstable_restarts || 0,
+        uptime: uptimeMs,
+        uptimeText: formatUptime(uptimeMs),
+        user
       };
     });
 
     return { user, processes, error: null };
   } catch (err) {
-    return { user, processes: [], error: `JSON parse error: ${err.message}` };
+    return { user, processes: [], error: `JSON Parse error: ${err.message}` };
   }
 }
 
 /**
- * GET /api/v2/pm2/snapshot — Aggregated snapshot across all configured users.
+ * Multi-user PM2 snapshot
  */
 async function getPm2Snapshot() {
   const users = getPm2Users();
   const results = await Promise.all(users.map(u => getPm2UserProcesses(u)));
 
+  let totalProcesses = 0;
+  let onlineCount = 0;
+  let errorCount = 0;
+  let totalMemory = 0;
+
+  results.forEach(u => {
+    (u.processes || []).forEach(p => {
+      totalProcesses += 1;
+      if (p.status === 'online') onlineCount += 1;
+      if (p.status === 'errored' || p.status === 'stopped') errorCount += 1;
+      totalMemory += (p.memory || 0);
+    });
+  });
+
   return {
-    timestamp: new Date().toISOString(),
+    totalProcesses,
+    onlineCount,
+    errorCount,
+    totalMemory,
+    totalMemoryFormatted: formatBytes(totalMemory),
     users: results
   };
 }
 
 /**
- * GET /api/v2/pm2/logs — Tail PM2 logs for a specific app under a user.
+ * Fetch logs for a specific PM2 app
  */
-async function getPm2Logs(user, appName, lines = 80) {
-  const allowedUsers = getPm2Users();
-
-  if (!user || !allowedUsers.includes(user)) {
-    return { user, app: appName, lines: 0, output: '', error: `User '${user}' is not in PM2_USERS list` };
+async function getPm2Logs(user, appName, lines = 100) {
+  if (!user || !/^[a-zA-Z0-9_-]+$/.test(user)) {
+    return { user, app: appName, lines, output: '', error: 'Invalid user name' };
   }
-
   if (!appName || !/^[a-zA-Z0-9_.-]+$/.test(appName)) {
-    return { user, app: appName, lines: 0, output: '', error: 'Invalid app name format' };
+    return { user, app: appName, lines, output: '', error: 'Invalid application name' };
   }
 
-  const sanitizedLines = Math.min(Math.max(parseInt(lines, 10) || 80, 1), 500);
-
+  const sanitizedLines = Math.min(Math.max(parseInt(lines, 10) || 100, 1), 1000);
   const pm2Path = await resolvePm2Binary(user);
 
   if (!pm2Path) {
     const envVarName = 'PM2_PATH_' + user.toUpperCase().replace(/[^A-Z0-9]/g, '_');
     return {
       user, app: appName, lines: sanitizedLines, output: '',
-      error: `PM2 binary not found. Set ${envVarName} in .env file.`
+      error: `PM2 binary not found. Set PM2_PATH in .env.`
     };
   }
 
-  const args = ['-n', '-u', user];
+  const args = ['-n', '-H', '-u', user];
   args.push(...pm2Path.split(' '));
   args.push('logs', appName, '--nostream', '--lines', String(sanitizedLines));
 
@@ -239,7 +269,7 @@ async function getPm2Logs(user, appName, lines = 80) {
 }
 
 /**
- * Expose cache invalidation so tests / admin routes can clear stale cache entries.
+ * Expose cache invalidation
  */
 function clearPm2Cache(user) {
   if (user) {
