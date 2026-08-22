@@ -309,6 +309,44 @@
           </div>
         </div>
 
+        <!-- System Processes Monitor (Full Width Card) -->
+        <div class="v2-card" style="grid-column: 1 / -1;">
+          <div class="v2-card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+            <div style="display:flex; align-items:center; gap:0.75rem;">
+              <div class="v2-card-title">System Process Monitor</div>
+              <span id="sysProcessCountBadge" class="status-tag ok" style="font-size:11px;">0 processes</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <input type="text" id="sysProcessSearchInput" class="input-min" placeholder="Search by name, PID, user..." style="width:200px;">
+              <select id="sysProcessSortSelect" class="select-min">
+                <option value="cpu" selected>Sort by % CPU</option>
+                <option value="mem">Sort by % Memory</option>
+              </select>
+              <button id="sysProcessRefreshBtn" class="btn-min">↻ Refresh</button>
+            </div>
+          </div>
+          <div class="v2-card-body p-0">
+            <div style="max-height:380px; overflow-y:auto;">
+              <table class="models-table">
+                <thead>
+                  <tr>
+                    <th style="padding-left:1rem; width:80px;">PID</th>
+                    <th style="width:120px;">User</th>
+                    <th style="width:90px;">% CPU</th>
+                    <th style="width:90px;">% RAM</th>
+                    <th style="width:110px;">RSS Memory</th>
+                    <th style="width:80px;">State</th>
+                    <th style="padding-right:1rem;">Command / Arguments</th>
+                  </tr>
+                </thead>
+                <tbody id="sysProcessesTableBody">
+                  <tr><td colspan="7" class="text-dim" style="padding-left:1rem;">Loading active processes...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 

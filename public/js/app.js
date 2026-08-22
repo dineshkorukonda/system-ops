@@ -494,14 +494,82 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ════════════════════════════════════════════════════════
-  // TAB 3: SYSTEM HEALTH
+  // TAB 3: SYSTEM HEALTH & PROCESS MONITOR
   // ════════════════════════════════════════════════════════
+  let cachedProcesses = [];
+
   async function fetchSystemSnapshot() {
     try {
-      const res = await fetch('/api/v2/system/snapshot');
-      if (res.ok) renderSystemSnapshot(await res.json());
+      const [snapRes] = await Promise.all([
+        fetch('/api/v2/system/snapshot'),
+        fetchSystemProcesses()
+      ]);
+      if (snapRes.ok) renderSystemSnapshot(await snapRes.json());
     } catch (err) {}
   }
+
+  async function fetchSystemProcesses() {
+    const sortSelect = document.getElementById('sysProcessSortSelect');
+    const sort = sortSelect ? sortSelect.value : 'cpu';
+    try {
+      const res = await fetch(`/api/v2/system/processes?sort=${sort}&limit=50`);
+      if (res.ok) {
+        const data = await res.json();
+        cachedProcesses = data.processes || [];
+        renderSystemProcesses();
+      }
+    } catch (err) {
+      console.error('Failed to fetch system processes:', err);
+    }
+  }
+
+  function renderSystemProcesses() {
+    const tbody = document.getElementById('sysProcessesTableBody');
+    const badge = document.getElementById('sysProcessCountBadge');
+    const searchInput = document.getElementById('sysProcessSearchInput');
+    const searchVal = (searchInput ? searchInput.value : '').toLowerCase().trim();
+
+    if (!tbody) return;
+
+    let filtered = cachedProcesses;
+    if (searchVal) {
+      filtered = cachedProcesses.filter(p => 
+        String(p.pid).includes(searchVal) ||
+        p.user.toLowerCase().includes(searchVal) ||
+        p.command.toLowerCase().includes(searchVal) ||
+        (p.args && p.args.toLowerCase().includes(searchVal))
+      );
+    }
+
+    if (badge) {
+      badge.textContent = `${filtered.length} process${filtered.length === 1 ? '' : 'es'}`;
+    }
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-dim" style="padding:1rem; text-align:center;">No matching processes found.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(p => `
+      <tr style="border-bottom:1px solid var(--border-dim);">
+        <td style="padding-left:1rem;"><code>${p.pid}</code></td>
+        <td><code>${p.user}</code></td>
+        <td><strong style="color:${p.cpuPercent > 50 ? 'var(--red)' : p.cpuPercent > 10 ? 'var(--yellow)' : 'var(--text)'};">${p.cpuPercent}%</strong></td>
+        <td>${p.memPercent ? p.memPercent + '%' : '--'}</td>
+        <td>${p.formattedRss || '0 B'}</td>
+        <td><span class="status-tag ${p.state === 'R' ? 'ok' : ''}" style="font-size:10px;">[${p.state || 'S'}]</span></td>
+        <td style="padding-right:1rem; font-family:var(--font-mono); font-size:11px; max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${p.args || p.command}">${p.args || p.command}</td>
+      </tr>
+    `).join('');
+  }
+
+  const sysProcSearch = document.getElementById('sysProcessSearchInput');
+  const sysProcSort = document.getElementById('sysProcessSortSelect');
+  const sysProcRefresh = document.getElementById('sysProcessRefreshBtn');
+
+  if (sysProcSearch) sysProcSearch.addEventListener('input', renderSystemProcesses);
+  if (sysProcSort) sysProcSort.addEventListener('change', fetchSystemProcesses);
+  if (sysProcRefresh) sysProcRefresh.addEventListener('click', fetchSystemProcesses);
 
   function renderSystemSnapshot(data) {
     lastUpdatedVal.textContent = new Date(data.timestamp || Date.now()).toLocaleTimeString();
