@@ -300,6 +300,126 @@ WantedBy=multi-user.target</div>
   </section>
 
   <section>
+    <h2>Step-by-Step Manual Installation Walkthrough</h2>
+    <p>If you prefer setting up manually without running the automated installer script, follow these 5 steps:</p>
+
+    <h3>Step 1: Clone Repository &amp; Setup 'ops' User</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block">sudo useradd -r -s /bin/false -d /opt/system-ops ops 2>/dev/null || true
+sudo usermod -aG systemd-journal,adm ops 2>/dev/null || true
+sudo git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops
+cd /opt/system-ops</div>
+    </div>
+
+    <h3>Step 2: Install Dependencies &amp; Build Frontend Assets</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block">cd /opt/system-ops
+npm install
+npm run build</div>
+    </div>
+
+    <h3>Step 3: Setup Configuration (.env)</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block">cat &lt;&lt; 'EOF' &gt; /opt/system-ops/.env
+APP_PASSWORD=YourSecureAdminPassword123!
+SESSION_SECRET=a8f9c3e21094857bcae91234567890ef
+PORT=9080
+HOST=127.0.0.1
+ENABLE_SYSTEM_COLLECTOR=true
+SYSTEMD_UNITS=nginx,postgresql,ollama,system-ops,docker
+DISK_PATHS=/,/var,/var/backups
+NGINX_LOG_PATH=/var/log/nginx/access.log
+BACKUPS_DIR=/var/backups
+OLLAMA_URL=http://127.0.0.1:11434
+OLLAMA_SERVICE_NAME=ollama
+EOF
+chmod 600 /opt/system-ops/.env
+chown -R ops:ops /opt/system-ops</div>
+    </div>
+
+    <h3>Step 4: Grant Narrow Sudoers Access</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block">sudo cp /opt/system-ops/sudoers/system-ops-sudoers /etc/sudoers.d/system-ops
+sudo chmod 0440 /etc/sudoers.d/system-ops</div>
+    </div>
+
+    <h3>Step 5: Install &amp; Start Systemd Unit</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block">sudo cp /opt/system-ops/systemd/system-ops.service /etc/systemd/system/system-ops.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now system-ops.service
+sudo systemctl status system-ops.service</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Comprehensive Troubleshooting &amp; Diagnostics Guide</h2>
+    <p>Solutions and 1-click terminal commands for all common VPS configuration issues:</p>
+
+    <h3>1. PM2 Binary Not Found / 0 Discovered Processes</h3>
+    <p>When PM2 is installed via custom version managers (NVM, fnm, Volta) or systemd sandbox is blocking user home folders:</p>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block"># 1. Run automated PM2 diagnostic tool
+sudo bash /opt/system-ops/scripts/debug-pm2.sh
+
+# 2. Ensure ProtectHome=false in systemd unit
+sudo sed -i 's/ProtectHome=true/ProtectHome=false/' /etc/systemd/system/system-ops.service
+sudo systemctl daemon-reload &amp;&amp; sudo systemctl restart system-ops.service
+
+# 3. (Optional) Explicitly pin paths in .env if using custom NVM paths
+echo "PM2_PATH_ROOT=$(which pm2)" >> /opt/system-ops/.env
+echo "PM2_PATH_DEPLOY=/home/deploy/.nvm/versions/node/$(sudo -u deploy node -v 2>/dev/null || echo 'current')/bin/pm2" >> /opt/system-ops/.env
+sudo systemctl restart system-ops.service</div>
+    </div>
+
+    <h3>2. Sudo Password Required / Permission Denied</h3>
+    <p>If you see <code>Sudo password required for user 'ops'</code>:</p>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block">sudo tee /etc/sudoers.d/system-ops > /dev/null &lt;&lt; 'EOF'
+ops ALL=(ALL:ALL) NOPASSWD: ALL
+EOF
+sudo chmod 0440 /etc/sudoers.d/system-ops</div>
+    </div>
+
+    <h3>3. Service Fails to Start (status=1/FAILURE)</h3>
+    <p>Diagnose and fix service restart loops and missing frontend assets:</p>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block"># View live crash output
+sudo journalctl -u system-ops.service -n 50 --no-pager
+
+# Re-build production React assets
+cd /opt/system-ops &amp;&amp; npm run build &amp;&amp; sudo systemctl restart system-ops.service
+
+# Check for port collisions (default 9080)
+sudo ss -tulpn | grep 9080</div>
+    </div>
+
+    <h3>4. Traffic Analytics Shows "No Data"</h3>
+    <p>Grant read permissions to Nginx access log file:</p>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block">sudo usermod -aG adm ops
+sudo chmod 644 /var/log/nginx/access.log
+sudo systemctl restart system-ops.service</div>
+    </div>
+
+    <h3>5. Updating system-ops to Latest Version</h3>
+    <p>Pull latest code, rebuild frontend, and restart service in 1 command:</p>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block">sudo bash /opt/system-ops/scripts/deploy.sh</div>
+    </div>
+  </section>
+
+  <section>
     <h2>REST API Reference</h2>
     <table>
       <thead>
