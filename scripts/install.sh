@@ -32,7 +32,7 @@ usermod -aG systemd-journal,adm "$OPS_USER" || true
 # 2. Copy source code to /opt/system-ops
 echo "[2/6] Setting up installation directory at $INSTALL_DIR..."
 mkdir -p "$INSTALL_DIR"
-cp -r package*.json src public systemd nginx sudoers .env.example "$INSTALL_DIR/"
+cp -r package*.json src dist public systemd nginx sudoers .env.example "$INSTALL_DIR/"
 
 # 3. Setup Environment File
 if [ ! -f "$INSTALL_DIR/.env" ]; then
@@ -51,7 +51,7 @@ fi
 # 4. Install Node dependencies
 echo "[4/6] Installing Node.js dependencies..."
 cd "$INSTALL_DIR"
-npm ci --only=production
+npm ci --omit=dev
 
 # Set ownership
 chown -R "$OPS_USER:$OPS_USER" "$INSTALL_DIR"
