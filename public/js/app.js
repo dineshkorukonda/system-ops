@@ -838,21 +838,61 @@ document.addEventListener('DOMContentLoaded', () => {
     if (mobileAppEl) mobileAppEl.textContent = (appData.mobile_hits || 0).toLocaleString();
     if (webAppEl) webAppEl.textContent = (appData.web_hits || 0).toLocaleString();
 
+    const appTotal = (appData.mobile_hits || 0) + (appData.web_hits || 0);
+    const appMobPct = appTotal ? Math.round(((appData.mobile_hits || 0) / appTotal) * 100) : 0;
+    const appWebPct = appTotal ? (100 - appMobPct) : 0;
+    const mobAppPctEl = document.getElementById('trafficMobileAppPct');
+    const webAppPctEl = document.getElementById('trafficWebAppPct');
+    const ratioAppBar = document.getElementById('trafficRatioAppBar');
+    if (mobAppPctEl) mobAppPctEl.textContent = appMobPct + '%';
+    if (webAppPctEl) webAppPctEl.textContent = appWebPct + '%';
+    if (ratioAppBar) ratioAppBar.style.width = appMobPct + '%';
+
     if (hitsDevEl) hitsDevEl.textContent = devData.hits.toLocaleString();
     if (usersDevEl) usersDevEl.textContent = devData.unique.toLocaleString();
     if (mobileDevEl) mobileDevEl.textContent = (devData.mobile_hits || 0).toLocaleString();
     if (webDevEl) webDevEl.textContent = (devData.web_hits || 0).toLocaleString();
+
+    const devTotal = (devData.mobile_hits || 0) + (devData.web_hits || 0);
+    const devMobPct = devTotal ? Math.round(((devData.mobile_hits || 0) / devTotal) * 100) : 0;
+    const devWebPct = devTotal ? (100 - devMobPct) : 0;
+    const mobDevPctEl = document.getElementById('trafficMobileDevPct');
+    const webDevPctEl = document.getElementById('trafficWebDevPct');
+    const ratioDevBar = document.getElementById('trafficRatioDevBar');
+    if (mobDevPctEl) mobDevPctEl.textContent = devMobPct + '%';
+    if (webDevPctEl) webDevPctEl.textContent = devWebPct + '%';
+    if (ratioDevBar) ratioDevBar.style.width = devMobPct + '%';
 
     if (hitsMsfEl) hitsMsfEl.textContent = msfData.hits.toLocaleString();
     if (usersMsfEl) usersMsfEl.textContent = msfData.unique.toLocaleString();
     if (mobileMsfEl) mobileMsfEl.textContent = (msfData.mobile_hits || 0).toLocaleString();
     if (webMsfEl) webMsfEl.textContent = (msfData.web_hits || 0).toLocaleString();
 
+    const msfTotal = (msfData.mobile_hits || 0) + (msfData.web_hits || 0);
+    const msfMobPct = msfTotal ? Math.round(((msfData.mobile_hits || 0) / msfTotal) * 100) : 0;
+    const msfWebPct = msfTotal ? (100 - msfMobPct) : 0;
+    const mobMsfPctEl = document.getElementById('trafficMobileMsfPct');
+    const webMsfPctEl = document.getElementById('trafficWebMsfPct');
+    const ratioMsfBar = document.getElementById('trafficRatioMsfBar');
+    if (mobMsfPctEl) mobMsfPctEl.textContent = msfMobPct + '%';
+    if (webMsfPctEl) webMsfPctEl.textContent = msfWebPct + '%';
+    if (ratioMsfBar) ratioMsfBar.style.width = msfMobPct + '%';
+
     if (hitsTotalEl) hitsTotalEl.textContent = (summary.total_hits || 0).toLocaleString();
     if (usersTotalEl) usersTotalEl.textContent = (summary.unique_devices || 0).toLocaleString();
     if (mobileTotalEl) mobileTotalEl.textContent = (summary.total_mobile_hits || 0).toLocaleString();
     if (webTotalEl) webTotalEl.textContent = (summary.total_web_hits || 0).toLocaleString();
     if (bytesTotalEl) bytesTotalEl.textContent = formatBytesClient(summary.total_bytes || 0);
+
+    const overallTotal = (summary.total_mobile_hits || 0) + (summary.total_web_hits || 0);
+    const overallMobPct = overallTotal ? Math.round(((summary.total_mobile_hits || 0) / overallTotal) * 100) : 0;
+    const overallWebPct = overallTotal ? (100 - overallMobPct) : 0;
+    const mobTotalPctEl = document.getElementById('trafficMobileTotalPct');
+    const webTotalPctEl = document.getElementById('trafficWebTotalPct');
+    const ratioTotalBar = document.getElementById('trafficRatioTotalBar');
+    if (mobTotalPctEl) mobTotalPctEl.textContent = overallMobPct + '%';
+    if (webTotalPctEl) webTotalPctEl.textContent = overallWebPct + '%';
+    if (ratioTotalBar) ratioTotalBar.style.width = overallMobPct + '%';
 
     // 2. Status Codes
     const sc = data.status_codes || {};
@@ -1090,5 +1130,7 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchLogs();
   fetchModels();
   fetchLogSourcesList();
+  fetchTrafficAnalytics();
+  fetchSystemSnapshot();
   setupAutoRefresh();
 });
