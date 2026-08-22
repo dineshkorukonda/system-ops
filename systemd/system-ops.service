@@ -16,7 +16,7 @@ RestartSec=5s
 EnvironmentFile=/opt/system-ops/.env
 PrivateTmp=true
 ProtectSystem=full
-ProtectHome=true
+ProtectHome=false
 NoNewPrivileges=false
 
 # Memory cap to prevent runaway usage on 8GB VPS

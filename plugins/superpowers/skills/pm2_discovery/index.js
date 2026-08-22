@@ -89,13 +89,14 @@ async function resolvePm2Binary(user) {
     } catch (e) {}
   }
 
-  // Home directory find (detect NVM/fnm/Volta etc.)
+  // Home directory find & NVM fast path (detect NVM/fnm/Volta etc.)
   try {
-    const find = await runCommand('sudo', ['-n', 'find', homeDir, '-name', 'pm2', '-type', 'f'], 4000);
+    const find = await runCommand('sudo', ['-n', 'find', `${homeDir}/.nvm`, homeDir, '-maxdepth', '6', '-name', 'pm2', '-type', 'f'], 4000);
     if (find.success && find.stdout) {
       const paths = find.stdout.split('\n').map(l => l.trim()).filter(Boolean);
       for (const p of paths) {
         if (!p.includes('bin/pm2')) continue;
+        if (user !== 'root' && p.startsWith('/root')) continue;
         const test = await runPm2Command(user, p, 'jlist', [], 4000);
         if (test.success && test.stdout && test.stdout.trim().startsWith('[')) {
           pm2BinaryCache[user] = { path: p, ts: Date.now() };
@@ -140,9 +141,9 @@ async function resolvePm2Binary(user) {
   return null;
 }
 
-/** Discover PM2 users (default plus any with ~/.pm2). */
+/** Discover PM2 users (default deploy and root plus any with ~/.pm2). */
 function getPm2Users() {
-  const users = new Set(['deploy', 'root', 'ubuntu']);
+  const users = new Set(['deploy', 'root']);
   if (process.env.PM2_USERS) {
     process.env.PM2_USERS.split(',').forEach(u => {
       const clean = u.trim();
