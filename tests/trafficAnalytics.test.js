@@ -3,7 +3,7 @@ const assert = require('node:assert');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { parseTrafficAnalytics, normalizeOS, extractValidIP } = require('../src/collectors/trafficAnalytics');
+const { parseTrafficAnalytics, normalizeOS, extractValidIP, formatDomainLabel } = require('../src/collectors/trafficAnalytics');
 
 test('normalizeOS should categorize OS strings correctly', () => {
   assert.strictEqual(normalizeOS('Android 13'), 'Android');
@@ -22,6 +22,12 @@ test('extractValidIP should return correct IP or fallback', () => {
   assert.strictEqual(extractValidIP('-', '-'), null);
 });
 
+test('formatDomainLabel formats readable labels from domain strings', () => {
+  assert.strictEqual(formatDomainLabel('system-ops.dineshkorukonda.online'), 'System-ops');
+  assert.strictEqual(formatDomainLabel('subchk.dineshkorukonda.online'), 'Subchk');
+  assert.strictEqual(formatDomainLabel('www.example.com'), 'EXAMPLE');
+});
+
 test('parseTrafficAnalytics handles non-existent file gracefully', async () => {
   const result = await parseTrafficAnalytics('/non/existent/path/access.log');
   assert.strictEqual(result.summary.total_hits, 0);
@@ -29,7 +35,7 @@ test('parseTrafficAnalytics handles non-existent file gracefully', async () => {
   assert.ok(result.error);
 });
 
-test('parseTrafficAnalytics correctly parses sample log lines', async () => {
+test('parseTrafficAnalytics correctly parses sample log lines and respects configured domains', async () => {
   const tmpDir = os.tmpdir();
   const sampleLogPath = path.join(tmpDir, `test_access_${Date.now()}.log`);
 
@@ -42,11 +48,13 @@ test('parseTrafficAnalytics correctly parses sample log lines', async () => {
   ].join('\n');
 
   fs.writeFileSync(sampleLogPath, sampleLogs, 'utf8');
+  const prevTracked = process.env.TRACKED_DOMAINS;
+  process.env.TRACKED_DOMAINS = 'app.example.com:App API,api.example.com:Backend API,web.example.com:Web App';
 
   try {
     const result = await parseTrafficAnalytics(sampleLogPath);
 
-    assert.strictEqual(result.summary.total_hits, 4); // ignores otherdomain.com
+    assert.strictEqual(result.summary.total_hits, 4); // filters out otherdomain.com when TRACKED_DOMAINS is explicitly defined
     assert.strictEqual(result.summary.total_mobile_hits, 3);
     assert.strictEqual(result.summary.total_web_hits, 1);
     assert.strictEqual(result.summary.unique_devices, 3);
@@ -63,7 +71,7 @@ test('parseTrafficAnalytics correctly parses sample log lines', async () => {
     assert.strictEqual(result.os_stats.Windows, 1);
     assert.strictEqual(result.os_stats.iOS, 1);
 
-    assert.strictEqual(result.summary.total_bytes, 3123); // 1234 + 567 + 890 + 432
+    assert.strictEqual(result.summary.total_bytes, 3123);
     assert.strictEqual(result.status_codes['2xx'], 4);
     assert.ok(Array.isArray(result.top_endpoints));
     assert.strictEqual(result.top_endpoints[0].path, '/api/feed');
@@ -73,8 +81,32 @@ test('parseTrafficAnalytics correctly parses sample log lines', async () => {
     assert.ok(result.browsers);
     assert.ok(Array.isArray(result.hourly_distribution));
   } finally {
-    if (fs.existsSync(sampleLogPath)) {
-      fs.unlinkSync(sampleLogPath);
-    }
+    if (prevTracked !== undefined) process.env.TRACKED_DOMAINS = prevTracked;
+    else delete process.env.TRACKED_DOMAINS;
+    try { fs.unlinkSync(sampleLogPath); } catch (e) {}
+  }
+});
+
+test('parseTrafficAnalytics auto-discovers and tracks all domains when TRACKED_DOMAINS is empty', async () => {
+  const tmpDir = os.tmpdir();
+  const sampleLogPath = path.join(tmpDir, `test_autodiscover_${Date.now()}.log`);
+
+  const sampleLogs = [
+    'mysite.online 203.0.113.5 - - [21/Aug/2026:17:00:00 +0530] "GET /home HTTP/1.1" 200 500 "-" "Mozilla/5.0"',
+    'dockerservice.online 203.0.113.8 - - [21/Aug/2026:17:01:00 +0530] "GET /api HTTP/1.1" 200 800 "-" "Mozilla/5.0"'
+  ].join('\n');
+
+  fs.writeFileSync(sampleLogPath, sampleLogs, 'utf8');
+  const prevTracked = process.env.TRACKED_DOMAINS;
+  delete process.env.TRACKED_DOMAINS;
+
+  try {
+    const result = await parseTrafficAnalytics(sampleLogPath);
+    assert.strictEqual(result.summary.total_hits, 2);
+    assert.ok(result.summary.domains['mysite.online']);
+    assert.ok(result.summary.domains['dockerservice.online']);
+  } finally {
+    if (prevTracked !== undefined) process.env.TRACKED_DOMAINS = prevTracked;
+    try { fs.unlinkSync(sampleLogPath); } catch (e) {}
   }
 });

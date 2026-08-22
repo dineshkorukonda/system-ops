@@ -1,12 +1,54 @@
 const { runCommand } = require('../utils/exec');
 const { formatBytes } = require('../utils/formatters');
+const { getPm2Snapshot } = require('./pm2');
 
 /**
- * Get configured systemd services from environment
+ * Get configured systemd services from environment or auto-discover running services
  */
-function getConfiguredServices() {
-  const envUnits = process.env.SYSTEMD_UNITS || 'nginx,ollama,system-ops,postgresql';
-  return envUnits.split(',').map(u => u.trim()).filter(Boolean);
+async function discoverAllServices() {
+  const configured = (process.env.SYSTEMD_UNITS || 'nginx,ollama,system-ops,postgresql')
+    .split(',')
+    .map(u => u.trim())
+    .filter(Boolean);
+
+  const unitsSet = new Set(configured);
+
+  try {
+    const res = await runCommand('sudo', [
+      '-n', 'systemctl', 'list-units', '--type=service', '--state=running,failed,active', '--no-legend', '--no-pager', '--plain'
+    ], 3000);
+
+    if (res.success && res.stdout) {
+      const lines = res.stdout.split('\n');
+      for (const line of lines) {
+        const parts = line.trim().split(/\s+/);
+        const unitName = parts[0];
+        if (unitName && unitName.endsWith('.service')) {
+          const cleanName = unitName.replace(/\.service$/, '');
+          // Auto-include user/app units, PM2 units, database units, docker/container units
+          if (
+            cleanName.startsWith('pm2') ||
+            cleanName.startsWith('node') ||
+            cleanName.startsWith('app') ||
+            cleanName.startsWith('api') ||
+            cleanName.startsWith('web') ||
+            cleanName.startsWith('worker') ||
+            cleanName.includes('bot') ||
+            cleanName === 'docker' ||
+            cleanName === 'containerd' ||
+            cleanName === 'redis' ||
+            cleanName === 'mysql' ||
+            cleanName === 'mongodb' ||
+            cleanName === 'caddy'
+          ) {
+            unitsSet.add(cleanName);
+          }
+        }
+      }
+    }
+  } catch (e) {}
+
+  return Array.from(unitsSet);
 }
 
 /**
@@ -52,11 +94,17 @@ async function inspectService(unitName) {
 }
 
 /**
- * Snapshot of all tracked systemd services
+ * Snapshot of all tracked systemd services + PM2 fleet if present
  */
 async function getServicesSnapshot() {
-  const units = getConfiguredServices();
+  const units = await discoverAllServices();
   const serviceList = await Promise.all(units.map(u => inspectService(u)));
+
+  // Query PM2 processes if active on the host
+  let pm2Fleet = null;
+  try {
+    pm2Fleet = await getPm2Snapshot();
+  } catch (e) {}
 
   const activeCount = serviceList.filter(s => s.active).length;
   const failedCount = serviceList.filter(s => s.activeState === 'failed').length;
@@ -68,7 +116,8 @@ async function getServicesSnapshot() {
     failedCount,
     totalMemoryBytes: totalMemory,
     formattedTotalMemory: formatBytes(totalMemory),
-    services: serviceList
+    services: serviceList,
+    pm2Fleet: pm2Fleet?.users?.length > 0 ? pm2Fleet : null
   };
 }
 
@@ -95,9 +144,17 @@ async function getServiceLogs(serviceName, lines = 100) {
   };
 }
 
+function getConfiguredServices() {
+  return (process.env.SYSTEMD_UNITS || 'nginx,ollama,system-ops,postgresql')
+    .split(',')
+    .map(u => u.trim())
+    .filter(Boolean);
+}
+
 module.exports = {
   getServicesSnapshot,
   getServiceLogs,
+  discoverAllServices,
   getConfiguredServices,
   inspectService
 };
