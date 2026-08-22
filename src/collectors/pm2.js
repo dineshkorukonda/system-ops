@@ -30,6 +30,7 @@ const PM2_CACHE_TTL_MS = 10 * 60 * 1000;
 
 /**
  * Execute a PM2 command for a user with PATH & PM2_HOME properly exported
+ * Uses --noprofile --norc to prevent .bashrc permission issues
  */
 async function runPm2Command(user, pm2Path, subCommand, extraArgs = [], timeoutMs = 10000) {
   const binDir = path.dirname(pm2Path);
@@ -37,7 +38,7 @@ async function runPm2Command(user, pm2Path, subCommand, extraArgs = [], timeoutM
   const allArgs = [subCommand, ...extraArgs].map(a => `"${a}"`).join(' ');
   const bashScript = `export PATH="${binDir}:$PATH"; export PM2_HOME="${homeDir}/.pm2"; "${pm2Path}" ${allArgs}`;
 
-  return await runCommand('sudo', ['-n', '-H', '-u', user, 'bash', '-c', bashScript], timeoutMs);
+  return await runCommand('sudo', ['-n', '-H', '-u', user, 'bash', '--noprofile', '--norc', '-c', bashScript], timeoutMs);
 }
 
 /*
@@ -60,9 +61,27 @@ async function resolvePm2Binary(user) {
     return process.env.PM2_PATH;
   }
 
+  // 2. Discover exact binary path from systemd unit (pm2-<user>.service or pm2.service)
+  for (const serviceName of [`pm2-${user}.service`, `pm2-${user}`, 'pm2.service', 'pm2']) {
+    try {
+      const showRes = await runCommand('sudo', ['-n', 'systemctl', 'show', serviceName, '--property=ExecStart'], 3000);
+      if (showRes.success && showRes.stdout) {
+        const pathMatch = showRes.stdout.match(/path=([^\s;]+pm2)/i) || showRes.stdout.match(/argv\[\]=([^\s;]+pm2)/i);
+        if (pathMatch && pathMatch[1]) {
+          const candidate = pathMatch[1].trim();
+          const testRes = await runPm2Command(user, candidate, 'jlist', [], 4000);
+          if (testRes.success && testRes.stdout && testRes.stdout.trim().startsWith('[')) {
+            pm2BinaryCache[user] = { path: candidate, ts: Date.now() };
+            return candidate;
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
   const homeDir = (user === 'root') ? '/root' : '/home/' + user;
 
-  // 2. Try global & standard system paths
+  // 3. Try global & standard system paths
   const standardCandidates = [
     '/usr/local/bin/pm2',
     '/usr/bin/pm2',
@@ -81,7 +100,7 @@ async function resolvePm2Binary(user) {
     }
   }
 
-  // 3. Try dynamic find across user's home directory (detects all NVM / fnm / asdf versions for THAT user)
+  // 4. Try dynamic find across user's home directory (scoped strictly to user's home)
   try {
     const findRes = await runCommand('sudo', ['-n', 'find', homeDir, '-name', 'pm2', '-type', 'f', '-path', '*/bin/pm2'], 4000);
     if (findRes.success && findRes.stdout) {
@@ -92,19 +111,6 @@ async function resolvePm2Binary(user) {
           pm2BinaryCache[user] = { path: p, ts: Date.now() };
           return p;
         }
-      }
-    }
-  } catch (e) {}
-
-  // 4. Try login shell 'which pm2'
-  try {
-    const whichRes = await runCommand('sudo', ['-n', '-H', '-u', user, 'bash', '-lc', 'which pm2'], 3000);
-    if (whichRes.success && whichRes.stdout && whichRes.stdout.trim().startsWith('/')) {
-      const resolved = whichRes.stdout.trim();
-      const testRes = await runPm2Command(user, resolved, 'jlist', [], 4000);
-      if (testRes.success && testRes.stdout && testRes.stdout.trim().startsWith('[')) {
-        pm2BinaryCache[user] = { path: resolved, ts: Date.now() };
-        return resolved;
       }
     }
   } catch (e) {}
@@ -136,7 +142,7 @@ async function getPm2UserProcesses(user) {
     return {
       user,
       processes: [],
-      error: `PM2 binary not found in standard paths or ~/.nvm for '${user}'. Set ${envVarName} in .env.`,
+      error: `PM2 binary not found for '${user}'. Set ${envVarName} in .env.`,
       pm2Path: null
     };
   }
@@ -145,13 +151,8 @@ async function getPm2UserProcesses(user) {
   const res = await runPm2Command(user, pm2Path, 'jlist', [], 10000);
 
   if (!res.success && !res.stdout) {
+    delete pm2BinaryCache[user];
     const errStr = res.stderr || '';
-
-    if (errStr.includes('No such file') || errStr.includes('not found') ||
-        errStr.includes('command not found')) {
-      delete pm2BinaryCache[user];
-    }
-
     const errMsg = errStr.includes('password is required') || errStr.includes('terminal is required')
       ? `Sudo password required for user '${user}'. Check /etc/sudoers.d/system-ops.`
       : (errStr.trim() || `Failed to execute PM2 for user '${user}'`);
@@ -159,7 +160,11 @@ async function getPm2UserProcesses(user) {
     return { user, processes: [], error: errMsg, pm2Path };
   }
 
-  return { ...parsePm2Json(user, res.stdout), pm2Path };
+  const parsed = parsePm2Json(user, res.stdout);
+  if (parsed.error) {
+    delete pm2BinaryCache[user];
+  }
+  return { ...parsed, pm2Path };
 }
 
 /**
