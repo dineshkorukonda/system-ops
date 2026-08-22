@@ -133,6 +133,77 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.href = '/login.html';
   });
 
+  // ────────────────────────────────────────────────────────
+  // SPARKLINE & TELEMETRY BUFFERS
+  // ────────────────────────────────────────────────────────
+  const cpuHistory = [];
+  const ramHistory = [];
+  const swapHistory = [];
+  const MAX_HISTORY = 20;
+
+  function pushMetric(buffer, value) {
+    buffer.push(value);
+    if (buffer.length > MAX_HISTORY) buffer.shift();
+  }
+
+  function renderSparklineSvg(svgEl, dataPoints, strokeColor) {
+    if (!svgEl) return;
+    if (dataPoints.length < 2) {
+      svgEl.innerHTML = '';
+      return;
+    }
+    const width = 200;
+    const height = 40;
+    const padding = 3;
+
+    const min = Math.min(...dataPoints);
+    const max = Math.max(...dataPoints);
+    const range = max === min ? 1 : max - min;
+
+    const points = dataPoints.map((val, idx) => {
+      const x = padding + (idx / (dataPoints.length - 1)) * (width - padding * 2);
+      const y = height - padding - ((val - min) / range) * (height - padding * 2);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+
+    const pathData = `M ${points.join(' L ')}`;
+    const firstX = padding;
+    const lastX = width - padding;
+    const areaData = `M ${points[0]} L ${points.join(' L ')} L ${lastX},${height} L ${firstX},${height} Z`;
+    const gradId = `grad-${strokeColor.replace(/[^a-zA-Z0-9]/g, '')}`;
+
+    svgEl.innerHTML = `
+      <defs>
+        <linearGradient id="${gradId}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="${strokeColor}" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="${strokeColor}" stop-opacity="0.0"/>
+        </linearGradient>
+      </defs>
+      <path d="${areaData}" fill="url(#${gradId})" class="sparkline-area" />
+      <path d="${pathData}" stroke="${strokeColor}" class="sparkline-path" />
+    `;
+  }
+
+  // ────────────────────────────────────────────────────────
+  // MOBILE MENU & BREADCRUMB
+  // ────────────────────────────────────────────────────────
+  const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+  const appSidebar = document.getElementById('appSidebar');
+  const activeTabBreadcrumb = document.getElementById('activeTabBreadcrumb');
+  const tabTitles = {
+    'tab-ollama': 'Ollama AI',
+    'tab-pm2': 'PM2 Apps',
+    'tab-system': 'System Health',
+    'tab-backups': 'Backups & Recovery',
+    'tab-traffic': 'Traffic Analytics'
+  };
+
+  if (mobileMenuBtn && appSidebar) {
+    mobileMenuBtn.addEventListener('click', () => {
+      appSidebar.classList.toggle('open');
+    });
+  }
+
   // ════════════════════════════════════════════════════════
   // TAB NAVIGATION
   // ════════════════════════════════════════════════════════
@@ -142,7 +213,17 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
       tab.classList.add('active');
       activeTab = tab.getAttribute('data-tab');
-      document.getElementById(activeTab).classList.add('active');
+      const targetPage = document.getElementById(activeTab);
+      if (targetPage) targetPage.classList.add('active');
+      
+      if (activeTabBreadcrumb) {
+        activeTabBreadcrumb.textContent = tabTitles[activeTab] || 'Console';
+      }
+
+      if (appSidebar && window.innerWidth <= 840) {
+        appSidebar.classList.remove('open');
+      }
+
       refreshActiveTabData();
     });
   });
@@ -153,7 +234,6 @@ document.addEventListener('DOMContentLoaded', () => {
     else if (activeTab === 'tab-system')  { fetchSystemSnapshot(); }
     else if (activeTab === 'tab-backups') {
       fetchBackupFiles();
-      // Re-fetch sources if dropdown never populated (e.g. initial load failed)
       if (!backupSourceSelect.value || backupSourceSelect.querySelector('option[value=""]')) {
         fetchLogSourcesList();
       } else {
@@ -185,12 +265,25 @@ document.addEventListener('DOMContentLoaded', () => {
     pidVal.textContent = sys.pid || '0';
     userVal.textContent = sys.user || 'ollama';
 
+    const ollamaPulse = document.getElementById('ollamaPulseDot');
+    const sidebarOllama = document.getElementById('sidebarOllamaBadge');
+
     if (sys.isActive) {
       serviceStateTag.className = 'status-tag ok';
       serviceStateTag.textContent = '[ACTIVE]';
+      if (ollamaPulse) ollamaPulse.className = 'pulse-dot';
+      if (sidebarOllama) {
+        sidebarOllama.className = 'status-tag ok';
+        sidebarOllama.textContent = 'ONLINE';
+      }
     } else {
       serviceStateTag.className = 'status-tag err';
       serviceStateTag.textContent = `[${(sys.activeState || 'FAILED').toUpperCase()}]`;
+      if (ollamaPulse) ollamaPulse.className = 'pulse-dot err';
+      if (sidebarOllama) {
+        sidebarOllama.className = 'status-tag err';
+        sidebarOllama.textContent = 'STOPPED';
+      }
     }
 
     const listener = data.listener || {};
@@ -217,11 +310,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (data.hostMetrics) {
-      hostVal.textContent = data.hostMetrics.hostname || 'ubuntu-vps';
+      const h = data.hostMetrics.hostname || 'ubuntu-vps';
+      if (hostVal) hostVal.textContent = h;
+      const hostSidebar = document.getElementById('hostValSidebar');
+      if (hostSidebar) hostSidebar.textContent = h;
       const ram  = data.hostMetrics.memory;
       const swap = data.hostMetrics.swap;
-      if (ram)  ramVal.textContent  = `${ram.formattedUsed} / ${ram.formattedTotal} (${ram.usagePercent}%)`;
-      if (swap) swapVal.textContent = `${swap.formattedUsed} / ${swap.formattedTotal} (${swap.usagePercent}%)`;
+      if (ram && ramVal)  ramVal.textContent  = `${ram.formattedUsed} / ${ram.formattedTotal} (${ram.usagePercent}%)`;
+      if (swap && swapVal) swapVal.textContent = `${swap.formattedUsed} / ${swap.formattedTotal} (${swap.usagePercent}%)`;
     }
   }
 
@@ -411,6 +507,12 @@ document.addEventListener('DOMContentLoaded', () => {
       pm2SummaryContainer.appendChild(card);
     });
 
+    const sidebarPm2 = document.getElementById('sidebarPm2Count');
+    if (sidebarPm2) {
+      sidebarPm2.textContent = `${totalProcesses} apps`;
+      sidebarPm2.className = `status-tag ${totalProcesses > 0 ? 'blue' : 'warn'}`;
+    }
+
     pm2ProcessCount.textContent = `${totalProcesses} process${totalProcesses !== 1 ? 'es' : ''}`;
 
     // ── Right Col: Process table
@@ -581,14 +683,62 @@ document.addEventListener('DOMContentLoaded', () => {
     sysLoad5m.textContent    = upt.load5m || '--';
     sysLoad15m.textContent   = upt.load15m || '--';
 
+    // Sidebar footer sync
+    const sidebarUptime = document.getElementById('sidebarUptimeVal');
+    const sidebarHost = document.getElementById('hostValSidebar');
+    const sidebarLoad = document.getElementById('sidebarSysLoad');
+    if (sidebarUptime) sidebarUptime.textContent = upt.uptimeText || '--';
+    if (sidebarHost && upt.hostname) sidebarHost.textContent = upt.hostname;
+    if (sidebarLoad && upt.load1m !== undefined) {
+      sidebarLoad.textContent = `1m: ${upt.load1m}`;
+      sidebarLoad.className = `status-tag ${parseFloat(upt.load1m) > (upt.cpus || 4) ? 'err' : 'ok'}`;
+    }
+
+    // Telemetry Sparklines
+    const load1Val = parseFloat(upt.load1m) || 0;
+    pushMetric(cpuHistory, load1Val);
+    const sparkCpuSvg = document.getElementById('sparklineCpu');
+    const telCpuVal = document.getElementById('telemetryCpuVal');
+    const sparkCpuBadge = document.getElementById('sparkCpuBadge');
+    if (telCpuVal) telCpuVal.textContent = `${load1Val.toFixed(2)} (${upt.cpus || 1} Cores)`;
+    if (sparkCpuBadge) {
+      sparkCpuBadge.textContent = load1Val > (upt.cpus || 4) ? 'High Load' : 'Normal';
+      sparkCpuBadge.className = `status-tag ${load1Val > (upt.cpus || 4) ? 'warn' : 'ok'}`;
+    }
+    renderSparklineSvg(sparkCpuSvg, cpuHistory, '#10b981');
+
     const mem = data.memory || {};
-    sysRamText.textContent = `${mem.formattedUsed || '--'} / ${mem.formattedTotal || '--'} (${mem.usagePercent || 0}%)`;
-    sysRamBar.style.width = `${mem.usagePercent || 0}%`;
-    sysRamBar.className = `progress-bar ${mem.usagePercent > 85 ? 'err' : mem.usagePercent > 65 ? 'warn' : 'green'}`;
+    const memPct = mem.usagePercent || 0;
+    pushMetric(ramHistory, memPct);
+    const sparkRamSvg = document.getElementById('sparklineRam');
+    const telRamVal = document.getElementById('telemetryRamVal');
+    const sparkRamBadge = document.getElementById('sparkRamBadge');
+    if (telRamVal) telRamVal.textContent = `${mem.formattedUsed || '0 B'} / ${mem.formattedTotal || '0 B'}`;
+    if (sparkRamBadge) {
+      sparkRamBadge.textContent = `${memPct}%`;
+      sparkRamBadge.className = `status-tag ${memPct > 85 ? 'err' : memPct > 65 ? 'warn' : 'ok'}`;
+    }
+    renderSparklineSvg(sparkRamSvg, ramHistory, '#3b82f6');
+
+    sysRamText.textContent = `${mem.formattedUsed || '--'} / ${mem.formattedTotal || '--'} (${memPct}%)`;
+    sysRamBar.style.width = `${memPct}%`;
+    sysRamBar.className = `progress-bar ${memPct > 85 ? 'err' : memPct > 65 ? 'warn' : 'green'}`;
 
     const swap = data.swap || {};
-    sysSwapText.textContent = `${swap.formattedUsed || '0 B'} / ${swap.formattedTotal || '0 B'} (${swap.usagePercent || 0}%)`;
-    sysSwapBar.style.width = `${swap.usagePercent || 0}%`;
+    const swapPct = swap.usagePercent || 0;
+    pushMetric(swapHistory, swapPct);
+    const sparkSwapSvg = document.getElementById('sparklineSwap');
+    const telSwapVal = document.getElementById('telemetrySwapVal');
+    const sparkSwapBadge = document.getElementById('sparkSwapBadge');
+    if (telSwapVal) telSwapVal.textContent = `${swap.formattedUsed || '0 B'} / ${swap.formattedTotal || '0 B'}`;
+    if (sparkSwapBadge) {
+      sparkSwapBadge.textContent = `${swapPct}%`;
+      sparkSwapBadge.className = `status-tag ${swapPct > 50 ? 'err' : swapPct > 20 ? 'warn' : ''}`;
+    }
+    renderSparklineSvg(sparkSwapSvg, swapHistory, '#a855f7');
+
+    sysSwapText.textContent = `${swap.formattedUsed || '0 B'} / ${swap.formattedTotal || '0 B'} (${swapPct}%)`;
+    sysSwapBar.style.width = `${swapPct}%`;
 
     const services = data.services || [];
     sysServicesTableBody.innerHTML = services.length === 0
@@ -726,6 +876,12 @@ document.addEventListener('DOMContentLoaded', () => {
     backupBadgeTag.className   = `status-tag ${st.badgeClass || 'warn'}`;
     backupBadgeTag.textContent = `[${(st.status || 'UNKNOWN').toUpperCase()}]`;
     backupStatusMsg.textContent = st.message || 'Log analysis complete';
+
+    const sidebarBackup = document.getElementById('sidebarBackupBadge');
+    if (sidebarBackup) {
+      sidebarBackup.className = `status-tag ${st.badgeClass || 'warn'}`;
+      sidebarBackup.textContent = (st.status || 'UNKNOWN').toUpperCase();
+    }
 
     renderBackupLog();
   }
