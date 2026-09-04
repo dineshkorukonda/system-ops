@@ -4,6 +4,7 @@ const net = require('net');
 const tls = require('tls');
 const { runCommand } = require('../utils/exec');
 const { formatBytes } = require('../utils/formatters');
+const { sampleProcesses } = require('./processCollector');
 
 /**
  * Format uptime seconds into human-readable text.
@@ -121,139 +122,146 @@ function getMemoryAndSwap() {
 }
 
 /**
- * Fetch Disk usage for configured paths.
+ * Fetch Disk usage for configured paths using a single bulk `df` call.
  */
 async function getDiskUsage() {
   const envPaths = process.env.DISK_PATHS || '/,/var,/root/backups';
   const paths = envPaths.split(',').map(p => p.trim()).filter(Boolean);
 
-  const results = await Promise.all(paths.map(async (diskPath) => {
-    // Check if path exists
-    if (!fs.existsSync(diskPath)) {
-      return {
-        path: diskPath,
-        exists: false,
-        status: 'missing',
-        total: 'N/A',
-        used: 'N/A',
-        available: 'N/A',
-        percent: 0
-      };
-    }
+  const existingPaths = paths.filter(p => fs.existsSync(p));
+  const missingPaths = paths.filter(p => !fs.existsSync(p));
 
-    const res = await runCommand('df', ['-B1', diskPath]);
-    if (!res.success || !res.stdout) {
-      return {
-        path: diskPath,
+  const results = missingPaths.map(p => ({
+    path: p,
+    exists: false,
+    status: 'missing',
+    total: 'N/A',
+    used: 'N/A',
+    available: 'N/A',
+    percent: 0
+  }));
+
+  if (existingPaths.length === 0) {
+    return results;
+  }
+
+  // Single bulk df call for all existing paths
+  const res = await runCommand('df', ['-B1', ...existingPaths], 3000);
+  if (!res.success || !res.stdout) {
+    existingPaths.forEach(p => {
+      results.push({
+        path: p,
         exists: true,
         status: 'error',
         total: 'N/A',
         used: 'N/A',
         available: 'N/A',
         percent: 0
-      };
+      });
+    });
+    return results;
+  }
+
+  const lines = res.stdout.trim().split('\n');
+  // Skip header line
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const parts = line.split(/\s+/);
+    if (parts.length >= 6) {
+      const filesystem = parts[0];
+      const total = parseInt(parts[1], 10) || 0;
+      const used = parseInt(parts[2], 10) || 0;
+      const avail = parseInt(parts[3], 10) || 0;
+      const pct = parseInt(parts[4].replace('%', ''), 10) || 0;
+      const mountPoint = parts[5];
+
+      // Match against requested paths
+      const matchedReqPath = existingPaths.find(p => p === mountPoint || p === parts[parts.length - 1]) || mountPoint;
+
+      results.push({
+        path: matchedReqPath,
+        filesystem,
+        mountPoint,
+        exists: true,
+        status: 'ok',
+        totalBytes: total,
+        usedBytes: used,
+        availableBytes: avail,
+        formattedTotal: formatBytes(total),
+        formattedUsed: formatBytes(used),
+        formattedAvailable: formatBytes(avail),
+        percent: pct
+      });
     }
-
-    const lines = res.stdout.trim().split('\n');
-    if (lines.length >= 2) {
-      const parts = lines[1].split(/\s+/);
-      if (parts.length >= 6) {
-        const total = parseInt(parts[1], 10) || 0;
-        const used = parseInt(parts[2], 10) || 0;
-        const avail = parseInt(parts[3], 10) || 0;
-        const pctStr = parts[4].replace('%', '');
-        const pct = parseInt(pctStr, 10) || 0;
-
-        return {
-          path: diskPath,
-          filesystem: parts[0],
-          mountPoint: parts[5],
-          exists: true,
-          status: 'ok',
-          totalBytes: total,
-          usedBytes: used,
-          availableBytes: avail,
-          formattedTotal: formatBytes(total),
-          formattedUsed: formatBytes(used),
-          formattedAvailable: formatBytes(avail),
-          percent: pct
-        };
-      }
-    }
-
-    return {
-      path: diskPath,
-      exists: true,
-      status: 'parse_error',
-      total: 'N/A',
-      used: 'N/A',
-      available: 'N/A',
-      percent: 0
-    };
-  }));
+  }
 
   return results;
 }
 
 /**
- * Query status of key systemd units.
+ * Query status of key systemd units in a single bulk call.
  */
 async function getSystemdUnits() {
   const envUnits = process.env.SYSTEMD_UNITS || 'nginx,ollama,system-ops,postgresql';
   const units = envUnits.split(',').map(u => u.trim()).filter(Boolean);
+  const fullUnitNames = units.map(u => u.endsWith('.service') ? u : `${u}.service`);
 
-  const results = await Promise.all(units.map(async (unit) => {
-    const fullUnit = unit.endsWith('.service') ? unit : `${unit}.service`;
-    
-    // Try systemctl show
-    const showRes = await runCommand('systemctl', [
-      'show',
-      fullUnit,
-      '-p',
-      'ActiveState,SubState,MainPID,MemoryCurrent,ExecMainStartTimestamp'
-    ]);
+  const showRes = await runCommand('systemctl', [
+    'show',
+    ...fullUnitNames,
+    '-p',
+    'Id,ActiveState,SubState,MainPID,MemoryCurrent,ExecMainStartTimestamp'
+  ], 4000);
 
-    if (showRes.success && showRes.stdout) {
+  const unitMap = new Map();
+
+  if (showRes.success && showRes.stdout) {
+    const blocks = showRes.stdout.split(/\n\s*\n/);
+    for (const block of blocks) {
+      if (!block.trim()) continue;
       const props = {};
-      showRes.stdout.split('\n').forEach(line => {
+      block.split('\n').forEach(line => {
         const idx = line.indexOf('=');
         if (idx !== -1) {
           props[line.substring(0, idx).trim()] = line.substring(idx + 1).trim();
         }
       });
 
-      const isActive = props.ActiveState === 'active';
-      const memoryBytes = parseInt(props.MemoryCurrent, 10) || 0;
+      const id = props.Id;
+      if (id) {
+        const isActive = props.ActiveState === 'active';
+        const memoryBytes = parseInt(props.MemoryCurrent, 10) || 0;
+        const baseName = id.replace(/\.service$/, '');
 
-      return {
-        unit: unit,
-        fullUnit: fullUnit,
-        activeState: props.ActiveState || 'unknown',
-        subState: props.SubState || 'unknown',
-        isActive: isActive,
-        pid: parseInt(props.MainPID, 10) || 0,
-        memoryBytes: memoryBytes,
-        formattedMemory: memoryBytes > 0 ? formatBytes(memoryBytes) : 'N/A'
-      };
+        unitMap.set(baseName, {
+          unit: baseName,
+          fullUnit: id,
+          activeState: props.ActiveState || 'unknown',
+          subState: props.SubState || 'unknown',
+          isActive: isActive,
+          pid: parseInt(props.MainPID, 10) || 0,
+          memoryBytes: memoryBytes,
+          formattedMemory: memoryBytes > 0 ? formatBytes(memoryBytes) : 'N/A'
+        });
+      }
     }
+  }
 
-    // Fallback to systemctl is-active
-    const isActRes = await runCommand('systemctl', ['is-active', fullUnit]);
-    const state = isActRes.stdout.trim() || 'unknown';
-
+  return units.map(u => {
+    const baseName = u.replace(/\.service$/, '');
+    if (unitMap.has(baseName)) return unitMap.get(baseName);
     return {
-      unit: unit,
-      fullUnit: fullUnit,
-      activeState: state,
-      subState: state === 'active' ? 'running' : 'stopped',
-      isActive: state === 'active',
+      unit: baseName,
+      fullUnit: `${baseName}.service`,
+      activeState: 'unknown',
+      subState: 'stopped',
+      isActive: false,
       pid: 0,
       memoryBytes: 0,
       formattedMemory: 'N/A'
     };
-  }));
-
-  return results;
+  });
 }
 
 /**
@@ -312,14 +320,13 @@ async function getTlsCertStatus() {
   const hosts = envHosts.split(',').map(h => h.trim()).filter(Boolean);
 
   const results = await Promise.all(hosts.map(async (hostOrPath) => {
-    // 1. Check if it's a file path under /etc/letsencrypt or custom path
     let certPath = hostOrPath;
     if (!certPath.includes('/')) {
       certPath = `/etc/letsencrypt/live/${hostOrPath}/cert.pem`;
     }
 
     if (fs.existsSync(certPath)) {
-      const opensslRes = await runCommand('openssl', ['x509', '-enddate', '-noout', '-in', certPath]);
+      const opensslRes = await runCommand('openssl', ['x509', '-enddate', '-noout', '-in', certPath], 3000);
       if (opensslRes.success && opensslRes.stdout.includes('notAfter=')) {
         const dateStr = opensslRes.stdout.replace('notAfter=', '').trim();
         const validTo = new Date(dateStr);
@@ -338,7 +345,6 @@ async function getTlsCertStatus() {
       }
     }
 
-    // 2. Try network connection if hostname has dots and no slashes
     if (hostOrPath.includes('.') && !hostOrPath.includes('/')) {
       const netCert = await checkNetworkTlsCert(hostOrPath);
       if (netCert) return netCert;
@@ -389,110 +395,10 @@ function checkNetworkTlsCert(hostname, port = 443) {
 }
 
 /**
- * Fetch top running system processes sorted by CPU or Memory.
+ * Fetch running system processes. Delegates to sampleProcesses (/proc Linux fast path).
  */
 async function getSystemProcesses(options = {}) {
-  const limit = parseInt(options.limit, 10) || 30;
-  const sortBy = options.sortBy === 'mem' ? 'mem' : 'cpu';
-
-  const sortFlag = sortBy === 'mem' ? '-%mem' : '-%cpu';
-
-  // Try Linux ps first
-  const psRes = await runCommand('ps', ['-eo', 'pid,user,%cpu,%mem,vsz,rss,stat,comm,args', `--sort=${sortFlag}`]);
-  if (psRes.success && psRes.stdout) {
-    const lines = psRes.stdout.trim().split('\n');
-    const processes = [];
-    
-    // Skip header line
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-
-      const parts = line.split(/\s+/);
-      if (parts.length >= 9) {
-        const pid = parseInt(parts[0], 10);
-        const user = parts[1];
-        const cpuPercent = parseFloat(parts[2]) || 0;
-        const memPercent = parseFloat(parts[3]) || 0;
-        const vszBytes = (parseInt(parts[4], 10) || 0) * 1024;
-        const rssBytes = (parseInt(parts[5], 10) || 0) * 1024;
-        const state = parts[6];
-        const command = parts[7];
-        const args = parts.slice(8).join(' ');
-
-        if (!isNaN(pid)) {
-          processes.push({
-            pid,
-            user,
-            cpuPercent,
-            memPercent,
-            vszBytes,
-            rssBytes,
-            formattedRss: formatBytes(rssBytes),
-            state,
-            command,
-            args: args || command
-          });
-        }
-      }
-    }
-
-    return {
-      sortBy,
-      limit,
-      total: processes.length,
-      processes: processes.slice(0, limit)
-    };
-  }
-
-  // Cross-platform fallback (e.g. Windows dev machine)
-  const isWin = os.platform() === 'win32';
-  if (isWin) {
-    const psWin = await runCommand('powershell', [
-      '-NoProfile',
-      '-Command',
-      `Get-Process | Sort-Object -Property ${sortBy === 'mem' ? 'WorkingSet64' : 'CPU'} -Descending | Select-Object -First ${limit} -Property Id, ProcessName, CPU, WorkingSet64 | ConvertTo-Json`
-    ]);
-
-    if (psWin.success && psWin.stdout) {
-      try {
-        const rawJson = psWin.stdout.trim();
-        if (rawJson) {
-          const parsed = JSON.parse(rawJson);
-          const arr = Array.isArray(parsed) ? parsed : [parsed];
-          const processes = arr.filter(Boolean).map(p => {
-            const rss = p.WorkingSet64 || 0;
-            return {
-              pid: p.Id || 0,
-              user: os.userInfo().username || 'system',
-              cpuPercent: Math.round((p.CPU || 0) * 10) / 10,
-              memPercent: 0,
-              vszBytes: rss,
-              rssBytes: rss,
-              formattedRss: formatBytes(rss),
-              state: 'R',
-              command: p.ProcessName || 'Unknown',
-              args: p.ProcessName || 'Unknown'
-            };
-          });
-
-          return {
-            sortBy,
-            limit,
-            total: processes.length,
-            processes
-          };
-        }
-      } catch (e) {}
-    }
-  }
-
-  return {
-    sortBy,
-    limit,
-    total: 0,
-    processes: []
-  };
+  return await sampleProcesses(options);
 }
 
 /**
@@ -531,4 +437,3 @@ module.exports = {
   getListeningPorts,
   getTlsCertStatus
 };
-

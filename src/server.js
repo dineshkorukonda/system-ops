@@ -7,15 +7,23 @@ const fs = require('fs');
 
 const { requireAuth, handleLogin, handleLogout, generateSessionToken } = require('./middleware/auth');
 const { apiLimiter, chatTestLimiter, logTailLimiter } = require('./middleware/rateLimiter');
-const { getServiceStatus, checkPortListener, getJournalLogs, getHostMetrics } = require('./services/systemService');
-const { checkApiHealth, runQuickChatTest, getCliModelList } = require('./services/ollamaService');
+const { getJournalLogs } = require('./services/systemService');
+const { runQuickChatTest } = require('./services/ollamaService');
 
-// Collectors
-const { getServicesSnapshot, getServiceLogs } = require('./collectors/services');
-const { getPm2Snapshot, getPm2Logs } = require('./collectors/pm2');
-const { getSystemSnapshot, getSystemProcesses } = require('./collectors/system');
+// Core Architecture Modules
+const { stateStore } = require('./core/stateStore');
+const { collectorManager } = require('./core/collectorManager');
+const { registerAllCollectors } = require('./core/scheduler');
+
+// On-demand collectors & tail handlers (interactive operations)
+const { getServiceLogs } = require('./collectors/services');
+const { getPm2Logs } = require('./collectors/pm2');
 const { getLogSourcesList, getLogSourceTail } = require('./collectors/logSources');
-const { listBackupFiles, getBackupFilePath } = require('./collectors/backupFiles');
+const { getBackupFilePath, listBackupFiles } = require('./collectors/backupFiles');
+const { sampleProcesses } = require('./collectors/processCollector');
+const { getSystemSnapshot } = require('./collectors/system');
+const { getServicesSnapshot } = require('./collectors/services');
+const { getPm2Snapshot } = require('./collectors/pm2');
 const { parseTrafficAnalytics } = require('./collectors/trafficAnalytics');
 
 const app = express();
@@ -91,31 +99,53 @@ app.get('/login.html', (req, res) => {
 
 /**
  * Protected API Endpoints (Requires Auth & Rate Limiting)
+ * All endpoints read shared cached stateStore by default (Zero direct system discovery overhead).
  */
 app.use('/api', apiLimiter, requireAuth);
 
-app.get('/api/status', async (req, res) => {
-  try {
-    const [systemd, listener, ollamaApi, hostMetrics] = await Promise.all([
-      getServiceStatus(OLLAMA_SERVICE),
-      checkPortListener(11434, '127.0.0.1'),
-      checkApiHealth(OLLAMA_URL),
-      Promise.resolve(getHostMetrics())
-    ]);
+/**
+ * Internal Ops Diagnostics (Self-Monitoring for System-Ops itself)
+ */
+app.get('/api/v2/ops/diagnostics', (req, res) => {
+  return res.json(stateStore.getDiagnostics());
+});
 
-    return res.json({
-      timestamp: new Date().toISOString(),
-      systemd,
-      listener,
-      ollamaApi,
-      hostMetrics
-    });
-  } catch (error) {
-    return res.status(500).json({
-      error: 'Failed to fetch status',
-      details: error.message
-    });
+/**
+ * Explicit Rescan Endpoint (Manual refresh allowed without polling multiplying overhead)
+ */
+app.post('/api/v2/discovery/rescan', async (req, res) => {
+  try {
+    const { target } = req.body || {};
+    const result = await collectorManager.rescan(target || null);
+    return res.json({ success: true, result });
+  } catch (err) {
+    return res.status(500).json({ error: 'Rescan failed', details: err.message });
   }
+});
+
+/**
+ * Ollama Legacy & v2 Endpoints (Served from Cached StateStore)
+ */
+app.get('/api/status', async (req, res) => {
+  const cached = stateStore.get('ollama.status');
+  if (cached) {
+    return res.json(cached);
+  }
+  // Fallback if background collector hasn't completed initial tick
+  try {
+    const data = await collectorManager.runCollector('ollama');
+    return res.json(data?.data?.status || {});
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch status', details: error.message });
+  }
+});
+
+app.get('/api/models', async (req, res) => {
+  const cached = stateStore.get('ollama.models');
+  if (cached) {
+    return res.json(cached);
+  }
+  return res.json({ apiOk: false, latencyMs: 0, models: [], cliOutput: '' });
 });
 
 app.get('/api/logs', async (req, res) => {
@@ -127,27 +157,6 @@ app.get('/api/logs', async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       error: 'Failed to retrieve service logs',
-      details: error.message
-    });
-  }
-});
-
-app.get('/api/models', async (req, res) => {
-  try {
-    const [apiHealth, cliList] = await Promise.all([
-      checkApiHealth(OLLAMA_URL),
-      getCliModelList()
-    ]);
-
-    return res.json({
-      apiOk: apiHealth.ok,
-      latencyMs: apiHealth.latencyMs,
-      models: apiHealth.models || [],
-      cliOutput: cliList.output || ''
-    });
-  } catch (error) {
-    return res.status(500).json({
-      error: 'Failed to fetch models list',
       details: error.message
     });
   }
@@ -180,6 +189,10 @@ app.post('/api/test-chat', chatTestLimiter, async (req, res) => {
  * Services API Endpoints (Native Systemd Supervision)
  */
 app.get('/api/v2/services/snapshot', async (req, res) => {
+  const cached = stateStore.get('services');
+  if (cached) {
+    return res.json(cached);
+  }
   try {
     const data = await getServicesSnapshot();
     return res.json(data);
@@ -199,9 +212,13 @@ app.get('/api/v2/services/logs', logTailLimiter, async (req, res) => {
 });
 
 /**
- * Legacy PM2 & System Endpoints
+ * PM2 Fleet Endpoints
  */
 app.get('/api/v2/pm2/snapshot', async (req, res) => {
+  const cached = stateStore.get('pm2');
+  if (cached) {
+    return res.json(cached);
+  }
   try {
     const data = await getPm2Snapshot();
     return res.json(data);
@@ -220,7 +237,14 @@ app.get('/api/v2/pm2/logs', logTailLimiter, async (req, res) => {
   }
 });
 
+/**
+ * System Telemetry & Process Monitoring Endpoints
+ */
 app.get('/api/v2/system/snapshot', async (req, res) => {
+  const cached = stateStore.get('system');
+  if (cached) {
+    return res.json(cached);
+  }
   try {
     const data = await getSystemSnapshot();
     return res.json(data);
@@ -230,15 +254,37 @@ app.get('/api/v2/system/snapshot', async (req, res) => {
 });
 
 app.get('/api/v2/system/processes', async (req, res) => {
+  const { limit, sort } = req.query;
+  const limitNum = parseInt(limit, 10) || 50;
+  const sortBy = sort === 'mem' ? 'mem' : 'cpu';
+
+  const cached = stateStore.get('processes');
+  if (cached && cached.processes) {
+    let procs = [...cached.processes];
+    if (sortBy === 'mem') {
+      procs.sort((a, b) => b.rssBytes - a.rssBytes);
+    } else {
+      procs.sort((a, b) => b.cpuPercent - a.cpuPercent);
+    }
+    return res.json({
+      sortBy,
+      limit: limitNum,
+      total: cached.total || procs.length,
+      processes: procs.slice(0, limitNum)
+    });
+  }
+
   try {
-    const { limit, sort } = req.query;
-    const data = await getSystemProcesses({ limit, sortBy: sort });
+    const data = await sampleProcesses({ limit: limitNum, sortBy });
     return res.json(data);
   } catch (error) {
     return res.status(500).json({ error: 'Failed to fetch system processes', details: error.message });
   }
 });
 
+/**
+ * Log Sources
+ */
 app.get('/api/v2/logs/sources', (req, res) => {
   try {
     const sources = getLogSourcesList();
@@ -258,7 +304,14 @@ app.get('/api/v2/logs/tail', logTailLimiter, async (req, res) => {
   }
 });
 
+/**
+ * Backups Endpoints
+ */
 app.get('/api/v2/backups/files', async (req, res) => {
+  const cached = stateStore.get('backups');
+  if (cached) {
+    return res.json(cached);
+  }
   try {
     const data = await listBackupFiles();
     return res.json(data);
@@ -293,6 +346,10 @@ app.get('/api/v2/backups/download', (req, res) => {
  * Traffic & Geographic Analytics Endpoints (v2 & legacy)
  */
 app.get('/api/v2/traffic/analytics', async (req, res) => {
+  const cached = stateStore.get('traffic');
+  if (cached) {
+    return res.json(cached);
+  }
   try {
     const data = await parseTrafficAnalytics();
     return res.json(data);
@@ -302,6 +359,10 @@ app.get('/api/v2/traffic/analytics', async (req, res) => {
 });
 
 app.get('/api/traffic-analytics', async (req, res) => {
+  const cached = stateStore.get('traffic');
+  if (cached) {
+    return res.json(cached);
+  }
   try {
     const data = await parseTrafficAnalytics();
     return res.json(data);
@@ -322,12 +383,22 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(staticDir, 'index.html'));
 });
 
-// Start Server bound strictly to loopback IP
-app.listen(PORT, HOST, () => {
+// Initialize Collectors & Start Server bound strictly to loopback IP
+registerAllCollectors();
+
+// Only start background collectors when server is launched directly
+if (process.env.NODE_ENV !== 'test') {
+  collectorManager.startAll().catch(err => {
+    console.error('[CollectorManager] Failed to start collectors:', err);
+  });
+}
+
+const server = app.listen(PORT, HOST, () => {
   console.log(`=======================================================`);
-  console.log(`  System Ops Mini-Site v1.0.0 is running!`);
+  console.log(`  System Ops Mini-Site v2.1.0 (Async Collector Engine)`);
   console.log(`  Listening on: http://${HOST}:${PORT}`);
   console.log(`  Health Check: http://${HOST}:${PORT}/health`);
+  console.log(`  Diagnostics:  http://${HOST}:${PORT}/api/v2/ops/diagnostics`);
   console.log(`  Target Ollama: ${OLLAMA_URL}`);
 
   if (!process.env.APP_PASSWORD || process.env.APP_PASSWORD === 'admin-password-change-me') {
@@ -338,3 +409,5 @@ app.listen(PORT, HOST, () => {
   }
   console.log(`=======================================================`);
 });
+
+module.exports = { app, server };

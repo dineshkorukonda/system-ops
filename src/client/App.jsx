@@ -10,7 +10,7 @@ import { TrafficAnalyticsView } from './components/TrafficAnalyticsView';
 import { TroubleshootingView } from './components/TroubleshootingView';
 import { LoginView } from './components/LoginView';
 
-const MAX_HISTORY = 20;
+const MAX_HISTORY = 30;
 
 export function App() {
   // Authentication state
@@ -23,7 +23,7 @@ export function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('ops_theme') || 'dark');
 
   // Controls & auto-refresh
-  const [refreshInterval, setRefreshInterval] = useState(30);
+  const [refreshInterval, setRefreshInterval] = useState(10);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [isSyncing, setIsSyncing] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -97,7 +97,7 @@ export function App() {
     });
   };
 
-  // ── Individual Data Fetchers ──
+  // ── Individual Data Fetchers (Read Fast In-Memory State) ──
   const fetchSystemSnapshot = async () => {
     try {
       const res = await fetch('/api/v2/system/snapshot');
@@ -106,8 +106,8 @@ export function App() {
         const data = await res.json();
         setSystemData(data);
         if (data.uptime?.load1m) pushMetric(setCpuHistory, parseFloat(data.uptime.load1m) || 0);
-        if (data.memory?.usagePercent) pushMetric(setRamHistory, data.memory.usagePercent);
-        if (data.swap?.usagePercent) pushMetric(setSwapHistory, data.swap.usagePercent);
+        if (data.memory?.usagePercent !== undefined) pushMetric(setRamHistory, data.memory.usagePercent);
+        if (data.swap?.usagePercent !== undefined) pushMetric(setSwapHistory, data.swap.usagePercent);
       }
     } catch (e) {}
   };
@@ -226,13 +226,35 @@ export function App() {
     }
   }, [activeTab, isAuthenticated]);
 
-  // Polling timer
+  // Tab-Aware & Page-Visibility Adaptive Polling Timer
   useEffect(() => {
     if (!isAuthenticated || refreshInterval === 0) return;
-    const timer = setInterval(() => {
+
+    let timerId = null;
+
+    const handleInterval = () => {
+      // If browser tab is hidden in background, throttle polling to protect client CPU/battery
+      if (typeof document !== 'undefined' && document.hidden) {
+        return;
+      }
       syncCurrentView();
-    }, refreshInterval * 1000);
-    return () => clearInterval(timer);
+    };
+
+    timerId = setInterval(handleInterval, refreshInterval * 1000);
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // Tab became visible again: immediate sync
+        syncCurrentView();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (timerId) clearInterval(timerId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [isAuthenticated, refreshInterval]);
 
   // Loading state during auth check
