@@ -24,10 +24,10 @@ export function TrafficAnalyticsView({ trafficData }) {
 
     if (!mapInstanceRef.current) {
       const map = window.L.map(mapContainerRef.current).setView([20, 0], 2);
-      window.L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; CARTO',
-        subdomains: 'abcd',
-        maxZoom: 19,
+      window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        className: 'cyber-map-tiles',
+        maxZoom: 18,
       }).addTo(map);
 
       markerLayerRef.current = window.L.layerGroup().addTo(map);
