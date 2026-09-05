@@ -292,13 +292,33 @@ function checkPortListener(port, host = '127.0.0.1', timeoutMs = 1500) {
 }
 
 async function getListeningPorts() {
-  const defaultPorts = [
-    { name: 'Ollama API', port: 11434 },
-    { name: 'System Ops (Self)', port: parseInt(process.env.PORT, 10) || 9080 },
-    { name: 'Dev API', port: 8100 }
-  ];
+  let targetPorts = [];
 
-  const results = await Promise.all(defaultPorts.map(async (p) => {
+  if (process.env.MONITORED_PORTS) {
+    // Format: "Name:Port,Name2:Port2" e.g. "Web:80,HTTPS:443,Postgres:5432"
+    targetPorts = process.env.MONITORED_PORTS.split(',').map(item => {
+      const parts = item.trim().split(':');
+      if (parts.length >= 2) {
+        return { name: parts[0].trim(), port: parseInt(parts[1], 10) };
+      }
+      return null;
+    }).filter(Boolean);
+  } else {
+    // Standard system infrastructure ports
+    targetPorts = [
+      { name: 'System Ops (Self)', port: parseInt(process.env.PORT, 10) || 9080 },
+      { name: 'Web (HTTP)', port: 80 },
+      { name: 'Web (HTTPS)', port: 443 },
+      { name: 'SSH', port: parseInt(process.env.SSH_PORT, 10) || 22 }
+    ];
+
+    // Only monitor Ollama port if explicitly requested or enabled via env
+    if (process.env.OLLAMA_PORT || process.env.ENABLE_OLLAMA === 'true') {
+      targetPorts.push({ name: 'Ollama API', port: parseInt(process.env.OLLAMA_PORT, 10) || 11434 });
+    }
+  }
+
+  const results = await Promise.all(targetPorts.map(async (p) => {
     const res = await checkPortListener(p.port, '127.0.0.1');
     return {
       name: p.name,

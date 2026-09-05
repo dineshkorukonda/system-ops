@@ -3,6 +3,8 @@ import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { SystemHealthView } from './components/SystemHealthView';
 import { ProcessMonitorView } from './components/ProcessMonitorView';
+import { DockerView } from './components/DockerView';
+import { Pm2FleetView } from './components/Pm2FleetView';
 import { ServicesView } from './components/ServicesView';
 import { OllamaView } from './components/OllamaView';
 import { BackupsView } from './components/BackupsView';
@@ -34,9 +36,12 @@ export function App() {
   const [swapHistory, setSwapHistory] = useState([]);
 
   // Telemetry snapshots
+  const [capabilities, setCapabilities] = useState(null);
   const [systemData, setSystemData] = useState(null);
   const [processes, setProcesses] = useState([]);
   const [processSort, setProcessSort] = useState('cpu');
+  const [dockerData, setDockerData] = useState(null);
+  const [pm2Data, setPm2Data] = useState(null);
   const [servicesData, setServicesData] = useState(null);
   const [ollamaStatus, setOllamaStatus] = useState(null);
   const [ollamaModels, setOllamaModels] = useState([]);
@@ -98,6 +103,26 @@ export function App() {
   };
 
   // ── Individual Data Fetchers (Read Fast In-Memory State) ──
+  const fetchCapabilities = async () => {
+    try {
+      const res = await fetch('/api/v2/system/capabilities');
+      if (res.ok) {
+        const data = await res.json();
+        setCapabilities(data);
+
+        // Fallback tab if currently active tab runtime is not available
+        const currentTab = activeTabRef.current;
+        if (currentTab === 'ollama' && !data.ollama?.available) {
+          setActiveTab('system');
+        } else if (currentTab === 'docker' && !data.docker?.available) {
+          setActiveTab('system');
+        } else if (currentTab === 'pm2' && !data.pm2?.available) {
+          setActiveTab('system');
+        }
+      }
+    } catch (e) {}
+  };
+
   const fetchSystemSnapshot = async () => {
     try {
       const res = await fetch('/api/v2/system/snapshot');
@@ -118,6 +143,26 @@ export function App() {
       if (res.ok) {
         const data = await res.json();
         setProcesses(data.processes || []);
+      }
+    } catch (e) {}
+  };
+
+  const fetchDockerData = async () => {
+    try {
+      const res = await fetch('/api/v2/docker/snapshot');
+      if (res.ok) {
+        const data = await res.json();
+        setDockerData(data);
+      }
+    } catch (e) {}
+  };
+
+  const fetchPm2Data = async () => {
+    try {
+      const res = await fetch('/api/v2/pm2/snapshot');
+      if (res.ok) {
+        const data = await res.json();
+        setPm2Data(data);
       }
     } catch (e) {}
   };
@@ -190,6 +235,10 @@ export function App() {
       promises.push(fetchProcesses(), fetchServices());
     } else if (tab === 'processes') {
       promises.push(fetchProcesses());
+    } else if (tab === 'docker') {
+      promises.push(fetchDockerData());
+    } else if (tab === 'pm2') {
+      promises.push(fetchPm2Data());
     } else if (tab === 'services') {
       promises.push(fetchServices());
     } else if (tab === 'ollama') {
@@ -209,8 +258,11 @@ export function App() {
   useEffect(() => {
     if (isAuthenticated === true) {
       Promise.allSettled([
+        fetchCapabilities(),
         fetchSystemSnapshot(),
         fetchProcesses(),
+        fetchDockerData(),
+        fetchPm2Data(),
         fetchServices(),
         fetchOllamaData(),
         fetchBackupData(),
@@ -233,7 +285,7 @@ export function App() {
     let timerId = null;
 
     const handleInterval = () => {
-      // If browser tab is hidden in background, throttle polling to protect client CPU/battery
+      // If browser tab is hidden in background, throttle polling
       if (typeof document !== 'undefined' && document.hidden) {
         return;
       }
@@ -244,7 +296,6 @@ export function App() {
 
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        // Tab became visible again: immediate sync
         syncCurrentView();
       }
     };
@@ -274,6 +325,8 @@ export function App() {
   const tabTitles = {
     system: 'System Health',
     processes: 'Process Monitor',
+    docker: 'Docker Containers',
+    pm2: 'PM2 Fleet',
     services: 'Systemd Services',
     ollama: 'Ollama AI',
     backups: 'Backups & Recovery',
@@ -281,9 +334,14 @@ export function App() {
     troubleshooting: 'Troubleshooting & Diagnostics',
   };
 
+  const pm2TotalCount = (pm2Data?.users || []).reduce(
+    (acc, u) => acc + (u.processes || []).length,
+    0
+  );
+
   return (
     <div className="flex min-h-screen bg-[#000000] text-white theme-bg">
-      {/* Persistent Sectionized Sidebar */}
+      {/* Persistent Sectionized Dynamic Sidebar */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -291,6 +349,9 @@ export function App() {
           uptime: systemData?.uptime,
           processCount: processes.length,
         }}
+        capabilities={capabilities}
+        dockerData={dockerData}
+        pm2Count={pm2TotalCount}
         servicesCount={servicesData?.activeCount}
         ollamaStatus={ollamaStatus?.systemd?.isActive ? 'ONLINE' : 'STOPPED'}
         backupStatus={backupSources.length > 0 ? 'SUCCESS' : 'IDLE'}
@@ -331,6 +392,14 @@ export function App() {
               setSort={setProcessSort}
               onRefresh={fetchProcesses}
             />
+          )}
+
+          {activeTab === 'docker' && (
+            <DockerView dockerData={dockerData} onRefresh={fetchDockerData} />
+          )}
+
+          {activeTab === 'pm2' && (
+            <Pm2FleetView pm2Data={pm2Data} onRefresh={fetchPm2Data} />
           )}
 
           {activeTab === 'services' && (

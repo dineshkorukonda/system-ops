@@ -9,6 +9,8 @@ const { collectPm2Snapshot } = require('../../plugins/superpowers/skills/pm2_dis
 const { parseTrafficAnalytics } = require('../collectors/trafficAnalytics');
 const { listBackupFiles } = require('../collectors/backupFiles');
 const { checkApiHealth, getCliModelList } = require('../services/ollamaService');
+const { getCapabilities } = require('../collectors/capabilities');
+const { getDockerSnapshot } = require('../collectors/docker');
 const { getServiceStatus, checkPortListener, getHostMetrics } = require('../services/systemService');
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
@@ -142,6 +144,30 @@ function registerAllCollectors() {
           cliOutput: cliList.output || ''
         }
       };
+    }
+  });
+
+  // 8. Dynamic System Capabilities (default: 30s)
+  const capabilitiesInterval = parseInt(process.env.SYSTEM_OPS_CAPABILITIES_INTERVAL, 10) || 30000;
+  collectorManager.register({
+    name: 'capabilities',
+    stateKey: 'capabilities',
+    intervalMs: capabilitiesInterval,
+    critical: false,
+    collect: async () => {
+      return await getCapabilities();
+    }
+  });
+
+  // 9. Docker Containers (default: 10s)
+  const dockerInterval = parseInt(process.env.SYSTEM_OPS_DOCKER_INTERVAL, 10) || 10000;
+  collectorManager.register({
+    name: 'docker',
+    stateKey: 'docker',
+    intervalMs: dockerInterval,
+    critical: false,
+    collect: async () => {
+      return await getDockerSnapshot();
     }
   });
 }

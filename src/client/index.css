@@ -80,3 +80,12 @@
 [data-theme="light"] ::-webkit-scrollbar-thumb {
   background: #d4d4d8;
 }
+
+/* Cyber Dark Map Tiles */
+.cyber-map-tiles {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+[data-theme="light"] .cyber-map-tiles {
+  filter: none;
+}

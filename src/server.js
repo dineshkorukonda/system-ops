@@ -24,6 +24,8 @@ const { sampleProcesses } = require('./collectors/processCollector');
 const { getSystemSnapshot } = require('./collectors/system');
 const { getServicesSnapshot } = require('./collectors/services');
 const { getPm2Snapshot } = require('./collectors/pm2');
+const { getCapabilities } = require('./collectors/capabilities');
+const { getDockerSnapshot, getDockerLogs } = require('./collectors/docker');
 const { parseTrafficAnalytics } = require('./collectors/trafficAnalytics');
 
 const app = express();
@@ -238,8 +240,51 @@ app.get('/api/v2/pm2/logs', logTailLimiter, async (req, res) => {
 });
 
 /**
+ * Docker Containers Endpoints
+ */
+app.get('/api/v2/docker/snapshot', async (req, res) => {
+  const cached = stateStore.get('docker');
+  if (cached) {
+    return res.json(cached);
+  }
+  try {
+    const data = await getDockerSnapshot();
+    return res.json(data);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch Docker snapshot', details: error.message });
+  }
+});
+
+app.get('/api/v2/docker/logs', logTailLimiter, async (req, res) => {
+  try {
+    const { id, lines } = req.query;
+    if (!id) {
+      return res.status(400).json({ error: 'Container ID required' });
+    }
+    const data = await getDockerLogs(id, lines);
+    return res.json(data);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch container logs', details: error.message });
+  }
+});
+
+/**
  * System Telemetry & Process Monitoring Endpoints
  */
+app.get('/api/v2/system/capabilities', async (req, res) => {
+  const cached = stateStore.get('capabilities');
+  if (cached) {
+    return res.json(cached);
+  }
+  try {
+    const caps = await getCapabilities();
+    stateStore.set('capabilities', caps);
+    return res.json(caps);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to detect system capabilities', details: error.message });
+  }
+});
+
 app.get('/api/v2/system/snapshot', async (req, res) => {
   const cached = stateStore.get('system');
   if (cached) {

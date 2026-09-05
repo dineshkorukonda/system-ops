@@ -65,3 +65,13 @@ test('Backup Files Collector - prevents directory traversal', (t) => {
     getBackupFilePath('..\\..\\secret.txt');
   }, /Invalid filename format/);
 });
+
+test('Docker identifier validation - blocks command injection characters', () => {
+  const { isValidContainerId } = require('../src/collectors/docker');
+  assert.strictEqual(isValidContainerId('valid-container_123.prod'), true);
+  assert.strictEqual(isValidContainerId('abc123def456'), true);
+  assert.strictEqual(isValidContainerId('container; rm -rf /'), false);
+  assert.strictEqual(isValidContainerId('foo && echo bar'), false);
+  assert.strictEqual(isValidContainerId('`whoami`'), false);
+  assert.strictEqual(isValidContainerId('$(id)'), false);
+});

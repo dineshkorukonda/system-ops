@@ -6,6 +6,9 @@ export function Sidebar({
   activeTab,
   setActiveTab,
   hostData,
+  capabilities,
+  dockerData,
+  pm2Count,
   servicesCount,
   ollamaStatus,
   backupStatus,
@@ -13,6 +16,47 @@ export function Sidebar({
   isOpen,
   onClose,
 }) {
+  // Build dynamic runtime items based on server capabilities
+  const runtimeItems = [];
+
+  // 1. Docker (only if available)
+  if (capabilities?.docker?.available) {
+    runtimeItems.push({
+      id: 'docker',
+      label: 'Docker Containers',
+      tag: dockerData?.running !== undefined ? `${dockerData.running} RUN` : 'DOCKER',
+      tagVariant: dockerData?.running > 0 ? 'ok' : 'neutral',
+    });
+  }
+
+  // 2. PM2 (only if available / detected)
+  if (capabilities?.pm2?.available) {
+    runtimeItems.push({
+      id: 'pm2',
+      label: 'PM2 Fleet',
+      tag: pm2Count !== undefined ? `${pm2Count} APPS` : 'PM2',
+      tagVariant: pm2Count > 0 ? 'ok' : 'neutral',
+    });
+  }
+
+  // 3. Systemd Services (always host supervisor)
+  runtimeItems.push({
+    id: 'services',
+    label: 'Systemd Services',
+    tag: servicesCount !== undefined ? `${servicesCount} UP` : 'SYSTEMD',
+    tagVariant: 'ok',
+  });
+
+  // 4. Ollama AI (only if installed on host)
+  if (capabilities?.ollama?.available) {
+    runtimeItems.push({
+      id: 'ollama',
+      label: 'Ollama AI',
+      tag: ollamaStatus || 'OLLAMA',
+      tagVariant: ollamaStatus === 'ACTIVE' || ollamaStatus === 'ONLINE' ? 'ok' : 'err',
+    });
+  }
+
   const sections = [
     {
       title: 'OVERVIEW & CORE',
@@ -32,21 +76,8 @@ export function Sidebar({
       ],
     },
     {
-      title: 'SERVICES & RUNTIMES',
-      items: [
-        {
-          id: 'services',
-          label: 'Systemd Services',
-          tag: servicesCount !== undefined ? `${servicesCount} UP` : 'SYSTEMD',
-          tagVariant: 'ok',
-        },
-        {
-          id: 'ollama',
-          label: 'Ollama AI',
-          tag: ollamaStatus || 'OLLAMA',
-          tagVariant: ollamaStatus === 'ACTIVE' || ollamaStatus === 'ONLINE' ? 'ok' : 'err',
-        },
-      ],
+      title: 'CONTAINERS & RUNTIMES',
+      items: runtimeItems,
     },
     {
       title: 'STORAGE & TRAFFIC',
