@@ -5,7 +5,6 @@ import { Button } from './ui/Button';
 
 export function ServicesView({ servicesData, onRefresh }) {
   const services = servicesData?.services || [];
-  const pm2Users = servicesData?.pm2Fleet?.users || [];
 
   const [selectedUnit, setSelectedUnit] = useState(null); // string (e.g., 'nginx')
   const [logLines, setLogLines] = useState('100');
@@ -14,10 +13,10 @@ export function ServicesView({ servicesData, onRefresh }) {
   const [logFilter, setLogFilter] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
 
-  // PM2 Log Viewer state
-  const [selectedPm2App, setSelectedPm2App] = useState(null); // { user, app }
-  const [pm2Logs, setPm2Logs] = useState('');
-  const [isLoadingPm2Logs, setIsLoadingPm2Logs] = useState(false);
+  // Count failed units
+  const failedUnits = services.filter(
+    (s) => s.activeState === 'failed' || s.subState === 'failed'
+  );
 
   // Select first service by default
   useEffect(() => {
@@ -52,27 +51,6 @@ export function ServicesView({ servicesData, onRefresh }) {
     }
   };
 
-  // Fetch PM2 Logs
-  const fetchPm2Logs = async (user, appName) => {
-    setSelectedPm2App({ user, app: appName });
-    setIsLoadingPm2Logs(true);
-    try {
-      const res = await fetch(
-        `/api/v2/pm2/logs?user=${encodeURIComponent(user)}&app=${encodeURIComponent(appName)}&lines=100`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setPm2Logs(data.output || data.logs || data.error || 'No PM2 log lines returned.');
-      } else {
-        setPm2Logs(`Failed to fetch PM2 logs (HTTP ${res.status})`);
-      }
-    } catch (err) {
-      setPm2Logs(`Error loading PM2 logs: ${err.message}`);
-    } finally {
-      setIsLoadingPm2Logs(false);
-    }
-  };
-
   const handleCopyLogs = (text) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
@@ -84,44 +62,44 @@ export function ServicesView({ servicesData, onRefresh }) {
     .split('\n')
     .filter((line) => !logFilter || line.toLowerCase().includes(logFilter.toLowerCase()));
 
-  // Count total PM2 processes
-  let totalPm2Processes = 0;
-  pm2Users.forEach(u => {
-    totalPm2Processes += (u.processes || []).length;
-  });
-
   return (
     <div className="space-y-6">
       {/* ─── Top Telemetry Summary Cards ─── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono">
         <Card>
-          <CardContent className="p-4 space-y-1 font-mono">
+          <CardContent className="p-4 space-y-1">
             <div className="flex justify-between items-center text-xs text-neutral-400">
               <span>SYSTEMD UNITS</span>
               <Badge variant="ok">PID 1</Badge>
             </div>
             <div className="text-2xl font-bold text-emerald-400">
-              {servicesData?.activeCount || 0} <span className="text-xs text-neutral-500 font-normal">of {services.length} active</span>
+              {servicesData?.activeCount || 0}{' '}
+              <span className="text-xs text-neutral-500 font-normal">
+                of {services.length} active
+              </span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4 space-y-1 font-mono">
+          <CardContent className="p-4 space-y-1">
             <div className="flex justify-between items-center text-xs text-neutral-400">
-              <span>PM2 APPS DETECTED</span>
-              <Badge variant={totalPm2Processes > 0 ? 'ok' : 'neutral'}>
-                {totalPm2Processes > 0 ? 'ACTIVE' : 'IDLE / NONE'}
+              <span>UNIT HEALTH</span>
+              <Badge variant={failedUnits.length > 0 ? 'err' : 'ok'}>
+                {failedUnits.length > 0 ? `${failedUnits.length} FAILED` : 'HEALTHY'}
               </Badge>
             </div>
             <div className="text-2xl font-bold text-white">
-              {totalPm2Processes} <span className="text-xs text-neutral-500 font-normal">processes ({pm2Users.map(u => `${u.user}:${(u.processes || []).length}`).join(', ') || 'root,deploy'})</span>
+              {failedUnits.length === 0 ? '0' : failedUnits.length}{' '}
+              <span className="text-xs text-neutral-500 font-normal">
+                {failedUnits.length === 0 ? 'all units active' : 'units degraded'}
+              </span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4 space-y-1 font-mono">
+          <CardContent className="p-4 space-y-1">
             <div className="flex justify-between items-center text-xs text-neutral-400">
               <span>SERVICES MEMORY</span>
               <Badge variant="blue">RSS</Badge>
@@ -133,128 +111,6 @@ export function ServicesView({ servicesData, onRefresh }) {
         </Card>
       </div>
 
-      {/* ─── PM2 Fleet Section ─── */}
-      <Card>
-        <CardHeader className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CardTitle>PM2 Fleet Auto-Discovered ({totalPm2Processes} active)</CardTitle>
-            <Badge variant={totalPm2Processes > 0 ? 'ok' : 'neutral'}>NODE DAEMONS</Badge>
-          </div>
-          <Button variant="secondary" size="sm" onClick={onRefresh} className="font-mono text-[11px]">
-            SCAN / REFRESH
-          </Button>
-        </CardHeader>
-        <CardContent className="p-0">
-          {pm2Users.length === 0 || totalPm2Processes === 0 ? (
-            <div className="p-5 font-mono text-xs text-neutral-400 space-y-2">
-              <div className="text-white font-semibold flex items-center gap-2">
-                <span>Scanned users: {pm2Users.map(u => u.user).join(', ') || 'deploy, root'}</span>
-                <Badge variant="neutral">0 ONLINE</Badge>
-              </div>
-              {pm2Users.map(u => u.error && (
-                <div key={u.user} className="text-rose-400 bg-rose-950/30 border border-rose-900/50 p-2 rounded text-[11px]">
-                  <strong>[{u.user}]</strong> {u.error}
-                </div>
-              ))}
-              <div className="text-neutral-500 text-[11px]">
-                Tip: If your PM2 binary was installed via custom NVM or Volta, add <code className="text-neutral-300">PM2_PATH=$(which pm2)</code> to <code className="text-neutral-300">/opt/system-ops/.env</code> and click Scan.
-              </div>
-            </div>
-          ) : (
-            <div className="divide-y divide-[#1f1f1f]">
-              {pm2Users.map((userGroup) => (
-                <div key={userGroup.user} className="p-4 space-y-3">
-                  <div className="flex items-center justify-between text-xs font-mono">
-                    <div className="flex items-center gap-2">
-                      <span className="text-neutral-300 font-bold uppercase">USER: {userGroup.user}</span>
-                      <span className="text-neutral-500">({userGroup.processes?.length || 0} apps)</span>
-                    </div>
-                    {userGroup.error ? (
-                      <span className="text-rose-400 text-[10px]">{userGroup.error}</span>
-                    ) : (
-                      <span className="text-neutral-500 text-[10px]">{userGroup.pm2Path || 'pm2'}</span>
-                    )}
-                  </div>
-                  {userGroup.processes && userGroup.processes.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left font-mono text-xs">
-                        <thead>
-                          <tr className="border-b border-[#222222] text-neutral-500 text-[11px]">
-                            <th className="pb-2">APP</th>
-                            <th className="pb-2">STATUS</th>
-                            <th className="pb-2">PID</th>
-                            <th className="pb-2">CPU</th>
-                            <th className="pb-2">MEM</th>
-                            <th className="pb-2">RESTARTS</th>
-                            <th className="pb-2">UPTIME</th>
-                            <th className="pb-2 text-right">ACTION</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#141414]">
-                          {userGroup.processes.map((app, idx) => (
-                            <tr key={`${userGroup.user}-${app.pm_id ?? idx}-${app.name}`} className="hover:bg-[#0d0d0d]">
-                              <td className="py-2.5 font-medium text-white">
-                                {app.name} {app.pm_id !== null && <span className="text-[10px] text-neutral-500 font-normal">#{app.pm_id}</span>}
-                              </td>
-                              <td className="py-2.5">
-                                <Badge variant={app.status === 'online' ? 'ok' : 'err'} className="text-[9px]">
-                                  {(app.status || 'UNKNOWN').toUpperCase()}
-                                </Badge>
-                              </td>
-                              <td className="py-2.5 text-neutral-400">{app.pid || '--'}</td>
-                              <td className="py-2.5 text-neutral-300">{app.cpu || 0}%</td>
-                              <td className="py-2.5 text-neutral-300">{app.memoryFormatted || app.memory || '--'}</td>
-                              <td className="py-2.5 text-neutral-400">{app.restart_time || 0}</td>
-                              <td className="py-2.5 text-neutral-400">{app.uptimeText || app.uptime || '--'}</td>
-                              <td className="py-2.5 text-right">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-6 text-[10px] px-2 font-mono"
-                                  onClick={() => fetchPm2Logs(userGroup.user, app.name)}
-                                >
-                                  LOGS
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="text-neutral-500 text-[11px] font-mono">
-                      No PM2 processes running under user '{userGroup.user}'.
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* PM2 Modal / Inline Log Box */}
-          {selectedPm2App && (
-            <div className="border-t border-[#1f1f1f] bg-[#020202] p-4 font-mono text-[11px]">
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#141414]">
-                <span className="text-emerald-400 font-bold">
-                  PM2 LOGS: {selectedPm2App.user} / {selectedPm2App.app}
-                </span>
-                <div className="flex gap-2">
-                  <Button variant="secondary" size="sm" onClick={() => handleCopyLogs(pm2Logs)} className="h-6 text-[10px]">
-                    COPY
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => setSelectedPm2App(null)} className="h-6 text-[10px]">
-                    CLOSE
-                  </Button>
-                </div>
-              </div>
-              <div className="max-h-60 overflow-y-auto text-neutral-300 whitespace-pre-wrap select-text">
-                {isLoadingPm2Logs ? 'Tailing PM2 application logs...' : pm2Logs}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* ─── Main Grid: Services Fleet & Live Journal Terminal ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-[calc(100vh-260px)]">
         {/* Left Column: Services Fleet List (5 cols) */}
@@ -262,11 +118,16 @@ export function ServicesView({ servicesData, onRefresh }) {
           <Card className="h-full flex flex-col">
             <CardHeader className="flex items-center justify-between">
               <CardTitle>Systemd Services ({services.length})</CardTitle>
-              <Button variant="secondary" size="sm" onClick={onRefresh} className="font-mono text-[11px]">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onRefresh}
+                className="font-mono text-[11px]"
+              >
                 REFRESH
               </Button>
             </CardHeader>
-            <div className="divide-y divide-[#141414] max-h-[540px] overflow-y-auto font-mono text-xs flex-1">
+            <div className="divide-y divide-[#141414] max-h-[560px] overflow-y-auto font-mono text-xs flex-1">
               {services.length === 0 ? (
                 <div className="p-4 text-center text-neutral-500 font-sans">
                   No systemd services detected or configured.
@@ -291,7 +152,16 @@ export function ServicesView({ servicesData, onRefresh }) {
                         </div>
                       </div>
                       <div className="text-right space-y-1 shrink-0">
-                        <Badge variant={s.active ? 'ok' : s.activeState === 'failed' ? 'err' : 'neutral'} className="text-[9px]">
+                        <Badge
+                          variant={
+                            s.active
+                              ? 'ok'
+                              : s.activeState === 'failed'
+                              ? 'err'
+                              : 'neutral'
+                          }
+                          className="text-[9px]"
+                        >
                           {(s.activeState || 'UNKNOWN').toUpperCase()}
                         </Badge>
                         <div className="text-[10px] text-neutral-400">
@@ -308,7 +178,7 @@ export function ServicesView({ servicesData, onRefresh }) {
 
         {/* Right Column: Live Journal Logs (7 cols) */}
         <div className="lg:col-span-7">
-          <Card className="h-full flex flex-col min-h-[540px]">
+          <Card className="h-full flex flex-col min-h-[560px]">
             <CardHeader className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <CardTitle>
@@ -336,10 +206,21 @@ export function ServicesView({ servicesData, onRefresh }) {
                   onChange={(e) => setLogFilter(e.target.value)}
                   className="h-7 rounded border border-[#262626] bg-[#0d0d0d] px-2 font-mono text-[11px] text-white placeholder-neutral-500 outline-none w-32 theme-input"
                 />
-                <Button variant="secondary" size="sm" onClick={() => handleCopyLogs(unitLogs)} className="font-mono text-[11px] h-7">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleCopyLogs(unitLogs)}
+                  className="font-mono text-[11px] h-7"
+                >
                   {copySuccess ? 'COPIED' : 'COPY'}
                 </Button>
-                <Button variant="outline" size="sm" onClick={fetchUnitLogs} disabled={isLoadingLogs} className="font-mono text-[11px] h-7">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchUnitLogs}
+                  disabled={isLoadingLogs}
+                  className="font-mono text-[11px] h-7"
+                >
                   {isLoadingLogs ? '...' : 'TAIL'}
                 </Button>
               </div>
@@ -357,7 +238,11 @@ export function ServicesView({ servicesData, onRefresh }) {
                     <div
                       key={idx}
                       className={`py-0.5 whitespace-pre-wrap break-all ${
-                        isErr ? 'text-rose-400 font-semibold' : isWarn ? 'text-amber-400' : 'text-neutral-300'
+                        isErr
+                          ? 'text-rose-400 font-semibold'
+                          : isWarn
+                          ? 'text-amber-400'
+                          : 'text-neutral-300'
                       }`}
                     >
                       {line}
