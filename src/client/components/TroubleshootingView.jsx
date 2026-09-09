@@ -8,6 +8,7 @@ export function TroubleshootingView({ capabilities }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [diagResults, setDiagResults] = useState(null);
+  const [memoryBreakdown, setMemoryBreakdown] = useState(null);
   const [isDiagnosing, setIsDiagnosing] = useState(false);
 
   const handleCopy = (text, index) => {
@@ -117,6 +118,36 @@ export function TroubleshootingView({ capabilities }) {
         ok: false,
         message: e.message,
         fix: 'Verify BACKUPS_DIR in /opt/system-ops/.env',
+      });
+    }
+
+    // 6. Ops memory breakdown (Node + Go collector)
+    try {
+      const res = await fetch('/api/v2/ops/diagnostics');
+      const data = res.ok ? await res.json() : null;
+      setMemoryBreakdown(data?.memoryBreakdown || null);
+
+      const go = data?.memoryBreakdown?.goCollector;
+      const node = data?.memoryBreakdown?.node;
+      const combined = data?.memoryBreakdown?.combinedRssFormatted || 'N/A';
+
+      results.push({
+        title: 'Go Collector Sidecar',
+        ok: res.ok && go?.available === true,
+        message: res.ok
+          ? go?.available
+            ? `Active — Go RSS ${go.rssFormatted}, Node RSS ${node?.rssFormatted || 'N/A'}, combined ${combined}`
+            : `Unavailable${go?.lastError ? `: ${go.lastError}` : ''} — using Node collectors`
+          : `Diagnostics request failed (${res.status})`,
+        fix: 'Build and start collector: bash scripts/build-go-collector.sh && sudo systemctl enable --now system-ops-collector.service',
+      });
+    } catch (e) {
+      setMemoryBreakdown(null);
+      results.push({
+        title: 'Go Collector Sidecar',
+        ok: false,
+        message: e.message,
+        fix: 'Check GO_COLLECTOR_URL in .env and system-ops-collector.service status',
       });
     }
 
@@ -327,6 +358,51 @@ export function TroubleshootingView({ capabilities }) {
           <p className="text-xs text-[var(--text-secondary)]">
             Interactive guide to resolve permissions, PM2 discovery, systemd sandboxing, and telemetry issues. Run the live audit to automatically verify all core dashboard components.
           </p>
+
+          {memoryBreakdown && (
+            <div className="border border-[var(--border)] bg-[var(--surface-muted)] p-3 rounded font-mono text-xs space-y-3">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] pb-1 border-b border-[var(--border)] flex justify-between">
+                <span>MEMORY BREAKDOWN</span>
+                <Badge variant={memoryBreakdown.activeCollector === 'hybrid' ? 'ok' : 'neutral'}>
+                  {memoryBreakdown.activeCollector}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div className="p-2.5 rounded border border-[var(--border)] bg-black/20">
+                  <div className="text-[10px] uppercase text-[var(--text-muted)] mb-1">Node API</div>
+                  <div className="text-sm font-semibold text-neutral-200">{memoryBreakdown.node?.rssFormatted || 'N/A'}</div>
+                  <div className="text-[10px] text-[var(--text-secondary)] mt-1">
+                    heap {memoryBreakdown.node?.heapUsedFormatted || 'N/A'} · external {memoryBreakdown.node?.externalFormatted || 'N/A'}
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded border border-[var(--border)] bg-black/20">
+                  <div className="text-[10px] uppercase text-[var(--text-muted)] mb-1">Go Collector</div>
+                  <div className="text-sm font-semibold text-neutral-200">
+                    {memoryBreakdown.goCollector?.available
+                      ? memoryBreakdown.goCollector.rssFormatted
+                      : 'offline'}
+                  </div>
+                  <div className="text-[10px] text-[var(--text-secondary)] mt-1">
+                    {memoryBreakdown.goCollector?.available
+                      ? `alloc ${memoryBreakdown.goCollector.allocFormatted} · sys ${memoryBreakdown.goCollector.sysFormatted}`
+                      : memoryBreakdown.goCollector?.lastError || 'Node fallback active'}
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded border border-emerald-950 bg-emerald-950/10">
+                  <div className="text-[10px] uppercase text-[var(--text-muted)] mb-1">Combined RSS</div>
+                  <div className="text-sm font-semibold text-emerald-300">
+                    {memoryBreakdown.combinedRssFormatted || 'N/A'}
+                  </div>
+                  <div className="text-[10px] text-[var(--text-secondary)] mt-1">
+                    uptime node {memoryBreakdown.node?.uptimeSeconds || 0}s · go {memoryBreakdown.goCollector?.uptimeSeconds || 0}s
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Diagnostic Results Box */}
           {diagResults && (
