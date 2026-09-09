@@ -18,20 +18,74 @@ async function getUfwStatus() {
   return parseUfwOutput(status.stdout);
 }
 
+function parseUfwRuleLine(line) {
+  const trimmed = (line || '').trim();
+  const match = trimmed.match(
+    /^(\S+(?:\s+\([^)]+\))?)\s+(ALLOW|DENY|REJECT)\s+IN\s+(\S+(?:\s+\([^)]+\))?)(?:\s+#\s*(.+))?$/i
+  );
+  if (!match) return { raw: trimmed };
+
+  const portRaw = match[1].trim();
+  const isV6 = /\(v6\)/i.test(portRaw) || /\(v6\)/i.test(match[3]);
+  const portSpec = portRaw.replace(/\s*\(v6\)/i, '').replace(/\(([^)]+)\)/, '').trim() || portRaw.split(/\s+/)[0];
+  const serviceMatch = portRaw.match(/\(([^)]+)\)/);
+  const serviceName = serviceMatch && !/v6/i.test(serviceMatch[1]) ? serviceMatch[1] : null;
+  const comment = match[4]?.trim();
+  let label = comment || serviceName || guessPortLabel(portSpec);
+  if (isV6 && !/ipv6/i.test(label)) label = `${label} (IPv6)`;
+
+  return {
+    raw: trimmed,
+    port: portRaw.replace(/\s+/g, ' '),
+    action: match[2].toUpperCase(),
+    from: match[3].trim(),
+    label,
+    allowed: match[2].toUpperCase() === 'ALLOW',
+    ipv6: isV6,
+  };
+}
+
+function guessPortLabel(portSpec) {
+  const port = String(portSpec).split('/')[0];
+  const map = {
+    '22': 'SSH (remote login)',
+    '80': 'Website HTTP',
+    '443': 'Website HTTPS',
+    '9090': 'VersionGate API',
+  };
+  return map[port] || 'Custom service';
+}
+
 function parseUfwOutput(stdout) {
   const lines = (stdout || '').split('\n');
   const statusLine = lines.find((l) => /Status:/i.test(l)) || '';
   const active = /Status:\s*active/i.test(statusLine);
   const defaultIncoming = lines.find((l) => /Default:/i.test(l) && /incoming/i.test(l)) || null;
+  const defaultOutgoing = lines.find((l) => /Default:/i.test(l) && /outgoing/i.test(l)) || null;
 
-  const rules = lines.filter((l) => /ALLOW|DENY|REJECT/i.test(l) && !/Default:/i.test(l));
+  const ruleLines = lines.filter((l) => /ALLOW|DENY|REJECT/i.test(l) && !/Default:/i.test(l));
+  const parsedRules = ruleLines.map(parseUfwRuleLine);
+  const allowRules = parsedRules.filter((r) => r.allowed);
+
+  let incomingPolicy = 'unknown';
+  if (defaultIncoming) {
+    if (/deny/i.test(defaultIncoming)) incomingPolicy = 'block-by-default';
+    else if (/allow/i.test(defaultIncoming)) incomingPolicy = 'allow-by-default';
+  }
 
   return {
     available: true,
     active,
     defaultPolicy: defaultIncoming ? defaultIncoming.replace(/^\s*/, '') : null,
-    ruleCount: rules.length,
-    rules: rules.slice(0, 12).map((l) => l.trim()),
+    incomingPolicy,
+    outgoingPolicy: defaultOutgoing ? defaultOutgoing.replace(/^\s*/, '') : null,
+    ruleCount: ruleLines.length,
+    allowCount: allowRules.length,
+    rules: ruleLines.slice(0, 20).map((l) => l.trim()),
+    parsedRules: parsedRules.slice(0, 20),
+    summary: active
+      ? `Firewall is ON. ${allowRules.length} port(s) open to the internet; everything else incoming is blocked.`
+      : 'Firewall is installed but turned off — your server is not filtering incoming connections.',
   };
 }
 
@@ -58,20 +112,38 @@ async function getFail2banStatus() {
 
     const bannedMatch = jailStatus.stdout.match(/Currently banned:\s*(\d+)/i);
     const failedMatch = jailStatus.stdout.match(/Currently failed:\s*(\d+)/i);
+    const totalBannedMatch = jailStatus.stdout.match(/Total banned:\s*(\d+)/i);
+    const ipListMatch = jailStatus.stdout.match(/Banned IP list:\s*(.+)/i);
+    const bannedIps = ipListMatch
+      ? ipListMatch[1].trim().split(/\s+/).filter((ip) => /^\d/.test(ip))
+      : [];
+
     jails.push({
       name: jail,
+      label: jail === 'sshd' ? 'SSH login attacks' : jail,
       currentlyBanned: bannedMatch ? parseInt(bannedMatch[1], 10) : 0,
       currentlyFailed: failedMatch ? parseInt(failedMatch[1], 10) : 0,
+      totalBanned: totalBannedMatch ? parseInt(totalBannedMatch[1], 10) : 0,
+      bannedIps: bannedIps.slice(0, 20),
     });
   }
 
   const totalBanned = jails.reduce((sum, j) => sum + j.currentlyBanned, 0);
+  const totalFailed = jails.reduce((sum, j) => sum + j.currentlyFailed, 0);
+  const allBannedIps = jails.flatMap((j) => j.bannedIps || []);
 
   return {
     available: true,
     active: jailNames.length > 0,
     jailCount: jailNames.length,
     totalBanned,
+    totalFailed,
+    bannedIps: allBannedIps.slice(0, 30),
+    summary: totalBanned > 0
+      ? `Blocking ${totalBanned} suspicious IP address${totalBanned === 1 ? '' : 'es'} right now (failed login / brute-force attempts).`
+      : jailNames.length > 0
+        ? 'Attack blocker is running. No IPs are blocked right now — that is normal when nobody is attacking.'
+        : 'Attack blocker not installed.',
     jails,
   };
 }
@@ -91,4 +163,6 @@ module.exports = {
   getSecuritySnapshot,
   getUfwStatus,
   getFail2banStatus,
+  parseUfwOutput,
+  parseUfwRuleLine,
 };
