@@ -64,7 +64,7 @@ export function Header({
         <option value={0}>Off</option>
       </Select>
 
-      <Button variant="outline" size="sm" onClick={onSync} disabled={isSyncing}>
+      <Button variant="default" size="sm" onClick={onSync} disabled={isSyncing}>
         {isSyncing ? '…' : 'Refresh'}
       </Button>
 

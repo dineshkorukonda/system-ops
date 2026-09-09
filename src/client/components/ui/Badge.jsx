@@ -8,10 +8,12 @@ export function Badge({ variant = 'default', className, children, ...props }) {
     outline: 'text-foreground border-border',
     muted: 'border-transparent bg-muted text-muted-foreground',
     neutral: 'border-transparent bg-muted text-muted-foreground',
-    ok: 'border-transparent bg-secondary text-secondary-foreground',
-    warn: 'border border-border text-foreground',
-    err: 'border border-foreground text-foreground',
-    blue: 'border-transparent bg-muted text-foreground',
+    ok: 'border-transparent bg-success/10 text-success',
+    warn: 'border-transparent bg-warning/10 text-warning',
+    err: 'border-transparent bg-destructive/10 text-destructive',
+    blue: 'border-transparent bg-info/10 text-info',
+    success: 'border-transparent bg-success/10 text-success',
+    danger: 'border-transparent bg-destructive/10 text-destructive',
   };
 
   return (

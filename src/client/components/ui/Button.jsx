@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '../../lib/utils';
 
 const variants = {
-  default: 'bg-primary text-primary-foreground hover:opacity-90 shadow-sm',
+  default: 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm',
   secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
   outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
   ghost: 'hover:bg-accent hover:text-accent-foreground',
