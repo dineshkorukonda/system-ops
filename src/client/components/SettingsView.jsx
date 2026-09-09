@@ -293,7 +293,7 @@ export function SettingsView({ onBrandingChange }) {
                 disabled={updateStatus?.running}
                 className="font-mono text-[11px]"
               >
-                {updateStatus?.running ? 'UPDATING...' : 'UPDATE NOW'}
+                {updateStatus?.running ? 'UPDATING...' : versionInfo?.updateAvailable ? 'UPDATE NOW' : 'REINSTALL / SYNC'}
               </Button>
             )}
           </div>
@@ -341,8 +341,13 @@ export function SettingsView({ onBrandingChange }) {
             <CardContent className="space-y-4 font-mono text-xs">
               <p className="text-neutral-400 leading-relaxed">
                 This will pull the latest code, rebuild the frontend, and restart the service.
-                The dashboard will be briefly unavailable.
+                The dashboard will be offline for 30–60 seconds. Do not refresh the page — wait for the log to finish.
               </p>
+              {!versionInfo?.updateAvailable && (
+                <p className="text-amber-400/90 text-[11px]">
+                  You are already up to date. Only use this to force a re-sync/rebuild.
+                </p>
+              )}
               <div className="space-y-1.5">
                 <label className="text-neutral-400 block">Re-enter password to confirm</label>
                 <input

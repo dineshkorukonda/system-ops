@@ -1,7 +1,6 @@
 [Unit]
 Description=System Ops Dashboard (Subdomain Ops Mini-Site)
-After=network.target ollama.service
-Wants=ollama.service
+After=network.target
 
 [Service]
 Type=simple

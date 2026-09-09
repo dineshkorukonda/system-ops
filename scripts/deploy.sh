@@ -4,11 +4,10 @@
 # Run with sudo: sudo bash scripts/deploy.sh
 #
 
-set -e
-
 INSTALL_DIR="/opt/system-ops"
 OPS_USER="ops"
 DEPLOY_USER="deploy"
+DEPLOY_FAILED=0
 
 echo "========================================================"
 echo "  Updating System Ops Mini-Site (v2)                    "
@@ -32,13 +31,23 @@ if [ -d "$INSTALL_DIR" ]; then
   fi
 
   echo "[2/5] Installing dependencies (including Vite build tools)..."
-  npm ci
+  if ! npm ci; then
+    echo "ERROR: npm ci failed"
+    DEPLOY_FAILED=1
+  fi
 
-  echo "[3/5] Building production frontend..."
-  npm run build
+  if [ "$DEPLOY_FAILED" -eq 0 ]; then
+    echo "[3/5] Building production frontend..."
+    if ! npm run build; then
+      echo "ERROR: npm run build failed"
+      DEPLOY_FAILED=1
+    fi
+  fi
 
-  echo "[4/5] Pruning dev dependencies..."
-  npm prune --omit=dev
+  if [ "$DEPLOY_FAILED" -eq 0 ]; then
+    echo "[4/5] Pruning dev dependencies..."
+    npm prune --omit=dev || true
+  fi
 fi
 
 echo "[5/5] Setting file permissions & restarting service..."
@@ -58,10 +67,36 @@ if [ -f "$INSTALL_DIR/systemd/system-ops.service" ]; then
 fi
 
 systemctl daemon-reload
-systemctl restart system-ops.service
+
+if [ "$DEPLOY_FAILED" -eq 1 ]; then
+  echo "WARNING: Build failed — restarting service with previous build..."
+fi
+
+systemctl restart system-ops.service || systemctl start system-ops.service
+
+# Wait for health check (up to 30s)
+echo "Waiting for service to become healthy..."
+HEALTH_OK=0
+for i in $(seq 1 15); do
+  if curl -sf http://127.0.0.1:9080/health >/dev/null 2>&1; then
+    HEALTH_OK=1
+    break
+  fi
+  sleep 2
+done
 
 echo "========================================================"
-echo "  Deployment Complete!"
-echo "  - Service Status: sudo systemctl status system-ops"
-echo "  - Docker Check:   sudo bash scripts/debug-docker.sh"
+if [ "$DEPLOY_FAILED" -eq 1 ]; then
+  echo "  Deployment FAILED (build step)"
+  echo "  Service was restarted with existing files."
+  echo "  Check: sudo journalctl -u system-ops.service -n 50"
+  exit 1
+elif [ "$HEALTH_OK" -eq 0 ]; then
+  echo "  Deployment finished but health check FAILED"
+  echo "  Run: sudo journalctl -u system-ops.service -n 50"
+  exit 1
+else
+  echo "  Deployment Complete!"
+  echo "  - Service Status: sudo systemctl status system-ops"
+fi
 echo "========================================================"
