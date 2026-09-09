@@ -1,6 +1,21 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
 
+const variants = {
+  default: 'bg-primary text-primary-foreground hover:opacity-90 shadow-sm',
+  secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+  outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
+  ghost: 'hover:bg-accent hover:text-accent-foreground',
+  destructive: 'bg-destructive text-destructive-foreground hover:opacity-90',
+};
+
+const sizes = {
+  default: 'h-9 px-4 py-2 text-sm',
+  sm: 'h-8 rounded-md px-3 text-xs',
+  lg: 'h-10 rounded-md px-8',
+  icon: 'h-9 w-9',
+};
+
 export function Button({
   variant = 'default',
   size = 'default',
@@ -9,32 +24,16 @@ export function Button({
   children,
   ...props
 }) {
-  const baseStyles =
-    'inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer';
-
-  const variants = {
-    default:
-      'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] shadow-sm',
-    secondary:
-      'bg-[var(--surface-raised)] text-[var(--text-primary)] border border-[var(--border)] hover:bg-[var(--surface-muted)]',
-    outline:
-      'border border-[var(--border-subtle)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]',
-    ghost:
-      'bg-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]',
-    danger:
-      'border border-transparent bg-[var(--danger-muted)] text-[var(--danger)] hover:opacity-90',
-  };
-
-  const sizes = {
-    sm: 'h-8 px-3 text-xs',
-    default: 'h-9 px-4 text-sm',
-    lg: 'h-10 px-5 text-sm',
-    icon: 'h-9 w-9',
-  };
-
   return (
     <button
-      className={cn(baseStyles, variants[variant], sizes[size], className)}
+      className={cn(
+        'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        'disabled:pointer-events-none disabled:opacity-50',
+        variants[variant],
+        sizes[size],
+        className
+      )}
       disabled={disabled}
       {...props}
     >

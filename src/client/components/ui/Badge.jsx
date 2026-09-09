@@ -1,21 +1,24 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
 
-export function Badge({ variant = 'neutral', className, children, ...props }) {
-  const variantStyles = {
-    neutral: 'bg-[var(--surface-raised)] text-[var(--text-secondary)] border-[var(--border)]',
-    ok: 'bg-[var(--success-muted)] text-[var(--success)] border-transparent',
-    warn: 'bg-[var(--warning-muted)] text-[var(--warning)] border-transparent',
-    err: 'bg-[var(--danger-muted)] text-[var(--danger)] border-transparent',
-    blue: 'bg-[var(--accent-muted)] text-[var(--accent)] border-transparent',
-    outline: 'border border-[var(--border-subtle)] text-[var(--text-secondary)] bg-transparent',
+export function Badge({ variant = 'default', className, children, ...props }) {
+  const variants = {
+    default: 'border-transparent bg-primary text-primary-foreground',
+    secondary: 'border-transparent bg-secondary text-secondary-foreground',
+    outline: 'text-foreground border-border',
+    muted: 'border-transparent bg-muted text-muted-foreground',
+    neutral: 'border-transparent bg-muted text-muted-foreground',
+    ok: 'border-transparent bg-secondary text-secondary-foreground',
+    warn: 'border border-border text-foreground',
+    err: 'border border-foreground text-foreground',
+    blue: 'border-transparent bg-muted text-foreground',
   };
 
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium border',
-        variantStyles[variant] || variantStyles.neutral,
+        'inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium transition-colors',
+        variants[variant] || variants.default,
         className
       )}
       {...props}

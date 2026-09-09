@@ -3,7 +3,6 @@ package system
 import (
 	"context"
 	"os/exec"
-	"strconv"
 	"strings"
 	"time"
 

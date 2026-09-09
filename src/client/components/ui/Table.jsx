@@ -1,46 +1,52 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
 
-export function Table({ className, children, ...props }) {
+export function Table({ className, ...props }) {
   return (
-    <div className="ops-table-wrap">
-      <table className={cn('ops-table', className)} {...props}>
-        {children}
-      </table>
+    <div className="relative w-full overflow-auto">
+      <table className={cn('w-full caption-bottom text-sm', className)} {...props} />
     </div>
   );
 }
 
-export function TableHead({ children }) {
-  return <thead>{children}</thead>;
+export function TableHeader({ className, ...props }) {
+  return <thead className={cn('[&_tr]:border-b', className)} {...props} />;
 }
 
-export function TableBody({ children }) {
-  return <tbody>{children}</tbody>;
+export function TableBody({ className, ...props }) {
+  return <tbody className={cn('[&_tr:last-child]:border-0', className)} {...props} />;
 }
 
-export function TableRow({ children, className }) {
-  return <tr className={className}>{children}</tr>;
-}
-
-export function TableHeader({ children, className }) {
-  return <th className={className}>{children}</th>;
-}
-
-export function TableCell({ children, className, colSpan }) {
+export function TableRow({ className, ...props }) {
   return (
-    <td className={cn('text-[var(--text-secondary)]', className)} colSpan={colSpan}>
-      {children}
-    </td>
+    <tr
+      className={cn('border-b border-border transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted', className)}
+      {...props}
+    />
+  );
+}
+
+export function TableHead({ className, ...props }) {
+  return (
+    <th
+      className={cn('h-10 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0', className)}
+      {...props}
+    />
+  );
+}
+
+export function TableCell({ className, ...props }) {
+  return (
+    <td className={cn('p-4 align-middle text-foreground [&:has([role=checkbox])]:pr-0', className)} {...props} />
   );
 }
 
 export function TableEmpty({ colSpan, children }) {
   return (
-    <tr>
-      <td colSpan={colSpan} className="ops-empty">
+    <TableRow>
+      <TableCell colSpan={colSpan} className="h-24 text-center text-muted-foreground">
         {children}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
