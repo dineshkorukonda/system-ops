@@ -1,6 +1,15 @@
 const fs = require('fs');
 const { runCommand } = require('../utils/exec');
 
+function pathReadable(filePath) {
+  try {
+    fs.accessSync(filePath, fs.constants.R_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Parse LOG_SOURCES from environment or fallback default.
  * Example format: LOG_SOURCES=pg-backup:/var/backups/postgres/logs/backup.log:200,journal:postgresql:100
@@ -52,7 +61,9 @@ function parseLogSourcesConfig() {
       name,
       type,
       target,
-      defaultLines
+      defaultLines,
+      exists: type === 'file' ? fs.existsSync(target) : true,
+      readable: type === 'file' ? pathReadable(target) : true,
     });
   });
 

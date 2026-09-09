@@ -236,9 +236,11 @@ async function detectBackups() {
     }
 
     const available = dirExists || readableSources > 0;
+    const needsSetup = readableSources === 0 && fileCount === 0;
 
     return {
       available,
+      needsSetup,
       backupDir: backupDir || null,
       dirExists,
       fileCount,
@@ -246,7 +248,7 @@ async function detectBackups() {
       readableSources,
     };
   } catch (err) {
-    return { available: false, dirExists: false, fileCount: 0 };
+    return { available: false, needsSetup: true, dirExists: false, fileCount: 0 };
   }
 }
 
@@ -280,7 +282,14 @@ async function detectDatabases() {
       checkMysql(parseInt(process.env.MYSQL_PORT, 10) || 3306),
     ]);
     const count = [pg, redis, mysql].filter((e) => e.available).length;
-    return { available: count > 0, count, postgresql: pg.available, redis: redis.available, mysql: mysql.available };
+    return {
+      available: count > 0,
+      needsSetup: count === 0,
+      count,
+      postgresql: pg.available,
+      redis: redis.available,
+      mysql: mysql.available,
+    };
   } catch {
     return { available: false, count: 0 };
   }
@@ -289,14 +298,23 @@ async function detectDatabases() {
 async function detectSecurity() {
   try {
     const { getSecuritySnapshot } = require('./security');
-    const snap = await getSecuritySnapshot();
+    const { getCertbotSnapshot } = require('./certbot');
+    const [snap, certbot] = await Promise.all([getSecuritySnapshot(), getCertbotSnapshot()]);
+    const needsSetup = !snap.ufw?.active && !snap.fail2ban?.active && (certbot.certificates || []).length === 0;
+
     return {
-      available: snap.available,
-      ufw: snap.ufw?.available === true,
-      fail2ban: snap.fail2ban?.available === true,
+      available: snap.available || certbot.installed,
+      needsSetup,
+      ufw: { installed: snap.ufw?.available === true, active: snap.ufw?.active === true },
+      fail2ban: { installed: snap.fail2ban?.available === true, active: snap.fail2ban?.active === true },
+      certbot: {
+        installed: certbot.installed === true,
+        hasCertificates: (certbot.certificates || []).length > 0,
+        timerActive: certbot.timerActive === true,
+      },
     };
   } catch {
-    return { available: false };
+    return { available: false, needsSetup: true };
   }
 }
 
@@ -312,11 +330,17 @@ async function detectOsUpdates() {
 
 async function detectCertbot() {
   try {
-    const which = await runCommand('which', ['certbot'], 1500);
-    const installed = which.success && !!which.stdout.trim();
-    return { available: installed, installed };
+    const { getCertbotSnapshot } = require('./certbot');
+    const snap = await getCertbotSnapshot();
+    return {
+      available: snap.installed,
+      installed: snap.installed,
+      needsSetup: snap.installed && (snap.certificates || []).length === 0,
+      hasCertificates: (snap.certificates || []).length > 0,
+      timerActive: snap.timerActive === true,
+    };
   } catch {
-    return { available: false, installed: false };
+    return { available: false, installed: false, needsSetup: false };
   }
 }
 

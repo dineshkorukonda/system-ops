@@ -31,6 +31,11 @@ chmod 750 "$INSTALL_DIR"
 
 echo "[2/4] Syncing git to origin/main..."
 su -s /bin/bash "$OPS_USER" -c "cd $INSTALL_DIR && git checkout -- dist/ 2>/dev/null || true"
+STASH_COUNT=$(su -s /bin/bash "$OPS_USER" -c "cd $INSTALL_DIR && git stash list 2>/dev/null | wc -l" | tr -d '[:space:]')
+if [ -n "$STASH_COUNT" ] && [ "$STASH_COUNT" -gt 0 ] 2>/dev/null; then
+  echo "Notice: clearing ${STASH_COUNT} leftover git stash(es)..."
+  su -s /bin/bash "$OPS_USER" -c "cd $INSTALL_DIR && git stash clear" || true
+fi
 su -s /bin/bash "$OPS_USER" -c "cd $INSTALL_DIR && git fetch origin main && git reset --hard origin/main"
 
 echo "[3/4] Running deploy..."

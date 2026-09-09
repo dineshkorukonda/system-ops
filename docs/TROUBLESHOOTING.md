@@ -6,7 +6,15 @@ This guide covers solutions and diagnostic steps for all common configuration an
 
 ## 0. Site down or dashboard update failed
 
-**Symptoms:** `curl http://127.0.0.1:9080/health` fails, `vite: not found`, git pull blocked on `dist/`, or `scripts/deploy.sh: No such file or directory` (wrong directory).
+**Symptoms:** `curl http://127.0.0.1:9080/health` fails, `vite: not found`, git pull blocked on `dist/`, leftover `git stash` entries from failed updates, or `scripts/deploy.sh: No such file or directory` (wrong directory).
+
+**Check for orphaned stashes** (common when `git pull` auto-stashed local `dist/` changes):
+
+```bash
+sudo -u ops bash -c 'cd /opt/system-ops && git stash list'
+# If anything is listed:
+sudo -u ops bash -c 'cd /opt/system-ops && git stash clear'
+```
 
 **One-command recovery** (after pulling latest `recover.sh`):
 
@@ -206,7 +214,8 @@ sudo bash /opt/system-ops/scripts/deploy.sh
 Or step-by-step:
 ```bash
 cd /opt/system-ops
-git pull origin main
+sudo -u ops git fetch origin main
+sudo -u ops git reset --hard origin/main
 npm run build
 sudo cp systemd/system-ops.service /etc/systemd/system/system-ops.service
 sudo systemctl daemon-reload

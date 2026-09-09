@@ -62,8 +62,55 @@ export function BackupsView({
   }
 
   const backupStatus = logTailData?.backupStatus || {};
+  const selectedSourceMeta = sources.find((s) => s.id === selectedSource);
+  const logMissing = selectedSourceMeta?.type === 'file' && selectedSourceMeta?.exists === false;
+  const noSourcesConfigured = sources.length === 0;
+  const needsSetup = noSourcesConfigured || logMissing || (files.length === 0 && sources.every((s) => s.type === 'file' && !s.readable));
 
   return (
+    <div className="space-y-4">
+      <p className="text-xs text-neutral-400 font-mono leading-relaxed">
+        Track backup logs and downloadable dumps. This page stays visible so you can see what is missing and configure it below.
+      </p>
+
+      {needsSetup && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Setup checklist</CardTitle>
+            <Badge variant="warn">ACTION NEEDED</Badge>
+          </CardHeader>
+          <CardContent className="space-y-3 font-mono text-[11px] text-neutral-300">
+            {noSourcesConfigured && (
+              <div className="rounded border border-amber-500/20 bg-amber-500/5 p-3 space-y-2">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400/90">Configure log sources</div>
+                <ol className="list-decimal list-inside space-y-1 leading-relaxed">
+                  <li>Create backup dir: sudo mkdir -p /var/backups/postgres/logs</li>
+                  <li>Add to /opt/system-ops/.env:</li>
+                </ol>
+                <code className="block text-emerald-400/90 text-[10px] break-all">
+                  BACKUPS_DIR=/var/backups/postgres{'\n'}
+                  LOG_SOURCES=pg-backup:file:/var/backups/postgres/logs/backup.log:200
+                </code>
+                <div>Restart: sudo systemctl restart system-ops.service</div>
+              </div>
+            )}
+            {logMissing && selectedSourceMeta && (
+              <div className="rounded border border-amber-500/20 bg-amber-500/5 p-3 space-y-2">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400/90">Log file missing</div>
+                <div className="text-neutral-400">Configured path does not exist yet:</div>
+                <code className="block text-rose-400/90 text-[10px] break-all">{selectedSourceMeta.target}</code>
+                <div>Create it or point LOG_SOURCES at your real backup log, then restart the service.</div>
+              </div>
+            )}
+            {files.length === 0 && !noSourcesConfigured && (
+              <div className="text-neutral-500">
+                No dump files in BACKUPS_DIR yet — run your backup job once, or set BACKUPS_DIR to the folder that holds .sql.gz / .dump files.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-[calc(100vh-140px)]">
       {/* Left Column: Source Selection, Health Heuristics, Dump Downloads (5 cols) */}
       <div className="lg:col-span-5 space-y-4">
@@ -83,7 +130,7 @@ export function BackupsView({
               ) : (
                 sources.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name} ({s.type}: {s.target})
+                    {s.name} ({s.type}: {s.target}){s.exists === false ? ' — MISSING' : ''}
                   </option>
                 ))
               )}
@@ -228,6 +275,7 @@ export function BackupsView({
           </div>
         </Card>
       </div>
+    </div>
     </div>
   );
 }
