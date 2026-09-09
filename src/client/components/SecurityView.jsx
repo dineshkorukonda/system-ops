@@ -34,12 +34,11 @@ function buildOverallSummary(ufw, fail2ban, certbotData, certs) {
   if (!ufw.active && ufw.available) issues.push('firewall is off');
   if (!ufw.available) issues.push('firewall not installed');
   if (!fail2ban.available) issues.push('login attack blocker not installed');
-  if (certbotData?.installed && certs.length === 0) issues.push('SSL tool installed but no website certificates yet');
 
   if (issues.length === 0) {
     return {
       headline: 'Your server security basics look good',
-      detail: 'Firewall and login protection are active. Review the sections below to see what is open and who is blocked.',
+      detail: 'Firewall and login protection are active. Review open ports and blocked IPs below.',
       variant: 'ok',
     };
   }
@@ -147,7 +146,7 @@ export function SecurityView({ securityData, certbotData }) {
               Default rule: block strangers from connecting — only the ports below are open.
             </div>
           )}
-          {parsedRules.length > 0 ? (
+          {parsedRules.filter((r) => r.port).length > 0 ? (
             <Table>
               <TableHead>
                 <TableRow>

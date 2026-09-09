@@ -20,20 +20,28 @@ async function getUfwStatus() {
 
 function parseUfwRuleLine(line) {
   const trimmed = (line || '').trim();
-  const match = trimmed.match(/^(\S+)\s+(ALLOW|DENY|REJECT)\s+IN\s+(\S+)(?:\s+#\s*(.+))?/i);
+  const match = trimmed.match(
+    /^(\S+(?:\s+\([^)]+\))?)\s+(ALLOW|DENY|REJECT)\s+IN\s+(\S+(?:\s+\([^)]+\))?)(?:\s+#\s*(.+))?$/i
+  );
   if (!match) return { raw: trimmed };
 
-  const portSpec = match[1].replace(/\(.*\)/, '').trim();
-  const commentMatch = match[1].match(/\(([^)]+)\)/);
-  const label = match[4]?.trim() || commentMatch?.[1] || guessPortLabel(portSpec);
+  const portRaw = match[1].trim();
+  const isV6 = /\(v6\)/i.test(portRaw) || /\(v6\)/i.test(match[3]);
+  const portSpec = portRaw.replace(/\s*\(v6\)/i, '').replace(/\(([^)]+)\)/, '').trim() || portRaw.split(/\s+/)[0];
+  const serviceMatch = portRaw.match(/\(([^)]+)\)/);
+  const serviceName = serviceMatch && !/v6/i.test(serviceMatch[1]) ? serviceMatch[1] : null;
+  const comment = match[4]?.trim();
+  let label = comment || serviceName || guessPortLabel(portSpec);
+  if (isV6 && !/ipv6/i.test(label)) label = `${label} (IPv6)`;
 
   return {
     raw: trimmed,
-    port: portSpec,
+    port: portRaw.replace(/\s+/g, ' '),
     action: match[2].toUpperCase(),
-    from: match[3],
+    from: match[3].trim(),
     label,
     allowed: match[2].toUpperCase() === 'ALLOW',
+    ipv6: isV6,
   };
 }
 
