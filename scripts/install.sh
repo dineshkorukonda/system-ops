@@ -213,9 +213,19 @@ systemctl daemon-reload
 systemctl enable system-ops.service
 systemctl restart system-ops.service
 
-# 6. Optional 1-Click Custom Domain & SSL Setup
+# 6. Optional Auto-Update Timer
 echo ""
-echo "[6/6] Domain & HTTPS Configuration"
+echo "[6/7] Automatic Updates"
+read -p "  Enable automatic daily updates? [y/N]: " ENABLE_AUTO_UPDATE < "$TTY_INPUT"
+if [[ "$ENABLE_AUTO_UPDATE" =~ ^[Yy] ]]; then
+  bash "$INSTALL_DIR/scripts/setup-auto-update.sh" --enable || {
+    echo "  Notice: Auto-update setup encountered an issue. Re-run: sudo bash /opt/system-ops/scripts/setup-auto-update.sh --enable"
+  }
+fi
+
+# 7. Optional 1-Click Custom Domain & SSL Setup
+echo ""
+echo "[7/7] Domain & HTTPS Configuration"
 read -p "  Do you want to configure a custom domain with free SSL right now? [y/N]: " SETUP_DOMAIN < "$TTY_INPUT"
 
 CONSOLE_URL="http://$(curl -s https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}'):9080"

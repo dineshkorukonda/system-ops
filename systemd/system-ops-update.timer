@@ -1,0 +1,10 @@
+[Unit]
+Description=Run system-ops update daily at 03:00
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+RandomizedDelaySec=1800
+
+[Install]
+WantedBy=timers.target

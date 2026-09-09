@@ -5,6 +5,8 @@ import { Badge } from './ui/Badge';
 export function Sidebar({
   activeTab,
   setActiveTab,
+  siteName = 'system-ops',
+  updateAvailable = false,
   hostData,
   capabilities,
   dockerData,
@@ -100,6 +102,12 @@ export function Sidebar({
       title: 'HELP & SYSTEM',
       items: [
         {
+          id: 'settings',
+          label: 'Settings',
+          tag: updateAvailable ? 'UPDATE' : 'CONFIG',
+          tagVariant: updateAvailable ? 'warn' : 'neutral',
+        },
+        {
           id: 'troubleshooting',
           label: 'Troubleshooting',
           tag: 'DIAG',
@@ -128,8 +136,8 @@ export function Sidebar({
         {/* Brand Header */}
         <div className="flex h-14 items-center justify-between border-b border-[#1f1f1f] px-5 theme-header">
           <div className="flex items-center gap-2.5">
-            <span className="font-mono text-sm font-bold tracking-tight text-white">
-              SYSTEM-OPS
+            <span className="font-mono text-sm font-bold tracking-tight text-white truncate max-w-[140px]">
+              {siteName.toUpperCase()}
             </span>
             <span className="rounded bg-[#141414] px-1.5 py-0.5 font-mono text-[9px] font-semibold text-neutral-400 border border-[#262626]">
               v2.0
