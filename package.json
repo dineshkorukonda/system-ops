@@ -1,6 +1,6 @@
 {
   "name": "system-ops",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Fast, lightweight (<35MB RAM) operations console for single Ubuntu VPS - Ollama, PM2, system health, Postgres backups, and GeoIP traffic analytics",
   "main": "src/server.js",
   "scripts": {

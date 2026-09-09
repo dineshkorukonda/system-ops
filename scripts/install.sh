@@ -188,7 +188,8 @@ TLS_HOSTS=
 NGINX_LOG_PATH=/var/log/nginx/access.log
 TRACKED_DOMAINS=
 
-BACKUPS_DIR=/var/backups
+# Set BACKUPS_DIR when PostgreSQL dumps are stored (e.g. /var/backups/postgres)
+BACKUPS_DIR=
 LOG_SOURCES=
 
 OLLAMA_URL=http://127.0.0.1:11434

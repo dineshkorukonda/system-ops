@@ -36,8 +36,6 @@ run_as_ops() {
 sync_git_to_main() {
   echo "Syncing repository to origin/main..."
 
-  run_as_ops "git checkout -- dist/ 2>/dev/null || true"
-
   local stash_count
   stash_count=$(su -s /bin/bash "$OPS_USER" -c "cd $INSTALL_DIR && git stash list 2>/dev/null | wc -l" | tr -d '[:space:]')
   if [ -n "$stash_count" ] && [ "$stash_count" -gt 0 ] 2>/dev/null; then

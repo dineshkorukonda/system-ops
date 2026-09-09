@@ -1,6 +1,8 @@
 node_modules/
 .env
+.env.docker
 *.log
 .DS_Store
 data/
+dist/
 go-collector/bin/

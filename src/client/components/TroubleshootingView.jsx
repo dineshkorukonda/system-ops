@@ -198,7 +198,7 @@ export function TroubleshootingView({ capabilities }) {
       commands: [
         {
           label: "Create /etc/sudoers.d/system-ops",
-          cmd: "sudo tee /etc/sudoers.d/system-ops > /dev/null << 'EOF'\nops ALL=(ALL:ALL) NOPASSWD: ALL\nEOF\nsudo chmod 0440 /etc/sudoers.d/system-ops",
+          cmd: "sudo cp /opt/system-ops/sudoers/system-ops-sudoers /etc/sudoers.d/system-ops\nsudo chmod 0440 /etc/sudoers.d/system-ops\nsudo visudo -c",
         },
       ],
     },

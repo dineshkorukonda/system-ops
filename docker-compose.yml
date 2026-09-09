@@ -9,49 +9,42 @@ services:
     container_name: system-ops
     restart: unless-stopped
     ports:
-      # Bind to loopback interface on host (recommended for reverse proxy setup)
       - "127.0.0.1:9080:9080"
+    env_file:
+      - .env.docker
     environment:
-      - PORT=9080
-      - HOST=0.0.0.0
-      - NODE_ENV=production
-      - AUTH_PASSWORD=${AUTH_PASSWORD:-change_me_in_production}
-      - SESSION_SECRET=${SESSION_SECRET:-random_secret_token_ops_2026}
-      - OLLAMA_HOST=${OLLAMA_HOST:-127.0.0.1}
-      - OLLAMA_PORT=${OLLAMA_PORT:-11434}
-      - SYSTEMD_UNITS=${SYSTEMD_UNITS:-nginx,ollama,system-ops,postgresql}
-      - DISK_PATHS=${DISK_PATHS:-/,/var,/var/backups}
-      - TLS_HOSTS=${TLS_HOSTS:-ops.example.com,api.example.com}
-      - TRACKED_DOMAINS=${TRACKED_DOMAINS:-app.example.com:App API,api.example.com:Backend API,web.example.com:Web App}
-      - NGINX_LOG_PATH=${NGINX_LOG_PATH:-/var/log/nginx/access.log}
-      - BACKUP_LOG_PATH=${BACKUP_LOG_PATH:-/var/log/backups.log}
-      - BACKUPS_DIR=${BACKUPS_DIR:-/var/backups}
+      PORT: "9080"
+      HOST: "0.0.0.0"
+      NODE_ENV: production
+      APP_PASSWORD: ${APP_PASSWORD:-change_me_in_production}
+      SESSION_SECRET: ${SESSION_SECRET:-random_secret_token_ops_2026}
+      SYSTEMD_UNITS: ${SYSTEMD_UNITS:-nginx,ollama,postgresql}
+      DISK_PATHS: ${DISK_PATHS:-/,/var}
+      TLS_HOSTS: ${TLS_HOSTS:-}
+      TRACKED_DOMAINS: ${TRACKED_DOMAINS:-}
+      NGINX_LOG_PATH: ${NGINX_LOG_PATH:-/var/log/nginx/access.log}
+      LOG_SOURCES: ${LOG_SOURCES:-}
+      BACKUPS_DIR: ${BACKUPS_DIR:-}
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      OLLAMA_SERVICE_NAME: ${OLLAMA_SERVICE_NAME:-ollama}
+      ENABLE_GO_COLLECTOR: ${ENABLE_GO_COLLECTOR:-false}
+      ENABLE_SYSTEM_COLLECTOR: ${ENABLE_SYSTEM_COLLECTOR:-false}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
-      # Host System Introspection (read-only)
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
-      
-      # Nginx Access Logs (read-only for Traffic Analytics)
       - /var/log/nginx:/var/log/nginx:ro
-      
-      # Backup Logs and Dump Files (read-only)
       - /var/log:/var/log/host:ro
-      - /var/backups:/var/backups:ro
+      # Mount backup dumps only when BACKUPS_DIR is set, e.g. /var/backups/postgres:/var/backups/postgres:ro
 
-      # PM2 Sockets/Home dirs (optional — uncomment if inspecting host PM2 users)
-      # - /home/deploy/.pm2:/home/deploy/.pm2:ro
-
-      # -----------------------------------------------------------------------
-      # SECURITY WARNING — Docker Socket Mount (Optional)
-      # Mounting /var/run/docker.sock into a container gives the container root-
-      # equivalent access to the host daemon. Only uncomment if containerized
-      # Docker daemon monitoring is explicitly required.
+      # SECURITY WARNING — Docker socket gives root-equivalent host access.
+      # Uncomment only if you need the Docker page to list host containers:
       # - /var/run/docker.sock:/var/run/docker.sock:ro
-      # -----------------------------------------------------------------------
 
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:9080/api/health"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
