@@ -1,6 +1,7 @@
 const net = require('net');
 const fs = require('fs');
 const { runCommand } = require('../utils/exec');
+const { runDocker, socketExists, buildDockerError } = require('../utils/dockerExec');
 const { collectPm2Snapshot } = require('../../plugins/superpowers/skills/pm2_discovery');
 
 /**
@@ -51,25 +52,48 @@ async function getCapabilities() {
 
 async function detectDocker() {
   try {
-    // Quick probe: docker ps with minimal format
-    const res = await runCommand('docker', ['ps', '-q'], 2500);
+    const res = await runDocker(['ps', '-q'], 2500);
     if (res.success) {
       const runningIds = res.stdout.trim().split('\n').filter(Boolean);
+      const netRes = await runDocker(['network', 'ls', '-q'], 2500);
+      const networkCount = netRes.success
+        ? netRes.stdout.trim().split('\n').filter(Boolean).length
+        : 0;
       return {
         available: true,
+        daemonReachable: true,
         count: runningIds.length,
-        running: runningIds.length
+        running: runningIds.length,
+        networkCount,
+        usedSudo: res.usedSudo,
+        permissionIssue: false,
       };
     }
 
-    // Check if docker daemon is present or socket exists
-    if (fs.existsSync('/var/run/docker.sock')) {
-      return { available: true, count: 0, running: 0 };
-    }
+    const errInfo = buildDockerError(res);
+    const hasSocket = socketExists();
 
-    return { available: false, count: 0, running: 0 };
+    return {
+      available: hasSocket,
+      daemonReachable: false,
+      count: 0,
+      running: 0,
+      networkCount: 0,
+      usedSudo: res.usedSudo,
+      permissionIssue: errInfo.permissionIssue,
+      error: errInfo.error,
+      hint: errInfo.hint,
+    };
   } catch (err) {
-    return { available: false, count: 0, running: 0 };
+    return {
+      available: socketExists(),
+      daemonReachable: false,
+      count: 0,
+      running: 0,
+      networkCount: 0,
+      permissionIssue: false,
+      error: err.message,
+    };
   }
 }
 
