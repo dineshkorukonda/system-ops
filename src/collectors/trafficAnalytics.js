@@ -2,8 +2,20 @@ const fs = require('fs');
 const readline = require('readline');
 const path = require('path');
 const UAParser = require('ua-parser-js');
-const geoip = require('geoip-lite');
 const { discoverNginxDomains, discoverDockerDomains, discoverNginxLogFiles } = require('../utils/domainDiscovery');
+
+let geoipModule = null;
+function lookupGeo(ip) {
+  if (!geoipModule) {
+    try {
+      geoipModule = require('geoip-lite');
+    } catch (err) {
+      console.warn('[traffic] geoip-lite unavailable:', err.message);
+      geoipModule = { lookup: () => null };
+    }
+  }
+  return geoipModule.lookup(ip);
+}
 
 /**
  * Standard OS classifier
@@ -388,7 +400,7 @@ class IncrementalTrafficEngine {
     // GeoIP Lookup
     let geoData = null;
     if (clientIp && !clientIp.startsWith('127.') && !clientIp.startsWith('10.') && !clientIp.startsWith('192.168.')) {
-      geoData = geoip.lookup(clientIp);
+      geoData = lookupGeo(clientIp);
     }
 
     const lat = geoData && geoData.ll ? geoData.ll[0] : null;

@@ -30,15 +30,19 @@ if [ -d "$INSTALL_DIR" ]; then
     git pull origin main
   fi
 
+  run_as_ops() {
+    su -s /bin/bash "$OPS_USER" -c "cd $INSTALL_DIR && $*"
+  }
+
   echo "[2/5] Installing dependencies (including Vite build tools)..."
-  if ! npm ci; then
+  if ! run_as_ops "npm ci"; then
     echo "ERROR: npm ci failed"
     DEPLOY_FAILED=1
   fi
 
   if [ "$DEPLOY_FAILED" -eq 0 ]; then
     echo "[3/5] Building production frontend..."
-    if ! npm run build; then
+    if ! run_as_ops "npm run build"; then
       echo "ERROR: npm run build failed"
       DEPLOY_FAILED=1
     fi
@@ -46,7 +50,7 @@ if [ -d "$INSTALL_DIR" ]; then
 
   if [ "$DEPLOY_FAILED" -eq 0 ]; then
     echo "[4/5] Pruning dev dependencies..."
-    npm prune --omit=dev || true
+    run_as_ops "npm prune --omit=dev" || true
   fi
 fi
 

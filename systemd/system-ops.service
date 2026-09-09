@@ -7,7 +7,7 @@ Type=simple
 User=ops
 Group=ops
 WorkingDirectory=/opt/system-ops
-ExecStart=/usr/bin/node /opt/system-ops/src/server.js
+ExecStart=/usr/bin/node /opt/system-ops/src/start.js
 Restart=always
 RestartSec=5s
 
@@ -19,8 +19,8 @@ ProtectHome=false
 NoNewPrivileges=false
 
 # Memory cap to prevent runaway usage on 8GB VPS
-MemoryMax=300M
-MemoryHigh=250M
+MemoryMax=512M
+MemoryHigh=400M
 
 [Install]
 WantedBy=multi-user.target

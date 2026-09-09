@@ -518,4 +518,9 @@ const server = app.listen(PORT, HOST, () => {
   console.log(`=======================================================`);
 });
 
+server.on('error', (err) => {
+  console.error(`[FATAL] Cannot bind ${HOST}:${PORT}:`, err.message);
+  process.exit(1);
+});
+
 module.exports = { app, server };
