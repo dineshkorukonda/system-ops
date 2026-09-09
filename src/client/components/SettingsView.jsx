@@ -141,30 +141,29 @@ export function SettingsView({ onBrandingChange }) {
       <Card>
         <CardHeader>
           <CardTitle>General</CardTitle>
-          <Badge variant="neutral">BRANDING</Badge>
         </CardHeader>
-        <CardContent className="space-y-4 font-mono text-xs">
+        <CardContent className="space-y-4 text-sm">
           <div className="space-y-1.5">
-            <label className="text-neutral-400 block">Site Name</label>
+            <label className="text-[var(--text-secondary)] block">Site Name</label>
             <input
               type="text"
               value={form.siteName}
               onChange={(e) => setForm({ ...form, siteName: e.target.value })}
               disabled={form.syncNameWithHostname}
               maxLength={64}
-              className="w-full h-9 rounded border border-[#262626] bg-[#0d0d0d] px-3 text-sm text-white outline-none focus:border-neutral-500 disabled:opacity-50 theme-input"
+              className="w-full h-9 rounded ops-input border px-3 text-sm text-[var(--text-primary)] outline-none focus:border-neutral-500 disabled:opacity-50 ops-input"
               placeholder="system-ops"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-neutral-400 block">Subtitle</label>
+            <label className="text-[var(--text-secondary)] block">Subtitle</label>
             <input
               type="text"
               value={form.siteSubtitle}
               onChange={(e) => setForm({ ...form, siteSubtitle: e.target.value })}
               maxLength={128}
-              className="w-full h-9 rounded border border-[#262626] bg-[#0d0d0d] px-3 text-sm text-white outline-none focus:border-neutral-500 theme-input"
+              className="w-full h-9 rounded ops-input border px-3 text-sm text-[var(--text-primary)] outline-none focus:border-neutral-500 ops-input"
               placeholder="Operations Console"
             />
           </div>
@@ -174,16 +173,16 @@ export function SettingsView({ onBrandingChange }) {
               type="checkbox"
               checked={form.syncNameWithHostname}
               onChange={(e) => setForm({ ...form, syncNameWithHostname: e.target.checked })}
-              className="rounded border-[#262626]"
+              className="rounded border-[var(--border-subtle)]"
             />
-            <span className="text-neutral-300">Sync site name with hostname</span>
+            <span className="text-[var(--text-secondary)]">Sync site name with hostname</span>
           </label>
 
-          <div className="rounded border border-[#1a1a1a] bg-[#050505] p-3 space-y-1">
-            <div className="text-neutral-500 text-[10px] uppercase tracking-wider">Preview</div>
-            <div className="text-white font-semibold">{previewName.toUpperCase()}</div>
-            <div className="text-neutral-400">{form.siteSubtitle}</div>
-            <div className="text-neutral-500 text-[10px] pt-1">Tab: {previewTitle}</div>
+          <div className="rounded border border-[var(--border)] bg-[var(--surface-muted)] p-3 space-y-1">
+            <div className="ops-label">Preview</div>
+            <div className="text-[var(--text-primary)] font-semibold">{previewName}</div>
+            <div className="text-[var(--text-secondary)]">{form.siteSubtitle}</div>
+            <div className="text-[var(--text-muted)] text-[10px] pt-1">Tab: {previewTitle}</div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -192,9 +191,8 @@ export function SettingsView({ onBrandingChange }) {
               size="sm"
               onClick={handleSave}
               disabled={isSaving}
-              className="font-mono text-[11px]"
             >
-              {isSaving ? 'SAVING...' : 'SAVE CHANGES'}
+              {isSaving ? 'Saving…' : 'Save changes'}
             </Button>
             {saveMessage && (
               <span className={`text-[11px] ${saveMessage.includes('saved') ? 'text-emerald-400' : 'text-rose-400'}`}>
@@ -210,35 +208,35 @@ export function SettingsView({ onBrandingChange }) {
         <CardHeader>
           <CardTitle>Updates</CardTitle>
           {versionInfo?.checkError ? (
-            <Badge variant="warn">CHECK FAILED</Badge>
+            <Badge variant="warn">Check failed</Badge>
           ) : versionInfo?.updateAvailable ? (
-            <Badge variant="warn">UPDATE AVAILABLE</Badge>
+            <Badge variant="warn">Update available</Badge>
           ) : (
-            <Badge variant="ok">UP TO DATE</Badge>
+            <Badge variant="ok">Up to date</Badge>
           )}
         </CardHeader>
-        <CardContent className="space-y-4 font-mono text-xs">
+        <CardContent className="space-y-4 text-sm">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <div className="text-neutral-500 text-[10px] uppercase">Installed</div>
-              <div className="text-white text-sm font-semibold">v{versionInfo?.current || '—'}</div>
+              <div className="ops-label">Installed</div>
+              <div className="text-[var(--text-primary)] text-sm font-semibold">v{versionInfo?.current || '—'}</div>
               {versionInfo?.currentCommit && (
-                <div className="text-neutral-500 text-[10px] mt-0.5">{versionInfo.currentCommit}</div>
+                <div className="text-[var(--text-muted)] text-[10px] mt-0.5">{versionInfo.currentCommit}</div>
               )}
             </div>
             <div>
-              <div className="text-neutral-500 text-[10px] uppercase">Latest on main</div>
-              <div className="text-white text-sm font-semibold">
+              <div className="ops-label">Latest on main</div>
+              <div className="text-[var(--text-primary)] text-sm font-semibold">
                 {versionInfo?.latest ? `v${versionInfo.latest}` : '—'}
               </div>
               {versionInfo?.latestCommit && (
-                <div className="text-neutral-500 text-[10px] mt-0.5">{versionInfo.latestCommit}</div>
+                <div className="text-[var(--text-muted)] text-[10px] mt-0.5">{versionInfo.latestCommit}</div>
               )}
             </div>
           </div>
 
           {versionInfo?.source && !versionInfo?.checkError && (
-            <div className="text-neutral-500 text-[10px]">
+            <div className="text-[var(--text-muted)] text-[10px]">
               Checked via {versionInfo.source === 'github-release' ? 'GitHub release' : 'main branch'}
             </div>
           )}
@@ -256,9 +254,9 @@ export function SettingsView({ onBrandingChange }) {
           )}
 
           {versionInfo?.releaseNotes && versionInfo.updateAvailable && (
-            <div className="rounded border border-[#1a1a1a] bg-[#050505] p-3">
-              <div className="text-neutral-500 text-[10px] uppercase mb-1">Release Notes</div>
-              <pre className="text-neutral-300 whitespace-pre-wrap text-[11px] leading-relaxed">
+            <div className="rounded border border-[var(--border)] bg-[var(--surface-muted)] p-3">
+              <div className="ops-label mb-1">Release notes</div>
+              <pre className="text-[var(--text-secondary)] whitespace-pre-wrap text-[11px] leading-relaxed">
                 {versionInfo.releaseNotes}
               </pre>
               {versionInfo.releaseUrl && (
@@ -280,9 +278,8 @@ export function SettingsView({ onBrandingChange }) {
               size="sm"
               onClick={() => loadVersionInfo(true)}
               disabled={isCheckingVersion}
-              className="font-mono text-[11px]"
             >
-              {isCheckingVersion ? 'CHECKING...' : 'CHECK FOR UPDATES'}
+              {isCheckingVersion ? 'Checking…' : 'Check for updates'}
             </Button>
 
             {versionInfo?.installType === 'systemd' && (
@@ -291,39 +288,38 @@ export function SettingsView({ onBrandingChange }) {
                 size="sm"
                 onClick={() => setShowUpdateModal(true)}
                 disabled={updateStatus?.running}
-                className="font-mono text-[11px]"
               >
-                {updateStatus?.running ? 'UPDATING...' : versionInfo?.updateAvailable ? 'UPDATE NOW' : 'REINSTALL / SYNC'}
+                {updateStatus?.running ? 'Updating…' : versionInfo?.updateAvailable ? 'Update now' : 'Reinstall / sync'}
               </Button>
             )}
           </div>
 
           {versionInfo?.installType === 'docker' && (
-            <div className="text-neutral-400 text-[11px] leading-relaxed">
+            <div className="text-[var(--text-secondary)] text-[11px] leading-relaxed">
               Docker installs: run <code className="text-neutral-200">docker compose pull && docker compose up -d</code>.
               For automated image monitoring, consider Diun (notify-only) or WUD (semver-aware auto-update).
             </div>
           )}
 
-          <label className="flex items-center gap-2 cursor-pointer pt-2 border-t border-[#1a1a1a]">
+          <label className="flex items-center gap-2 cursor-pointer pt-2 border-t border-[var(--border)]">
             <input
               type="checkbox"
               checked={form.autoUpdateEnabled}
               onChange={(e) => setForm({ ...form, autoUpdateEnabled: e.target.checked })}
-              className="rounded border-[#262626]"
+              className="rounded border-[var(--border-subtle)]"
             />
-            <span className="text-neutral-300">Enable automatic daily updates (systemd timer)</span>
+            <span className="text-[var(--text-secondary)]">Enable automatic daily updates (systemd timer)</span>
           </label>
-          <div className="text-neutral-500 text-[10px]">
+          <div className="text-[var(--text-muted)] text-[10px]">
             Save settings to apply the auto-update timer change.
           </div>
 
           {updateStatus?.logTail && (
-            <div className="rounded border border-[#1a1a1a] bg-[#050505] p-3">
-              <div className="text-neutral-500 text-[10px] uppercase mb-1">
+            <div className="rounded border border-[var(--border)] bg-[var(--surface-muted)] p-3">
+              <div className="text-[var(--text-muted)] text-[10px] uppercase mb-1">
                 Update Log {updateStatus.running ? '(live)' : ''}
               </div>
-              <pre className="text-neutral-400 whitespace-pre-wrap text-[10px] leading-relaxed max-h-48 overflow-y-auto">
+              <pre className="text-[var(--text-secondary)] whitespace-pre-wrap text-[10px] leading-relaxed max-h-48 overflow-y-auto">
                 {updateStatus.logTail}
               </pre>
             </div>
@@ -338,8 +334,8 @@ export function SettingsView({ onBrandingChange }) {
             <CardHeader>
               <CardTitle>Confirm Update</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 font-mono text-xs">
-              <p className="text-neutral-400 leading-relaxed">
+            <CardContent className="space-y-4 text-sm">
+              <p className="text-[var(--text-secondary)] leading-relaxed">
                 This will pull the latest code, rebuild the frontend, and restart the service.
                 The dashboard will be offline for 30–60 seconds. Do not refresh the page — wait for the log to finish.
               </p>
@@ -349,12 +345,12 @@ export function SettingsView({ onBrandingChange }) {
                 </p>
               )}
               <div className="space-y-1.5">
-                <label className="text-neutral-400 block">Re-enter password to confirm</label>
+                <label className="text-[var(--text-secondary)] block">Re-enter password to confirm</label>
                 <input
                   type="password"
                   value={updatePassword}
                   onChange={(e) => setUpdatePassword(e.target.value)}
-                  className="w-full h-9 rounded border border-[#262626] bg-[#0d0d0d] px-3 text-sm text-white outline-none focus:border-neutral-500 theme-input"
+                  className="w-full h-9 rounded ops-input border px-3 text-sm text-[var(--text-primary)] outline-none focus:border-neutral-500 ops-input"
                   placeholder="Password"
                   autoFocus
                 />
@@ -368,17 +364,15 @@ export function SettingsView({ onBrandingChange }) {
                   size="sm"
                   onClick={handleStartUpdate}
                   disabled={isUpdating || !updatePassword}
-                  className="font-mono text-[11px]"
                 >
-                  {isUpdating ? 'STARTING...' : 'START UPDATE'}
+                  {isUpdating ? 'Starting…' : 'Start update'}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => { setShowUpdateModal(false); setUpdatePassword(''); setUpdateError(''); }}
-                  className="font-mono text-[11px]"
                 >
-                  CANCEL
+                  Cancel
                 </Button>
               </div>
             </CardContent>

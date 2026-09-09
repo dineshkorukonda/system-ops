@@ -5,13 +5,18 @@ export function Sparkline({
   data = [],
   width = 200,
   height = 40,
-  strokeColor = '#10b981',
+  strokeColor = '#3b82f6',
   className,
 }) {
   if (!data || data.length < 2) {
     return (
-      <div className={cn('h-[40px] w-full flex items-center justify-center text-[10px] text-neutral-600 font-mono', className)}>
-        COLLECTING TELEMETRY...
+      <div
+        className={cn(
+          'h-[40px] w-full flex items-center justify-center text-xs text-[var(--text-muted)]',
+          className
+        )}
+      >
+        Collecting data…
       </div>
     );
   }
@@ -41,8 +46,8 @@ export function Sparkline({
     >
       <defs>
         <linearGradient id={gradId} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor={strokeColor} stopOpacity="0.35" />
-          <stop offset="100%" stopColor={strokeColor} stopOpacity="0.0" />
+          <stop offset="0%" stopColor={strokeColor} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={strokeColor} stopOpacity="0" />
         </linearGradient>
       </defs>
       <path d={areaData} fill={`url(#${gradId})`} />

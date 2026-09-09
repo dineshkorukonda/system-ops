@@ -369,8 +369,11 @@ export function App() {
   // Loading state during auth check
   if (isAuthenticated === null) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black font-mono text-xs text-neutral-500 theme-bg">
-        INITIALIZING SYSTEM-OPS...
+      <div className="flex min-h-screen items-center justify-center ops-app">
+        <div className="flex items-center gap-3 text-sm text-[var(--text-muted)]">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--accent)]" />
+          Loading…
+        </div>
       </div>
     );
   }
@@ -400,7 +403,7 @@ export function App() {
   );
 
   return (
-    <div className="flex min-h-screen bg-[#000000] text-white theme-bg">
+    <div className="flex min-h-screen ops-app">
       {/* Persistent Sectionized Dynamic Sidebar */}
       <Sidebar
         activeTab={activeTab}

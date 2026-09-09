@@ -2,30 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
+import { cn } from '../lib/utils';
 
 export function ServicesView({ servicesData, onRefresh }) {
   const services = servicesData?.services || [];
-
-  const [selectedUnit, setSelectedUnit] = useState(null); // string (e.g., 'nginx')
+  const [selectedUnit, setSelectedUnit] = useState(null);
   const [logLines, setLogLines] = useState('100');
   const [unitLogs, setUnitLogs] = useState('');
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [logFilter, setLogFilter] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
 
-  // Count failed units
-  const failedUnits = services.filter(
-    (s) => s.activeState === 'failed' || s.subState === 'failed'
-  );
+  const failedUnits = services.filter((s) => s.activeState === 'failed' || s.subState === 'failed');
 
-  // Select first service by default
   useEffect(() => {
-    if (!selectedUnit && services.length > 0) {
-      setSelectedUnit(services[0].name);
-    }
+    if (!selectedUnit && services.length > 0) setSelectedUnit(services[0].name);
   }, [services, selectedUnit]);
 
-  // Fetch unit logs when selected or line count changes
   useEffect(() => {
     if (!selectedUnit) return;
     fetchUnitLogs();
@@ -35,14 +28,12 @@ export function ServicesView({ servicesData, onRefresh }) {
     if (!selectedUnit) return;
     setIsLoadingLogs(true);
     try {
-      const res = await fetch(
-        `/api/v2/services/logs?unit=${encodeURIComponent(selectedUnit)}&lines=${logLines}`
-      );
+      const res = await fetch(`/api/v2/services/logs?unit=${encodeURIComponent(selectedUnit)}&lines=${logLines}`);
       if (res.ok) {
         const data = await res.json();
-        setUnitLogs(data.output || 'No journal logs found for this unit.');
+        setUnitLogs(data.output || 'No journal logs found.');
       } else {
-        setUnitLogs(`Failed to fetch journal logs (HTTP ${res.status})`);
+        setUnitLogs(`Failed to fetch logs (HTTP ${res.status})`);
       }
     } catch (err) {
       setUnitLogs(`Error loading logs: ${err.message}`);
@@ -64,74 +55,45 @@ export function ServicesView({ servicesData, onRefresh }) {
 
   return (
     <div className="space-y-6">
-      {/* ─── Top Telemetry Summary Cards ─── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
-          <CardContent className="p-4 space-y-1">
-            <div className="flex justify-between items-center text-xs text-neutral-400">
-              <span>SYSTEMD UNITS</span>
-              <Badge variant="ok">PID 1</Badge>
-            </div>
-            <div className="text-2xl font-bold text-emerald-400">
-              {servicesData?.activeCount || 0}{' '}
-              <span className="text-xs text-neutral-500 font-normal">
-                of {services.length} active
-              </span>
+          <CardContent className="p-5 space-y-1">
+            <span className="ops-label">Active units</span>
+            <div className="ops-metric text-[var(--success)]">
+              {servicesData?.activeCount || 0}
+              <span className="text-sm font-normal text-[var(--text-muted)] ml-2">of {services.length}</span>
             </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="p-4 space-y-1">
-            <div className="flex justify-between items-center text-xs text-neutral-400">
-              <span>UNIT HEALTH</span>
+          <CardContent className="p-5 space-y-1">
+            <span className="ops-label">Health</span>
+            <div className="flex items-center gap-2">
+              <div className="ops-metric">{failedUnits.length}</div>
               <Badge variant={failedUnits.length > 0 ? 'err' : 'ok'}>
-                {failedUnits.length > 0 ? `${failedUnits.length} FAILED` : 'HEALTHY'}
+                {failedUnits.length > 0 ? 'Issues detected' : 'All healthy'}
               </Badge>
             </div>
-            <div className="text-2xl font-bold text-white">
-              {failedUnits.length === 0 ? '0' : failedUnits.length}{' '}
-              <span className="text-xs text-neutral-500 font-normal">
-                {failedUnits.length === 0 ? 'all units active' : 'units degraded'}
-              </span>
-            </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="p-4 space-y-1">
-            <div className="flex justify-between items-center text-xs text-neutral-400">
-              <span>SERVICES MEMORY</span>
-              <Badge variant="blue">RSS</Badge>
-            </div>
-            <div className="text-2xl font-bold text-white">
-              {servicesData?.formattedTotalMemory || '0 B'}
-            </div>
+          <CardContent className="p-5 space-y-1">
+            <span className="ops-label">Total memory</span>
+            <div className="ops-metric">{servicesData?.formattedTotalMemory || '0 B'}</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* ─── Main Grid: Services Fleet & Live Journal Terminal ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-[calc(100vh-260px)]">
-        {/* Left Column: Services Fleet List (5 cols) */}
-        <div className="lg:col-span-5 space-y-4">
+        <div className="lg:col-span-5">
           <Card className="h-full flex flex-col">
             <CardHeader className="flex items-center justify-between">
-              <CardTitle>Systemd Services ({services.length})</CardTitle>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={onRefresh}
-                className="font-mono text-[11px]"
-              >
-                REFRESH
-              </Button>
+              <CardTitle>Services ({services.length})</CardTitle>
+              <Button variant="secondary" size="sm" onClick={onRefresh}>Refresh</Button>
             </CardHeader>
-            <div className="divide-y divide-[#141414] max-h-[560px] overflow-y-auto font-mono text-xs flex-1">
+            <div className="flex-1 max-h-[560px] overflow-y-auto">
               {services.length === 0 ? (
-                <div className="p-4 text-center text-neutral-500 font-sans">
-                  No systemd services detected or configured.
-                </div>
+                <div className="ops-empty">No systemd services configured.</div>
               ) : (
                 services.map((s) => {
                   const isSelected = selectedUnit === s.name;
@@ -139,34 +101,22 @@ export function ServicesView({ servicesData, onRefresh }) {
                     <button
                       key={s.name}
                       onClick={() => setSelectedUnit(s.name)}
-                      className={`w-full flex items-center justify-between p-3.5 text-left transition-colors cursor-pointer ${
-                        isSelected
-                          ? 'bg-[#171717] border-l-2 border-white font-medium'
-                          : 'hover:bg-[#0d0d0d]'
-                      }`}
+                      className={cn(
+                        'w-full flex items-center justify-between p-4 text-left border-b border-[var(--border)] transition-colors',
+                        isSelected ? 'bg-[var(--accent-muted)] border-l-2 border-l-[var(--accent)]' : 'hover:bg-[var(--surface-raised)]'
+                      )}
                     >
                       <div className="min-w-0 pr-2">
-                        <div className="font-semibold text-white truncate">{s.unit}</div>
-                        <div className="text-[10px] text-neutral-500 truncate">
-                          PID: {s.pid || '--'} | SUBSTATE: {s.subState} | USER: {s.user}
+                        <div className="font-medium text-[var(--text-primary)] truncate">{s.unit}</div>
+                        <div className="text-xs text-[var(--text-muted)] truncate mt-0.5">
+                          PID {s.pid || '—'} · {s.subState} · {s.user}
                         </div>
                       </div>
                       <div className="text-right space-y-1 shrink-0">
-                        <Badge
-                          variant={
-                            s.active
-                              ? 'ok'
-                              : s.activeState === 'failed'
-                              ? 'err'
-                              : 'neutral'
-                          }
-                          className="text-[9px]"
-                        >
-                          {(s.activeState || 'UNKNOWN').toUpperCase()}
+                        <Badge variant={s.active ? 'ok' : s.activeState === 'failed' ? 'err' : 'neutral'}>
+                          {s.activeState || 'unknown'}
                         </Badge>
-                        <div className="text-[10px] text-neutral-400">
-                          {s.formattedMemory || '--'}
-                        </div>
+                        <div className="text-xs text-[var(--text-muted)]">{s.formattedMemory || '—'}</div>
                       </div>
                     </button>
                   );
@@ -176,75 +126,33 @@ export function ServicesView({ servicesData, onRefresh }) {
           </Card>
         </div>
 
-        {/* Right Column: Live Journal Logs (7 cols) */}
         <div className="lg:col-span-7">
           <Card className="h-full flex flex-col min-h-[560px]">
             <CardHeader className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <CardTitle>
-                  JOURNAL: {selectedUnit ? `${selectedUnit}.service` : 'SELECT UNIT'}
-                </CardTitle>
-                <Badge variant="neutral" className="text-[9px]">
-                  JOURNALCTL
-                </Badge>
-              </div>
-              <div className="flex items-center gap-2">
-                <select
-                  value={logLines}
-                  onChange={(e) => setLogLines(e.target.value)}
-                  className="h-7 rounded border border-[#262626] bg-[#0d0d0d] px-2 font-mono text-[11px] text-neutral-300 outline-none hover:border-neutral-700 focus:border-neutral-400 theme-input"
-                >
+              <CardTitle>{selectedUnit ? `${selectedUnit}.service` : 'Select a service'}</CardTitle>
+              <div className="flex items-center gap-2 flex-wrap">
+                <select value={logLines} onChange={(e) => setLogLines(e.target.value)} className="ops-input h-8 px-2 text-xs">
                   <option value="50">50 lines</option>
                   <option value="100">100 lines</option>
                   <option value="200">200 lines</option>
                   <option value="500">500 lines</option>
                 </select>
-                <input
-                  type="text"
-                  placeholder="Filter logs..."
-                  value={logFilter}
-                  onChange={(e) => setLogFilter(e.target.value)}
-                  className="h-7 rounded border border-[#262626] bg-[#0d0d0d] px-2 font-mono text-[11px] text-white placeholder-neutral-500 outline-none w-32 theme-input"
-                />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handleCopyLogs(unitLogs)}
-                  className="font-mono text-[11px] h-7"
-                >
-                  {copySuccess ? 'COPIED' : 'COPY'}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={fetchUnitLogs}
-                  disabled={isLoadingLogs}
-                  className="font-mono text-[11px] h-7"
-                >
-                  {isLoadingLogs ? '...' : 'TAIL'}
-                </Button>
+                <input type="text" placeholder="Filter logs…" value={logFilter} onChange={(e) => setLogFilter(e.target.value)} className="ops-input h-8 px-2 text-xs w-32" />
+                <Button variant="secondary" size="sm" onClick={() => handleCopyLogs(unitLogs)}>{copySuccess ? 'Copied' : 'Copy'}</Button>
+                <Button variant="outline" size="sm" onClick={fetchUnitLogs} disabled={isLoadingLogs}>{isLoadingLogs ? 'Loading…' : 'Reload'}</Button>
               </div>
             </CardHeader>
-            <div className="flex-1 bg-[#020202] p-4 font-mono text-[11px] leading-relaxed text-neutral-300 overflow-y-auto max-h-[calc(100vh-320px)] select-text">
+            <div className="flex-1 bg-[var(--surface-muted)] p-4 ops-log text-[var(--text-secondary)] overflow-y-auto max-h-[calc(100vh-320px)] rounded-b-[0.75rem]">
               {isLoadingLogs ? (
-                <div className="text-neutral-500 font-sans">Fetching journalctl log tail...</div>
+                <div className="text-[var(--text-muted)]">Loading logs…</div>
               ) : filteredLogLines.length === 0 ? (
-                <div className="text-neutral-600 font-sans">No matching journalctl entries found.</div>
+                <div className="text-[var(--text-muted)]">No matching log entries.</div>
               ) : (
                 filteredLogLines.map((line, idx) => {
                   const isErr = /error|fail|exception|fatal|panic/i.test(line);
                   const isWarn = /warn|alert/i.test(line);
                   return (
-                    <div
-                      key={idx}
-                      className={`py-0.5 whitespace-pre-wrap break-all ${
-                        isErr
-                          ? 'text-rose-400 font-semibold'
-                          : isWarn
-                          ? 'text-amber-400'
-                          : 'text-neutral-300'
-                      }`}
-                    >
+                    <div key={idx} className={cn('py-0.5 whitespace-pre-wrap break-all', isErr ? 'text-[var(--danger)]' : isWarn ? 'text-[var(--warning)]' : '')}>
                       {line}
                     </div>
                   );
