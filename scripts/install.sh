@@ -115,6 +115,12 @@ if ! id "$OPS_USER" &>/dev/null; then
 fi
 usermod -aG systemd-journal,adm "$OPS_USER" || true
 
+# Grant Docker socket access when Docker is installed
+if [ -S /var/run/docker.sock ] || command -v docker &>/dev/null; then
+  usermod -aG docker "$OPS_USER" 2>/dev/null || true
+  echo "  -> Added $OPS_USER to docker group (if docker is installed)"
+fi
+
 # Stop existing service if running
 systemctl stop system-ops.service 2>/dev/null || true
 

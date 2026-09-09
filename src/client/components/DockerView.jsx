@@ -5,10 +5,14 @@ import { Button } from './ui/Button';
 
 export function DockerView({ dockerData, onRefresh }) {
   const containers = dockerData?.containers || [];
+  const networks = dockerData?.networks || [];
   const total = dockerData?.total || 0;
   const running = dockerData?.running || 0;
   const exited = dockerData?.exited || 0;
   const paused = dockerData?.paused || 0;
+  const networkCount = dockerData?.networkCount ?? networks.length;
+  const hasError = dockerData?.error && !dockerData?.daemonReachable;
+  const permissionIssue = dockerData?.permissionIssue;
 
   const [selectedContainer, setSelectedContainer] = useState(null);
   const [logLines, setLogLines] = useState('100');
@@ -81,8 +85,33 @@ export function DockerView({ dockerData, onRefresh }) {
 
   return (
     <div className="space-y-6">
+      {hasError && (
+        <Card className="border-rose-900/50 bg-rose-950/20">
+          <CardContent className="p-4 font-mono text-xs space-y-2">
+            <div className="text-rose-400 font-semibold">
+              {permissionIssue ? 'DOCKER PERMISSION DENIED' : 'DOCKER UNAVAILABLE'}
+            </div>
+            <div className="text-neutral-300">{dockerData.error}</div>
+            {dockerData.hint && (
+              <div className="text-neutral-400 text-[11px] leading-relaxed">
+                Fix: {dockerData.hint}
+              </div>
+            )}
+            <div className="text-neutral-500 text-[10px]">
+              Run diagnostics: <code className="text-neutral-300">sudo bash /opt/system-ops/scripts/debug-docker.sh</code>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {dockerData?.usedSudo && dockerData?.daemonReachable && (
+        <div className="font-mono text-[10px] text-amber-400/90 px-1">
+          Docker commands running via sudo fallback. Add ops to docker group for direct access.
+        </div>
+      )}
+
       {/* ─── Top Telemetry Summary Cards ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 font-mono">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 font-mono">
         <Card>
           <CardContent className="p-4 space-y-1">
             <div className="flex justify-between items-center text-xs text-neutral-400">
@@ -112,6 +141,16 @@ export function DockerView({ dockerData, onRefresh }) {
               </Badge>
             </div>
             <div className="text-2xl font-bold text-neutral-300">{exited}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 space-y-1">
+            <div className="flex justify-between items-center text-xs text-neutral-400">
+              <span>NETWORKS</span>
+              <Badge variant="blue">NET</Badge>
+            </div>
+            <div className="text-2xl font-bold text-white">{networkCount}</div>
           </CardContent>
         </Card>
 
@@ -221,6 +260,11 @@ export function DockerView({ dockerData, onRefresh }) {
                             PORTS: {c.ports}
                           </div>
                         )}
+                        {c.networks && (
+                          <div className="text-[10px] text-neutral-500 truncate">
+                            NET: {c.networks}
+                          </div>
+                        )}
                       </div>
 
                       <div className="text-right space-y-1 shrink-0">
@@ -322,6 +366,56 @@ export function DockerView({ dockerData, onRefresh }) {
           </Card>
         </div>
       </div>
+
+      {/* ─── Docker Networks Table ─── */}
+      <Card>
+        <CardHeader className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CardTitle>Networks ({networks.length})</CardTitle>
+            <Badge variant="neutral" className="text-[9px]">BRIDGE / OVERLAY</Badge>
+          </div>
+          <Button variant="secondary" size="sm" onClick={onRefresh} className="font-mono text-[11px] h-7">
+            REFRESH
+          </Button>
+        </CardHeader>
+        <div className="overflow-x-auto">
+          <table className="w-full font-mono text-xs">
+            <thead>
+              <tr className="border-b border-[#141414] text-neutral-500 text-[10px] uppercase">
+                <th className="px-4 py-2.5 text-left">Name</th>
+                <th className="px-4 py-2.5 text-left">ID</th>
+                <th className="px-4 py-2.5 text-left">Driver</th>
+                <th className="px-4 py-2.5 text-left">Scope</th>
+                <th className="px-4 py-2.5 text-left">Flags</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#141414]">
+              {networks.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-6 text-center text-neutral-500 font-sans">
+                    {hasError ? 'Cannot list networks — see error above.' : 'No Docker networks found.'}
+                  </td>
+                </tr>
+              ) : (
+                networks.map((n) => (
+                  <tr key={n.id || n.name} className="hover:bg-[#0d0d0d]">
+                    <td className="px-4 py-2.5 text-white font-semibold">{n.name}</td>
+                    <td className="px-4 py-2.5 text-neutral-400">{n.id}</td>
+                    <td className="px-4 py-2.5 text-neutral-300">{n.driver}</td>
+                    <td className="px-4 py-2.5 text-neutral-400">{n.scope}</td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex gap-1">
+                        {n.internal && <Badge variant="neutral" className="text-[9px]">INTERNAL</Badge>}
+                        {n.ipv6 && <Badge variant="blue" className="text-[9px]">IPV6</Badge>}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
     </div>
   );
 }

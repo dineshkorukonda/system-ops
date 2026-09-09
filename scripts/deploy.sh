@@ -21,27 +21,33 @@ fi
 
 if [ -d "$INSTALL_DIR" ]; then
   cd "$INSTALL_DIR"
-  echo "[1/4] Pulling latest code changes..."
+  echo "[1/5] Pulling latest code changes..."
   if id "$DEPLOY_USER" &>/dev/null; then
-    su - "$DEPLOY_USER" -c "cd $INSTALL_DIR && git pull origin main && npm ci --omit=dev" || {
+    su - "$DEPLOY_USER" -c "cd $INSTALL_DIR && git pull origin main" || {
       echo "Notice: Falling back to direct git pull..."
       git pull origin main
-      npm ci --omit=dev
     }
   else
     git pull origin main
-    npm ci --omit=dev
   fi
+
+  echo "[2/5] Installing dependencies (including Vite build tools)..."
+  npm ci
+
+  echo "[3/5] Building production frontend..."
+  npm run build
+
+  echo "[4/5] Pruning dev dependencies..."
+  npm prune --omit=dev
 fi
 
-echo "[2/4] Setting file permissions..."
+echo "[5/5] Setting file permissions & restarting service..."
 chown -R "$OPS_USER:$OPS_USER" "$INSTALL_DIR"
 chmod 750 "$INSTALL_DIR"
 if [ -f "$INSTALL_DIR/.env" ]; then
   chmod 600 "$INSTALL_DIR/.env"
 fi
 
-echo "[3/4] Updating sudoers & systemd configuration..."
 if [ -f "$INSTALL_DIR/sudoers/system-ops-sudoers" ]; then
   cp "$INSTALL_DIR/sudoers/system-ops-sudoers" /etc/sudoers.d/system-ops
   chmod 0440 /etc/sudoers.d/system-ops
@@ -51,15 +57,11 @@ if [ -f "$INSTALL_DIR/systemd/system-ops.service" ]; then
   cp "$INSTALL_DIR/systemd/system-ops.service" /etc/systemd/system/system-ops.service
 fi
 
-echo "[4/4] Building production frontend and restarting service..."
-if [ -f "$INSTALL_DIR/package.json" ]; then
-  npm run build --silent || true
-fi
-
 systemctl daemon-reload
 systemctl restart system-ops.service
 
 echo "========================================================"
 echo "  Deployment Complete!"
 echo "  - Service Status: sudo systemctl status system-ops"
+echo "  - Docker Check:   sudo bash scripts/debug-docker.sh"
 echo "========================================================"

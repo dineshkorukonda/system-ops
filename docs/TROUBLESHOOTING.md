@@ -189,7 +189,40 @@ sudo systemctl daemon-reload
 sudo systemctl restart system-ops.service
 ```
 
-### Docker deployments
+## 8. Docker Containers / Networks Not Showing in Dashboard
+
+The `ops` service user needs access to the Docker socket. Run the diagnostic script first:
+
+```bash
+sudo bash /opt/system-ops/scripts/debug-docker.sh
+```
+
+**Common fix — add ops to docker group:**
+
+```bash
+sudo usermod -aG docker ops
+sudo systemctl restart system-ops.service
+```
+
+**Alternative — force sudo fallback in `.env`:**
+
+```env
+DOCKER_USE_SUDO=true
+```
+
+Then restart: `sudo systemctl restart system-ops.service`
+
+**Verify API is returning data:**
+
+```bash
+curl -s -u ":YOUR_APP_PASSWORD" http://127.0.0.1:9080/api/v2/docker/snapshot | jq .
+```
+
+Expected fields: `daemonReachable: true`, `containers: [...]`, `networks: [...]`
+
+---
+
+### Docker deployments (updating system-ops itself)
 
 ```bash
 docker compose pull && docker compose up -d
@@ -211,11 +244,12 @@ Settings are stored in `/opt/system-ops/data/settings.json`.
 
 ---
 
-## 8. Summary of Diagnostic Commands
+## 9. Summary of Diagnostic Commands
 
 | Diagnostic Action | Command |
 |---|---|
 | PM2 Discovery & Process Check | `sudo bash /opt/system-ops/scripts/debug-pm2.sh` |
+| Docker Connectivity & Permissions | `sudo bash /opt/system-ops/scripts/debug-docker.sh` |
 | View System-Ops Live Logs | `sudo journalctl -u system-ops.service -f` |
 | Check System-Ops Status | `sudo systemctl status system-ops.service` |
 | Test Service Port Binding | `curl -i http://127.0.0.1:9080/health` |
