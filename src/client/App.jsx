@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AppLayout } from './layout/AppLayout';
-import { HomeView } from './views/HomeView';
+import { Sidebar } from './components/Sidebar';
+import { TopBar } from './components/TopBar';
 import { SystemHealthView } from './components/SystemHealthView';
 import { ProcessMonitorView } from './components/ProcessMonitorView';
 import { DockerView } from './components/DockerView';
@@ -20,26 +20,18 @@ import { LoginView } from './components/LoginView';
 const MAX_HISTORY = 30;
 
 export function App() {
-  // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(null);
-
-  const [activeTab, setActiveTab] = useState('overview');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // Monochrome Theme: 'dark' (pure #000000) or 'light' (pure #ffffff)
+  const [activeTab, setActiveTab] = useState('system');
   const [theme, setTheme] = useState(() => localStorage.getItem('ops_theme') || 'dark');
-
-  // Controls & auto-refresh
   const [refreshInterval, setRefreshInterval] = useState(10);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Telemetry rolling buffers
   const [cpuHistory, setCpuHistory] = useState([]);
   const [ramHistory, setRamHistory] = useState([]);
   const [swapHistory, setSwapHistory] = useState([]);
 
-  // Telemetry snapshots
   const [capabilities, setCapabilities] = useState(null);
   const [systemData, setSystemData] = useState(null);
   const [processes, setProcesses] = useState([]);
@@ -57,39 +49,29 @@ export function App() {
   const [databaseData, setDatabaseData] = useState(null);
   const [securityData, setSecurityData] = useState(null);
   const [certbotData, setCertbotData] = useState(null);
-  const [osUpdatesData, setOsUpdatesData] = useState(null);
   const [monixData, setMonixData] = useState(null);
   const [branding, setBranding] = useState(null);
   const [updateAvailable, setUpdateAvailable] = useState(false);
 
-  // Refs to avoid infinite effect re-trigger loops
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
-
   const processSortRef = useRef(processSort);
   processSortRef.current = processSort;
-
   const ollamaLogLinesRef = useRef(ollamaLogLines);
   ollamaLogLinesRef.current = ollamaLogLines;
 
-  // Theme synchronization with DOM
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     document.body.setAttribute('data-theme', theme);
     localStorage.setItem('ops_theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  };
+  const toggleTheme = () => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
 
   const fetchBranding = async () => {
     try {
       const res = await fetch('/api/v2/settings/branding');
-      if (res.ok) {
-        const data = await res.json();
-        setBranding(data);
-      }
+      if (res.ok) setBranding(await res.json());
     } catch (e) {}
   };
 
@@ -112,22 +94,30 @@ export function App() {
     });
   };
 
-  // Check auth and load branding on mount
   useEffect(() => {
     fetchBranding();
     checkAuth();
   }, []);
 
-  // Update document title when branding or active tab changes
   useEffect(() => {
-    const titles = {
-      overview: 'Dashboard', system: 'System Health', processes: 'Processes',
-      docker: 'Docker', pm2: 'PM2', services: 'Services', ollama: 'Ollama',
-      traffic: 'Traffic', backups: 'Backups', databases: 'Databases',
-      security: 'Security', monix: 'Monix', troubleshooting: 'Help',
-      settings: 'Settings', integrations: 'Integrations',
+    const tabTitles = {
+      system: 'System Health',
+      processes: 'Process Monitor',
+      docker: 'Docker Containers',
+      pm2: 'PM2 Fleet',
+      services: 'Systemd Services',
+      ollama: 'Ollama AI',
+      backups: 'Backups & Recovery',
+      traffic: 'Traffic Analytics',
+      databases: 'Databases',
+      security: 'Security',
+      monix: 'Monix',
+      troubleshooting: 'Troubleshooting',
+      settings: 'Settings',
+      integrations: 'Integrations',
     };
-    document.title = `${branding?.siteName || 'system-ops'} | ${titles[activeTab] || 'Console'}`;
+    const siteName = branding?.siteName || 'system-ops';
+    document.title = `${siteName} | ${tabTitles[activeTab] || 'Console'}`;
   }, [branding, activeTab]);
 
   const checkAuth = async () => {
@@ -147,7 +137,6 @@ export function App() {
     setIsAuthenticated(false);
   };
 
-  // Push rolling metrics
   const pushMetric = (setter, val) => {
     setter((prev) => {
       const next = [...prev, val];
@@ -155,14 +144,12 @@ export function App() {
     });
   };
 
-  // ── Individual Data Fetchers (Read Fast In-Memory State) ──
   const fetchCapabilities = async () => {
     try {
       const res = await fetch('/api/v2/system/capabilities');
       if (res.ok) {
         const data = await res.json();
         setCapabilities(data);
-
         const tab = activeTabRef.current;
         const capMap = {
           docker: data.docker?.available,
@@ -196,40 +183,28 @@ export function App() {
   const fetchProcesses = async () => {
     try {
       const res = await fetch(`/api/v2/system/processes?sort=${processSortRef.current}&limit=50`);
-      if (res.ok) {
-        const data = await res.json();
-        setProcesses(data.processes || []);
-      }
+      if (res.ok) setProcesses((await res.json()).processes || []);
     } catch (e) {}
   };
 
   const fetchDockerData = async () => {
     try {
       const res = await fetch('/api/v2/docker/snapshot');
-      if (res.ok) {
-        const data = await res.json();
-        setDockerData(data);
-      }
+      if (res.ok) setDockerData(await res.json());
     } catch (e) {}
   };
 
   const fetchPm2Data = async () => {
     try {
       const res = await fetch('/api/v2/pm2/snapshot');
-      if (res.ok) {
-        const data = await res.json();
-        setPm2Data(data);
-      }
+      if (res.ok) setPm2Data(await res.json());
     } catch (e) {}
   };
 
   const fetchServices = async () => {
     try {
       const res = await fetch('/api/v2/services/snapshot');
-      if (res.ok) {
-        const data = await res.json();
-        setServicesData(data);
-      }
+      if (res.ok) setServicesData(await res.json());
     } catch (e) {}
   };
 
@@ -241,14 +216,8 @@ export function App() {
         fetch(`/api/logs?lines=${ollamaLogLinesRef.current}`),
       ]);
       if (statusRes.ok) setOllamaStatus(await statusRes.json());
-      if (modelsRes.ok) {
-        const mData = await modelsRes.json();
-        setOllamaModels(mData.models || []);
-      }
-      if (logsRes.ok) {
-        const lData = await logsRes.json();
-        setOllamaLogs(lData.logs || '');
-      }
+      if (modelsRes.ok) setOllamaModels((await modelsRes.json()).models || []);
+      if (logsRes.ok) setOllamaLogs((await logsRes.json()).logs || '');
     } catch (e) {}
   };
 
@@ -258,24 +227,15 @@ export function App() {
         fetch('/api/v2/logs/sources'),
         fetch('/api/v2/backups/files'),
       ]);
-      if (sourcesRes.ok) {
-        const sData = await sourcesRes.json();
-        setBackupSources(sData.sources || []);
-      }
-      if (filesRes.ok) {
-        const fData = await filesRes.json();
-        setBackupFiles(fData.files || []);
-      }
+      if (sourcesRes.ok) setBackupSources((await sourcesRes.json()).sources || []);
+      if (filesRes.ok) setBackupFiles((await filesRes.json()).files || []);
     } catch (e) {}
   };
 
   const fetchTrafficData = async () => {
     try {
       const res = await fetch('/api/v2/traffic/analytics');
-      if (res.ok) {
-        const data = await res.json();
-        setTrafficData(data);
-      }
+      if (res.ok) setTrafficData(await res.json());
     } catch (e) {}
   };
 
@@ -297,13 +257,6 @@ export function App() {
     } catch (e) {}
   };
 
-  const fetchOsUpdates = async () => {
-    try {
-      const res = await fetch('/api/v2/system/updates');
-      if (res.ok) setOsUpdatesData(await res.json());
-    } catch (e) {}
-  };
-
   const fetchMonixData = async () => {
     try {
       const res = await fetch('/api/v2/monix/snapshot');
@@ -311,45 +264,29 @@ export function App() {
     } catch (e) {}
   };
 
-  // Fetch only what is needed for the current active tab + system overview
   const syncCurrentView = async () => {
     if (!isAuthenticated) return;
     setIsSyncing(true);
     const tab = activeTabRef.current;
-    const promises = [fetchSystemSnapshot(), fetchOsUpdates()];
+    const promises = [fetchSystemSnapshot()];
 
-    if (tab === 'overview') {
-      promises.push(fetchServices(), fetchDockerData(), fetchPm2Data(), fetchTrafficData());
-    } else if (tab === 'system') {
-      promises.push(fetchProcesses(), fetchServices());
-    } else if (tab === 'processes') {
-      promises.push(fetchProcesses());
-    } else if (tab === 'docker') {
-      promises.push(fetchDockerData());
-    } else if (tab === 'pm2') {
-      promises.push(fetchPm2Data());
-    } else if (tab === 'services') {
-      promises.push(fetchServices());
-    } else if (tab === 'ollama') {
-      promises.push(fetchOllamaData());
-    } else if (tab === 'backups') {
-      promises.push(fetchBackupData());
-    } else if (tab === 'traffic') {
-      promises.push(fetchTrafficData());
-    } else if (tab === 'databases') {
-      promises.push(fetchDatabaseData());
-    } else if (tab === 'security') {
-      promises.push(fetchSecurityData());
-    } else if (tab === 'monix') {
-      promises.push(fetchMonixData());
-    }
+    if (tab === 'system') promises.push(fetchProcesses(), fetchServices());
+    else if (tab === 'processes') promises.push(fetchProcesses());
+    else if (tab === 'docker') promises.push(fetchDockerData());
+    else if (tab === 'pm2') promises.push(fetchPm2Data());
+    else if (tab === 'services') promises.push(fetchServices());
+    else if (tab === 'ollama') promises.push(fetchOllamaData());
+    else if (tab === 'backups') promises.push(fetchBackupData());
+    else if (tab === 'traffic') promises.push(fetchTrafficData());
+    else if (tab === 'databases') promises.push(fetchDatabaseData());
+    else if (tab === 'security') promises.push(fetchSecurityData());
+    else if (tab === 'monix') promises.push(fetchMonixData());
 
     await Promise.allSettled(promises);
     setLastUpdated(new Date());
     setIsSyncing(false);
   };
 
-  // Full initial sync once after login
   useEffect(() => {
     if (isAuthenticated === true) {
       Promise.allSettled([
@@ -364,7 +301,6 @@ export function App() {
         fetchTrafficData(),
         fetchDatabaseData(),
         fetchSecurityData(),
-        fetchOsUpdates(),
         fetchMonixData(),
         fetchBranding(),
         fetchVersionCheck(),
@@ -376,154 +312,138 @@ export function App() {
     if (isAuthenticated === true) syncCurrentView();
   }, [activeTab, isAuthenticated]);
 
-  // Tab-Aware & Page-Visibility Adaptive Polling Timer
   useEffect(() => {
     if (!isAuthenticated || refreshInterval === 0) return;
-
-    let timerId = null;
-
-    const handleInterval = () => {
-      // If browser tab is hidden in background, throttle polling
-      if (typeof document !== 'undefined' && document.hidden) {
-        return;
-      }
-      syncCurrentView();
-    };
-
-    timerId = setInterval(handleInterval, refreshInterval * 1000);
-
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        syncCurrentView();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
+    const timerId = setInterval(() => {
+      if (!document.hidden) syncCurrentView();
+    }, refreshInterval * 1000);
+    const onVisible = () => { if (!document.hidden) syncCurrentView(); };
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
-      if (timerId) clearInterval(timerId);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(timerId);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [isAuthenticated, refreshInterval]);
 
-  // Loading state during auth check
   if (isAuthenticated === null) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-foreground" />
-          Loading…
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-black font-mono text-xs text-neutral-500 theme-bg">
+        INITIALIZING SYSTEM-OPS...
       </div>
     );
   }
 
-  // Render Login View if unauthenticated
   if (!isAuthenticated) {
     return <LoginView branding={branding} onLoginSuccess={() => setIsAuthenticated(true)} />;
   }
+
+  const tabTitles = {
+    system: 'System Health',
+    processes: 'Process Monitor',
+    docker: 'Docker Containers',
+    pm2: 'PM2 Fleet',
+    services: 'Systemd Services',
+    ollama: 'Ollama AI',
+    backups: 'Backups & Recovery',
+    traffic: 'Traffic Analytics',
+    databases: 'Databases',
+    security: 'Security',
+    monix: 'Monix',
+    troubleshooting: 'Troubleshooting & Diagnostics',
+    settings: 'Settings',
+    integrations: 'Integrations & Setup',
+  };
 
   const pm2TotalCount = (pm2Data?.users || []).reduce(
     (acc, u) => acc + (u.processes || []).length,
     0
   );
 
-  const sidebarMeta = {
-    hostname: systemData?.uptime?.hostname,
-    uptime: systemData?.uptime?.uptimeText,
-    load: systemData?.uptime?.load1m,
-    processCount: processes.length,
-    dockerRunning: dockerData?.running,
-    pm2Count: pm2TotalCount,
-    servicesActive: servicesData?.activeCount,
-    ollamaOnline: ollamaStatus?.systemd?.isActive,
-    trafficHits: trafficData?.summary?.total_hits,
-    securityBanned: securityData?.fail2ban?.totalBanned,
-    monixDown: monixData?.downCount,
-    dbCount: databaseData?.count,
-  };
-
   return (
-    <AppLayout
-      siteName={branding?.siteName || 'system-ops'}
-      siteSubtitle={branding?.siteSubtitle || 'Operations Console'}
-      activeTab={activeTab}
-      setActiveTab={setActiveTab}
-      capabilities={capabilities}
-      sidebarMeta={sidebarMeta}
-      updateAvailable={updateAvailable}
-      lastUpdated={lastUpdated}
-      isSyncing={isSyncing}
-      onSync={syncCurrentView}
-      refreshInterval={refreshInterval}
-      setRefreshInterval={setRefreshInterval}
-      theme={theme}
-      toggleTheme={toggleTheme}
-      onLogout={handleLogout}
-      isMobileOpen={isMobileMenuOpen}
-      setMobileOpen={setIsMobileMenuOpen}
-    >
-      {activeTab === 'overview' && (
-        <HomeView
-          systemData={systemData}
-          capabilities={capabilities}
-          dockerData={dockerData}
-          pm2Count={pm2TotalCount}
-          servicesData={servicesData}
-          trafficData={trafficData}
-          osUpdatesData={osUpdatesData}
-          cpuHistory={cpuHistory}
-          ramHistory={ramHistory}
-          onNavigate={setActiveTab}
-        />
-      )}
+    <div className="flex min-h-screen bg-[#000000] text-white theme-bg">
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        siteName={branding?.siteName || 'system-ops'}
+        updateAvailable={updateAvailable}
+        hostData={{ uptime: systemData?.uptime, processCount: processes.length }}
+        capabilities={capabilities}
+        dockerData={dockerData}
+        pm2Count={pm2TotalCount}
+        servicesCount={servicesData?.activeCount}
+        ollamaStatus={ollamaStatus?.systemd?.isActive ? 'ONLINE' : 'STOPPED'}
+        backupStatus={
+          backupFiles.length > 0 ? 'SUCCESS' : capabilities?.backups?.available ? 'IDLE' : undefined
+        }
+        trafficHits={trafficData?.summary?.total_hits || 0}
+        securityBanned={securityData?.fail2ban?.totalBanned}
+        monixDown={monixData?.downCount}
+        dbCount={databaseData?.count}
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+      />
 
-      {activeTab === 'system' && (
-        <SystemHealthView
-          systemData={systemData}
-          osUpdatesData={osUpdatesData}
-          cpuHistory={cpuHistory}
-          ramHistory={ramHistory}
-          swapHistory={swapHistory}
+      <div className="flex flex-1 flex-col md:pl-64 min-w-0">
+        <TopBar
+          activeTabTitle={tabTitles[activeTab] || 'Console'}
+          siteSubtitle={branding?.siteSubtitle || 'Operations Console'}
+          lastUpdated={lastUpdated}
+          isSyncing={isSyncing}
+          onSync={syncCurrentView}
+          refreshInterval={refreshInterval}
+          setRefreshInterval={setRefreshInterval}
+          theme={theme}
+          toggleTheme={toggleTheme}
+          onLogout={handleLogout}
+          onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
         />
-      )}
 
-      {activeTab === 'processes' && (
-        <ProcessMonitorView
-          processes={processes}
-          sort={processSort}
-          setSort={setProcessSort}
-          onRefresh={fetchProcesses}
-        />
-      )}
-
-      {activeTab === 'docker' && <DockerView dockerData={dockerData} onRefresh={fetchDockerData} />}
-      {activeTab === 'pm2' && <Pm2FleetView pm2Data={pm2Data} onRefresh={fetchPm2Data} />}
-      {activeTab === 'services' && <ServicesView servicesData={servicesData} onRefresh={fetchServices} />}
-      {activeTab === 'ollama' && (
-        <OllamaView
-          statusData={ollamaStatus}
-          models={ollamaModels}
-          logs={ollamaLogs}
-          logLines={ollamaLogLines}
-          setLogLines={setOllamaLogLines}
-          onRefreshLogs={fetchOllamaData}
-        />
-      )}
-      {activeTab === 'traffic' && <TrafficAnalyticsView trafficData={trafficData} />}
-      {activeTab === 'backups' && (
-        <BackupsView sources={backupSources} files={backupFiles} onRefreshFiles={fetchBackupData} />
-      )}
-      {activeTab === 'databases' && <DatabasesView databaseData={databaseData} />}
-      {activeTab === 'security' && (
-        <SecurityView securityData={securityData} certbotData={certbotData} />
-      )}
-      {activeTab === 'monix' && <MonixView monixData={monixData} />}
-      {activeTab === 'troubleshooting' && <TroubleshootingView capabilities={capabilities} />}
-      {activeTab === 'integrations' && (
-        <IntegrationsView capabilities={capabilities} onNavigate={setActiveTab} />
-      )}
-      {activeTab === 'settings' && <SettingsView onBrandingChange={handleBrandingChange} />}
-    </AppLayout>
+        <main className="flex-1 p-4 md:p-6 max-w-[1600px] w-full mx-auto">
+          {activeTab === 'system' && (
+            <SystemHealthView
+              systemData={systemData}
+              cpuHistory={cpuHistory}
+              ramHistory={ramHistory}
+              swapHistory={swapHistory}
+            />
+          )}
+          {activeTab === 'processes' && (
+            <ProcessMonitorView
+              processes={processes}
+              sort={processSort}
+              setSort={setProcessSort}
+              onRefresh={fetchProcesses}
+            />
+          )}
+          {activeTab === 'docker' && <DockerView dockerData={dockerData} onRefresh={fetchDockerData} />}
+          {activeTab === 'pm2' && <Pm2FleetView pm2Data={pm2Data} onRefresh={fetchPm2Data} />}
+          {activeTab === 'services' && <ServicesView servicesData={servicesData} onRefresh={fetchServices} />}
+          {activeTab === 'ollama' && (
+            <OllamaView
+              statusData={ollamaStatus}
+              models={ollamaModels}
+              logs={ollamaLogs}
+              logLines={ollamaLogLines}
+              setLogLines={setOllamaLogLines}
+              onRefreshLogs={fetchOllamaData}
+            />
+          )}
+          {activeTab === 'backups' && (
+            <BackupsView sources={backupSources} files={backupFiles} onRefreshFiles={fetchBackupData} />
+          )}
+          {activeTab === 'traffic' && <TrafficAnalyticsView trafficData={trafficData} />}
+          {activeTab === 'databases' && <DatabasesView databaseData={databaseData} />}
+          {activeTab === 'security' && (
+            <SecurityView securityData={securityData} certbotData={certbotData} />
+          )}
+          {activeTab === 'monix' && <MonixView monixData={monixData} />}
+          {activeTab === 'troubleshooting' && <TroubleshootingView capabilities={capabilities} />}
+          {activeTab === 'integrations' && (
+            <IntegrationsView capabilities={capabilities} onNavigate={(tabId) => setActiveTab(tabId)} />
+          )}
+          {activeTab === 'settings' && <SettingsView onBrandingChange={handleBrandingChange} />}
+        </main>
+      </div>
+    </div>
   );
 }

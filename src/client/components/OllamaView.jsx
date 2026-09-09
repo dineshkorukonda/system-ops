@@ -65,31 +65,31 @@ export function OllamaView({
             </Badge>
           </CardHeader>
           <CardContent className="p-4 space-y-2.5 font-mono text-xs">
-            <div className="flex justify-between py-1 border-b border-[var(--border)]">
-              <span className="text-[var(--text-muted)]">UNIT</span>
+            <div className="flex justify-between py-1 border-b border-[#141414]">
+              <span className="text-neutral-500">UNIT</span>
               <span>ollama.service</span>
             </div>
-            <div className="flex justify-between py-1 border-b border-[var(--border)]">
-              <span className="text-[var(--text-muted)]">SUBSTATE / PID</span>
+            <div className="flex justify-between py-1 border-b border-[#141414]">
+              <span className="text-neutral-500">SUBSTATE / PID</span>
               <span>{sys.subState || '--'} (PID: {sys.pid || '--'})</span>
             </div>
-            <div className="flex justify-between py-1 border-b border-[var(--border)]">
-              <span className="text-[var(--text-muted)]">PROCESS USER</span>
+            <div className="flex justify-between py-1 border-b border-[#141414]">
+              <span className="text-neutral-500">PROCESS USER</span>
               <span>{sys.user || 'ollama'}</span>
             </div>
-            <div className="flex justify-between py-1 border-b border-[var(--border)]">
-              <span className="text-[var(--text-muted)]">SOCKET BINDING</span>
+            <div className="flex justify-between py-1 border-b border-[#141414]">
+              <span className="text-neutral-500">SOCKET BINDING</span>
               <Badge variant={listener.listening ? 'ok' : 'err'} className="text-[9px]">
                 {listener.listening ? '127.0.0.1:11434 BOUND' : 'UNBOUND'}
               </Badge>
             </div>
             <div className="flex justify-between py-1">
-              <span className="text-[var(--text-muted)]">API HEALTH &amp; LATENCY</span>
+              <span className="text-neutral-500">API HEALTH &amp; LATENCY</span>
               <span className="flex items-center gap-1.5">
                 <Badge variant={api.ok ? 'ok' : 'err'} className="text-[9px]">
                   {api.ok ? 'HTTP 200' : 'FAIL'}
                 </Badge>
-                <span className="text-[var(--text-secondary)]">({api.latencyMs || 0} ms)</span>
+                <span className="text-neutral-400">({api.latencyMs || 0} ms)</span>
               </span>
             </div>
           </CardContent>
@@ -99,14 +99,14 @@ export function OllamaView({
         <Card>
           <CardHeader>
             <CardTitle>Quick Inference Probe</CardTitle>
-            <span className="font-mono text-[10px] text-[var(--text-muted)]">Token-Capped</span>
+            <span className="font-mono text-[10px] text-neutral-500">Token-Capped</span>
           </CardHeader>
           <CardContent className="p-4 space-y-3 font-mono text-xs">
             <div className="flex gap-2">
               <select
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
-                className="h-8 flex-1 rounded ops-input border px-2 text-xs text-[var(--text-primary)] outline-none ops-input"
+                className="h-8 flex-1 rounded border border-[#262626] bg-[#0d0d0d] px-2 text-xs text-white outline-none theme-input"
               >
                 {models.length > 0 ? (
                   models.map((m) => (
@@ -123,23 +123,23 @@ export function OllamaView({
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="Test prompt..."
-                className="h-8 flex-1 rounded ops-input border px-3 text-xs text-[var(--text-primary)] placeholder-neutral-500 outline-none ops-input"
+                className="h-8 flex-1 rounded border border-[#262626] bg-[#0d0d0d] px-3 text-xs text-white placeholder-neutral-500 outline-none theme-input"
               />
-              <Button size="sm" onClick={handleProbe} disabled={isProbing}>
+              <Button size="sm" onClick={handleProbe} disabled={isProbing} className="font-mono text-[11px]">
                 {isProbing ? 'TESTING...' : 'PROBE'}
               </Button>
             </div>
 
             {probeResult && (
-              <div className="rounded border border-[var(--border)] bg-[var(--surface-muted)] p-3 space-y-2 text-xs ">
+              <div className="rounded border border-[#1f1f1f] bg-[#050505] p-3 space-y-2 text-xs theme-header">
                 <div className="flex justify-between items-center">
                   <Badge variant={probeResult.ok ? 'ok' : 'err'}>
                     {probeResult.ok ? 'PASS' : 'FAIL'}
                   </Badge>
-                  <span className="text-[var(--text-secondary)]">LATENCY: {probeResult.latencyMs || 0} ms</span>
+                  <span className="text-neutral-400">LATENCY: {probeResult.latencyMs || 0} ms</span>
                 </div>
-                <div className="text-[var(--text-secondary)] text-[10px] uppercase">RESPONSE:</div>
-                <pre className="text-[11px] text-neutral-200 bg-[var(--surface-raised)] p-2 rounded max-h-24 overflow-y-auto whitespace-pre-wrap">
+                <div className="text-neutral-400 text-[10px] uppercase">RESPONSE:</div>
+                <pre className="text-[11px] text-neutral-200 bg-[#0c0c0c] p-2 rounded max-h-24 overflow-y-auto whitespace-pre-wrap">
                   {probeResult.response || probeResult.error || '--'}
                 </pre>
               </div>
@@ -154,26 +154,26 @@ export function OllamaView({
           </CardHeader>
           <div className="overflow-x-auto max-h-[220px] overflow-y-auto">
             <table className="w-full text-left font-mono text-xs">
-              <thead className="sticky top-0 border-b border-[var(--border)] bg-[var(--surface-raised)] text-[10px] uppercase text-[var(--text-muted)] ">
+              <thead className="sticky top-0 border-b border-[#1a1a1a] bg-[#0c0c0c] text-[10px] uppercase text-neutral-500 theme-header">
                 <tr>
                   <th className="px-4 py-2">Model</th>
                   <th className="px-4 py-2">Size</th>
                   <th className="px-4 py-2">Modified</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border)]">
+              <tbody className="divide-y divide-[#141414]">
                 {models.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="px-4 py-3 text-center text-[var(--text-muted)] font-sans">
+                    <td colSpan={3} className="px-4 py-3 text-center text-neutral-500 font-sans">
                       No models installed in Ollama.
                     </td>
                   </tr>
                 ) : (
                   models.map((m, idx) => (
-                    <tr key={idx} className="hover:bg-[var(--surface-raised)]">
-                      <td className="px-4 py-2 font-semibold text-[var(--text-primary)]">{m.name}</td>
-                      <td className="px-4 py-2 text-[var(--text-secondary)]">{m.size}</td>
-                      <td className="px-4 py-2 text-[var(--text-muted)] text-[11px]">{m.modified}</td>
+                    <tr key={idx} className="hover:bg-[#0d0d0d]">
+                      <td className="px-4 py-2 font-semibold text-white">{m.name}</td>
+                      <td className="px-4 py-2 text-neutral-400">{m.size}</td>
+                      <td className="px-4 py-2 text-neutral-500 text-[11px]">{m.modified}</td>
                     </tr>
                   ))
                 )}
@@ -195,7 +195,7 @@ export function OllamaView({
               <select
                 value={logLines}
                 onChange={(e) => setLogLines(e.target.value)}
-                className="h-7 rounded ops-input border px-2 font-mono text-[11px] text-[var(--text-secondary)] outline-none hover:border-neutral-700 focus:border-neutral-400 ops-input"
+                className="h-7 rounded border border-[#262626] bg-[#0d0d0d] px-2 font-mono text-[11px] text-neutral-300 outline-none hover:border-neutral-700 focus:border-neutral-400 theme-input"
               >
                 <option value="50">50 lines</option>
                 <option value="100">100 lines</option>
@@ -207,17 +207,17 @@ export function OllamaView({
                 placeholder="Filter logs..."
                 value={logFilter}
                 onChange={(e) => setLogFilter(e.target.value)}
-                className="h-7 rounded ops-input border px-2 font-mono text-[11px] text-[var(--text-primary)] placeholder-neutral-500 outline-none w-32 ops-input"
+                className="h-7 rounded border border-[#262626] bg-[#0d0d0d] px-2 font-mono text-[11px] text-white placeholder-neutral-500 outline-none w-32 theme-input"
               />
-              <Button variant="secondary" size="sm" onClick={handleCopyLogs}>
+              <Button variant="secondary" size="sm" onClick={handleCopyLogs} className="font-mono text-[11px] h-7">
                 {copySuccess ? 'COPIED' : 'COPY'}
               </Button>
-              <Button variant="outline" size="sm" onClick={onRefreshLogs}>
+              <Button variant="outline" size="sm" onClick={onRefreshLogs} className="font-mono text-[11px] h-7">
                 TAIL
               </Button>
             </div>
           </CardHeader>
-          <div className="flex-1 bg-[var(--surface-muted)] p-4 font-mono text-[11px] leading-relaxed text-[var(--text-secondary)] overflow-y-auto max-h-[calc(100vh-230px)] select-text">
+          <div className="flex-1 bg-[#020202] p-4 font-mono text-[11px] leading-relaxed text-neutral-300 overflow-y-auto max-h-[calc(100vh-230px)] select-text">
             {filteredLogs.length === 0 ? (
               <div className="text-neutral-600 font-sans">No matching journal log lines.</div>
             ) : (
@@ -227,7 +227,7 @@ export function OllamaView({
                   <div
                     key={idx}
                     className={`py-0.5 whitespace-pre-wrap break-all ${
-                      isErr ? 'text-rose-400 font-semibold' : 'text-[var(--text-secondary)]'
+                      isErr ? 'text-rose-400 font-semibold' : 'text-neutral-300'
                     }`}
                   >
                     {line}

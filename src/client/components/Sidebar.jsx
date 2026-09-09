@@ -1,7 +1,6 @@
 import React from 'react';
 import { cn } from '../lib/utils';
 import { Badge } from './ui/Badge';
-import { NAV_ICONS } from './ui/Icons';
 
 export function Sidebar({
   activeTab,
@@ -16,9 +15,9 @@ export function Sidebar({
   ollamaStatus,
   backupStatus,
   trafficHits,
-  databaseCount,
   securityBanned,
-  monixDownCount,
+  monixDown,
+  dbCount,
   isOpen,
   onClose,
 }) {
@@ -27,8 +26,8 @@ export function Sidebar({
   if (capabilities?.docker?.available) {
     runtimeItems.push({
       id: 'docker',
-      label: 'Docker',
-      tag: dockerData?.running !== undefined ? `${dockerData.running} running` : null,
+      label: 'Docker Containers',
+      tag: dockerData?.running !== undefined ? `${dockerData.running} RUN` : 'DOCKER',
       tagVariant: dockerData?.running > 0 ? 'ok' : 'neutral',
     });
   }
@@ -37,7 +36,7 @@ export function Sidebar({
     runtimeItems.push({
       id: 'pm2',
       label: 'PM2 Fleet',
-      tag: pm2Count !== undefined ? `${pm2Count} apps` : null,
+      tag: pm2Count !== undefined ? `${pm2Count} APPS` : 'PM2',
       tagVariant: pm2Count > 0 ? 'ok' : 'neutral',
     });
   }
@@ -45,8 +44,8 @@ export function Sidebar({
   if (capabilities?.systemd?.available !== false) {
     runtimeItems.push({
       id: 'services',
-      label: 'Services',
-      tag: servicesCount !== undefined ? `${servicesCount} active` : null,
+      label: 'Systemd Services',
+      tag: servicesCount !== undefined ? `${servicesCount} UP` : 'SYSTEMD',
       tagVariant: 'ok',
     });
   }
@@ -54,36 +53,9 @@ export function Sidebar({
   if (capabilities?.ollama?.available) {
     runtimeItems.push({
       id: 'ollama',
-      label: 'Ollama',
-      tag: ollamaStatus === 'ONLINE' || ollamaStatus === 'ACTIVE' ? 'Online' : 'Stopped',
+      label: 'Ollama AI',
+      tag: ollamaStatus || 'OLLAMA',
       tagVariant: ollamaStatus === 'ACTIVE' || ollamaStatus === 'ONLINE' ? 'ok' : 'err',
-    });
-  }
-
-  if (capabilities?.databases?.available) {
-    runtimeItems.push({
-      id: 'databases',
-      label: 'Databases',
-      tag: databaseCount !== undefined ? `${databaseCount} up` : null,
-      tagVariant: databaseCount > 0 ? 'ok' : 'neutral',
-    });
-  }
-
-  if (capabilities?.security?.available || capabilities?.certbot?.available) {
-    runtimeItems.push({
-      id: 'security',
-      label: 'Security',
-      tag: securityBanned > 0 ? `${securityBanned} banned` : null,
-      tagVariant: securityBanned > 0 ? 'warn' : 'ok',
-    });
-  }
-
-  if (capabilities?.monix?.configured) {
-    runtimeItems.push({
-      id: 'monix',
-      label: 'Monix Uptime',
-      tag: monixDownCount > 0 ? `${monixDownCount} down` : capabilities?.monix?.available ? 'Linked' : 'Setup',
-      tagVariant: monixDownCount > 0 ? 'err' : capabilities?.monix?.available ? 'ok' : 'neutral',
     });
   }
 
@@ -92,8 +64,8 @@ export function Sidebar({
   if (capabilities?.backups?.available) {
     storageItems.push({
       id: 'backups',
-      label: 'Backups',
-      tag: backupStatus === 'SUCCESS' ? 'Ready' : backupStatus === 'FAILED' ? 'Failed' : null,
+      label: 'Backups & Dumps',
+      tag: backupStatus || 'BACKUP',
       tagVariant: backupStatus === 'SUCCESS' ? 'ok' : backupStatus === 'FAILED' ? 'err' : 'warn',
     });
   }
@@ -101,129 +73,164 @@ export function Sidebar({
   if (capabilities?.traffic?.available) {
     storageItems.push({
       id: 'traffic',
-      label: 'Traffic',
-      tag: trafficHits !== undefined ? `${trafficHits} hits` : null,
+      label: 'Traffic Analytics',
+      tag: trafficHits !== undefined ? `${trafficHits} HITS` : 'GEO',
       tagVariant: 'neutral',
+    });
+  }
+
+  if (capabilities?.databases?.available) {
+    storageItems.push({
+      id: 'databases',
+      label: 'Databases',
+      tag: dbCount !== undefined ? `${dbCount} DB` : 'SQL',
+      tagVariant: 'neutral',
+    });
+  }
+
+  const observabilityItems = [];
+  if (capabilities?.security?.available || capabilities?.certbot?.available) {
+    observabilityItems.push({
+      id: 'security',
+      label: 'Security',
+      tag: securityBanned ? `${securityBanned} BAN` : 'SEC',
+      tagVariant: securityBanned ? 'warn' : 'neutral',
+    });
+  }
+  if (capabilities?.monix?.configured) {
+    observabilityItems.push({
+      id: 'monix',
+      label: 'Monix',
+      tag: monixDown ? `${monixDown} DOWN` : 'MONIX',
+      tagVariant: monixDown ? 'err' : 'ok',
     });
   }
 
   const sections = [
     {
-      title: 'Overview',
+      title: 'OVERVIEW & CORE',
       items: [
         {
           id: 'system',
           label: 'System Health',
-          tag: hostData?.uptime?.load1m ? `Load ${hostData.uptime.load1m}` : null,
+          tag: hostData?.uptime?.load1m ? `1m: ${hostData.uptime.load1m}` : 'LIVE',
           tagVariant: 'ok',
         },
         {
           id: 'processes',
-          label: 'Processes',
-          tag: hostData?.processCount ? `${hostData.processCount}` : null,
+          label: 'Process Monitor',
+          tag: hostData?.processCount ? `${hostData.processCount} PROC` : 'PROC',
           tagVariant: 'neutral',
         },
       ],
     },
-    ...(runtimeItems.length > 0 ? [{ title: 'Infrastructure', items: runtimeItems }] : []),
-    ...(storageItems.length > 0 ? [{ title: 'Data', items: storageItems }] : []),
+    ...(runtimeItems.length > 0
+      ? [{ title: 'CONTAINERS & RUNTIMES', items: runtimeItems }]
+      : []),
+    ...(storageItems.length > 0
+      ? [{ title: 'STORAGE & TRAFFIC', items: storageItems }]
+      : []),
+    ...(observabilityItems.length > 0
+      ? [{ title: 'OBSERVABILITY', items: observabilityItems }]
+      : []),
     {
-      title: 'System',
+      title: 'HELP & SYSTEM',
       items: [
-        { id: 'integrations', label: 'Integrations', tag: null, tagVariant: 'neutral' },
+        {
+          id: 'integrations',
+          label: 'Integrations',
+          tag: 'SETUP',
+          tagVariant: 'neutral',
+        },
         {
           id: 'settings',
           label: 'Settings',
-          tag: updateAvailable ? 'Update' : null,
+          tag: updateAvailable ? 'UPDATE' : 'CONFIG',
           tagVariant: updateAvailable ? 'warn' : 'neutral',
         },
-        { id: 'troubleshooting', label: 'Help', tag: null, tagVariant: 'neutral' },
+        {
+          id: 'troubleshooting',
+          label: 'Troubleshooting',
+          tag: 'DIAG',
+          tagVariant: 'neutral',
+        },
       ],
     },
   ];
-
-  const renderNavItem = (item) => {
-    const isActive = activeTab === item.id;
-    const Icon = NAV_ICONS[item.id];
-    return (
-      <button
-        key={item.id}
-        onClick={() => {
-          setActiveTab(item.id);
-          if (window.innerWidth < 768) onClose();
-        }}
-        className={cn('ops-nav-item', isActive && 'ops-nav-item-active')}
-      >
-        {Icon && <Icon />}
-        <span className="flex-1 truncate">{item.label}</span>
-        {item.tag && (
-          <Badge variant={item.tagVariant} className="text-[10px] px-1.5">
-            {item.tag}
-          </Badge>
-        )}
-      </button>
-    );
-  };
 
   return (
     <>
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden"
           onClick={onClose}
         />
       )}
 
       <aside
         className={cn(
-          'ops-sidebar fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r transition-transform duration-200 ease-in-out md:translate-x-0',
+          'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-[#1f1f1f] bg-[#000000] transition-transform duration-200 ease-in-out md:translate-x-0 theme-card',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <div className="flex h-14 items-center gap-2.5 border-b px-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent-muted)] text-[var(--accent)]">
-            <IconActivity className="h-4 w-4" />
-          </div>
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-[var(--text-primary)]">{siteName}</div>
-            <div className="truncate text-xs text-[var(--text-muted)]">Operations Console</div>
-          </div>
+        <div className="flex h-14 items-center justify-between border-b border-[#1f1f1f] px-5 theme-header">
+          <span className="font-mono text-sm font-bold tracking-tight text-white truncate">
+            {siteName.toUpperCase()}
+          </span>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
           {sections.map((section, sIdx) => (
-            <div key={sIdx} className="space-y-1">
-              <div className="ops-section-title px-3 mb-2">{section.title}</div>
-              <div className="space-y-0.5">
-                {section.items.map(renderNavItem)}
+            <div key={sIdx} className="space-y-1.5">
+              <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                {section.title}
+              </div>
+              <div className="space-y-1">
+                {section.items.map((item) => {
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveTab(item.id);
+                        if (window.innerWidth < 768) onClose();
+                      }}
+                      className={cn(
+                        'w-full flex items-center justify-between rounded px-3 py-2 text-xs font-medium transition-colors text-left cursor-pointer',
+                        isActive
+                          ? 'bg-[#141414] text-white border border-[#262626] shadow-sm font-semibold'
+                          : 'text-neutral-400 hover:bg-[#0d0d0d] hover:text-neutral-200'
+                      )}
+                    >
+                      <span>{item.label}</span>
+                      {item.tag && (
+                        <Badge variant={isActive ? item.tagVariant : 'neutral'} className="text-[9px] px-1.5 py-0">
+                          {item.tag}
+                        </Badge>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}
         </div>
 
-        <div className="border-t p-4 space-y-2 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[var(--text-muted)]">Host</span>
-            <span className="font-medium text-[var(--text-secondary)] truncate ml-2">
+        <div className="border-t border-[#1f1f1f] bg-[#050505] p-4 text-xs space-y-2 theme-header">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-neutral-500 font-mono">NODE</span>
+            <span className="font-mono font-medium text-neutral-300">
               {hostData?.uptime?.hostname || '—'}
             </span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[var(--text-muted)]">Uptime</span>
-            <span className="font-medium text-[var(--text-secondary)]">
-              {hostData?.uptime?.uptimeText || '—'}
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-neutral-500 font-mono">UPTIME</span>
+            <span className="font-mono text-neutral-300">
+              {hostData?.uptime?.uptimeText || '--'}
             </span>
           </div>
         </div>
       </aside>
     </>
-  );
-}
-
-function IconActivity({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-    </svg>
   );
 }

@@ -25,7 +25,7 @@ const GUIDES = [
     setupSteps: [
       'Install PM2: npm install -g pm2',
       'Start apps: pm2 start app.js && pm2 save',
-      'Set users in .env: PM2_USERS=root',
+      'Set users in .env: PM2_USERS=root (only users with PM2)',
       'Set binary path: PM2_PATH_ROOT=/usr/bin/pm2',
       'Verify: sudo bash /opt/system-ops/scripts/debug-pm2.sh',
     ],
@@ -46,7 +46,7 @@ const GUIDES = [
   },
   {
     id: 'backups',
-    name: 'Backups',
+    name: 'Backups & Dumps',
     description: 'Track backup logs and downloadable dump files.',
     capKey: 'backups',
     setupSteps: [
@@ -70,60 +70,6 @@ const GUIDES = [
     ],
     envVars: ['NGINX_LOG_PATH=/var/log/nginx/access.log'],
   },
-  {
-    id: 'databases',
-    name: 'Database Health',
-    description: 'Monitor PostgreSQL, Redis, and MySQL listeners on standard ports.',
-    capKey: 'databases',
-    setupSteps: [
-      'Ensure database services listen on localhost (5432, 6379, 3306)',
-      'Optional custom ports: POSTGRES_PORT, REDIS_PORT, MYSQL_PORT in .env',
-      'Install client tools for richer stats: postgresql-client, redis-tools, mysql-client',
-    ],
-    envVars: ['POSTGRES_PORT=5432', 'REDIS_PORT=6379', 'MYSQL_PORT=3306'],
-  },
-  {
-    id: 'security',
-    name: 'Security (UFW & Fail2ban)',
-    description: 'Firewall rule summary and fail2ban jail status.',
-    capKey: 'security',
-    setupSteps: [
-      'Install: sudo apt install ufw fail2ban',
-      'Enable UFW: sudo ufw enable',
-      'Grant passwordless sudo for ops user (see Troubleshooting)',
-    ],
-    envVars: [],
-  },
-  {
-    id: 'certbot',
-    name: 'Certbot / Let\'s Encrypt',
-    description: 'Certificate inventory and auto-renew timer status.',
-    capKey: 'certbot',
-    setupSteps: [
-      'Install: sudo apt install certbot python3-certbot-nginx',
-      'Issue cert: sudo certbot --nginx -d yourdomain.com',
-      'Enable timer: sudo systemctl enable --now certbot.timer',
-      'TLS on System Health uses live HTTPS probes (works with Cloudflare too)',
-    ],
-    envVars: ['TLS_HOSTS=ops.example.com,app.example.com'],
-  },
-  {
-    id: 'monix',
-    name: 'Monix Uptime',
-    description: 'External uptime, response time, and cert telemetry from your Monix instance.',
-    capKey: 'monix',
-    setupSteps: [
-      'Set MONIX_URL=https://monix.dineshkorukonda.online',
-      'Set MONIX_STATUS_SLUGS=yourdomain.com,another-site.com',
-      'Or use MONIX_AUTO_DISCOVER=true to match nginx domains',
-      'Monix checks run every 5 min — no duplicate uptime probes here',
-    ],
-    envVars: [
-      'MONIX_URL=https://monix.dineshkorukonda.online',
-      'MONIX_STATUS_SLUGS=system-ops.dineshkorukonda.online',
-      'MONIX_AUTO_DISCOVER=false',
-    ],
-  },
 ];
 
 export function IntegrationsView({ capabilities, onNavigate }) {
@@ -140,26 +86,33 @@ export function IntegrationsView({ capabilities, onNavigate }) {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-        Features are auto-detected on this server. Only installed integrations appear in the sidebar.
+      <div className="font-mono text-xs text-neutral-400 leading-relaxed">
+        Features are auto-detected on this VPS. Only installed integrations appear in the sidebar.
         Use the guides below to set up anything missing.
-      </p>
+      </div>
 
       {installed.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Active on this server</CardTitle>
-            <Badge variant="ok">{installed.length} detected</Badge>
+            <CardTitle>Active on This Server</CardTitle>
+            <Badge variant="ok">{installed.length} DETECTED</Badge>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-2 font-mono text-xs">
             {installed.map((g) => (
-              <div key={g.id} className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0">
+              <div key={g.id} className="flex items-center justify-between py-2 border-b border-[#141414] last:border-0">
                 <div>
-                  <span className="font-medium text-[var(--text-primary)]">{g.name}</span>
-                  <span className="text-[var(--text-muted)] ml-2 text-sm">— active</span>
+                  <span className="text-white font-semibold">{g.name}</span>
+                  <span className="text-neutral-500 ml-2">— detected</span>
                 </div>
                 {onNavigate && (
-                  <Button variant="outline" size="sm" onClick={() => onNavigate(g.id)}>Open</Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onNavigate(g.id)}
+                    className="font-mono text-[10px] h-7"
+                  >
+                    OPEN
+                  </Button>
                 )}
               </div>
             ))}
@@ -169,33 +122,40 @@ export function IntegrationsView({ capabilities, onNavigate }) {
 
       {notInstalled.length > 0 && (
         <div className="space-y-4">
-          <h2 className="ops-section-title">Available to set up</h2>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 font-mono">
+            Available to Set Up
+          </div>
           {notInstalled.map((guide, gIdx) => (
             <Card key={guide.id}>
               <CardHeader>
                 <CardTitle>{guide.name}</CardTitle>
-                <Badge variant="neutral">Not detected</Badge>
+                <Badge variant="neutral">NOT DETECTED</Badge>
               </CardHeader>
-              <CardContent className="space-y-4 text-sm">
-                <p className="text-[var(--text-muted)]">{guide.description}</p>
+              <CardContent className="space-y-4 font-mono text-xs">
+                <p className="text-neutral-400">{guide.description}</p>
+
                 <div>
-                  <div className="ops-label mb-2">Setup steps</div>
-                  <ol className="list-decimal list-inside space-y-1.5 text-[var(--text-secondary)]">
+                  <div className="text-[10px] uppercase text-neutral-500 mb-2">Setup Steps</div>
+                  <ol className="list-decimal list-inside space-y-1.5 text-neutral-300">
                     {guide.setupSteps.map((step, i) => (
                       <li key={i} className="leading-relaxed">{step}</li>
                     ))}
                   </ol>
                 </div>
+
                 {guide.envVars.length > 0 && (
                   <div>
-                    <div className="ops-label mb-2">.env configuration</div>
-                    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-muted)] p-3 space-y-2">
+                    <div className="text-[10px] uppercase text-neutral-500 mb-2">.env Configuration</div>
+                    <div className="rounded border border-[#1a1a1a] bg-[#050505] p-3 space-y-1">
                       {guide.envVars.map((line, i) => (
                         <div key={i} className="flex items-center justify-between gap-2">
-                          <code className="font-mono text-xs text-[var(--accent)]">{line}</code>
-                          <Button variant="ghost" size="sm" onClick={() => handleCopy(line, `${gIdx}-${i}`)}>
-                            {copiedIdx === `${gIdx}-${i}` ? 'Copied' : 'Copy'}
-                          </Button>
+                          <code className="text-emerald-400/90 text-[11px]">{line}</code>
+                          <button
+                            onClick={() => handleCopy(line, `${gIdx}-${i}`)}
+                            className="text-[9px] text-neutral-500 hover:text-white shrink-0 cursor-pointer"
+                          >
+                            {copiedIdx === `${gIdx}-${i}` ? 'COPIED' : 'COPY'}
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -209,7 +169,9 @@ export function IntegrationsView({ capabilities, onNavigate }) {
 
       {notInstalled.length === 0 && (
         <Card>
-          <CardContent className="ops-empty">All supported integrations are active on this server.</CardContent>
+          <CardContent className="p-6 text-center font-mono text-xs text-neutral-400">
+            All supported integrations are active on this server.
+          </CardContent>
         </Card>
       )}
     </div>

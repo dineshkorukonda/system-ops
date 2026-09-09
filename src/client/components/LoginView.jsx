@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/Card';
+import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
-import { Input } from './ui/Input';
 
 export function LoginView({ branding, onLoginSuccess }) {
   const [password, setPassword] = useState('');
@@ -12,26 +11,28 @@ export function LoginView({ branding, onLoginSuccess }) {
   useEffect(() => {
     if (branding) {
       setLocalBranding(branding);
-      document.title = branding.pageTitle || `${branding.siteName} | Sign in`;
+      document.title = branding.pageTitle || `${branding.siteName} | Login`;
       return;
     }
     fetch('/api/v2/settings/branding')
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (data) {
           setLocalBranding(data);
-          document.title = data.pageTitle || `${data.siteName} | Sign in`;
+          document.title = data.pageTitle || `${data.siteName} | Login`;
         }
       })
       .catch(() => {});
   }, [branding]);
 
   const siteName = localBranding?.siteName || 'system-ops';
+  const siteSubtitle = localBranding?.siteSubtitle || 'Operations Console Authentication';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
+
     try {
       const res = await fetch('/api/login', {
         method: 'POST',
@@ -39,46 +40,71 @@ export function LoginView({ branding, onLoginSuccess }) {
         body: JSON.stringify({ password }),
       });
       const data = await res.json();
-      if (res.ok && data.success) onLoginSuccess();
-      else setError(data.error || 'Invalid password');
-    } catch {
-      setError('Unable to connect.');
+
+      if (res.ok && data.success) {
+        onLoginSuccess();
+      } else {
+        setError(data.error || 'Invalid password');
+      }
+    } catch (err) {
+      setError('Connection error. Verify host connectivity.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-6">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-info/5 pointer-events-none" />
-      <Card className="relative w-full max-w-sm border-primary/20 shadow-card">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-sm">
-            {siteName.charAt(0).toUpperCase()}
+    <div className="flex min-h-screen items-center justify-center bg-black p-4 theme-bg">
+      <div className="w-full max-w-sm">
+        <Card className="border-[#262626] bg-[#080808] shadow-2xl">
+          <div className="p-6 text-center space-y-1.5 border-b border-[#1a1a1a] theme-header">
+            <h2 className="font-mono text-base font-bold tracking-tight text-white">
+              {siteName.toUpperCase()}
+            </h2>
+            <p className="text-xs text-neutral-400">
+              {siteSubtitle}
+            </p>
           </div>
-          <CardTitle>{siteName}</CardTitle>
-          <CardDescription>Sign in to your operations console</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Password</label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                autoFocus
-              />
-            </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Signing in…' : 'Sign in'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+
+          <CardContent className="p-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="block font-mono text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+                  Access Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter console password..."
+                  required
+                  autoFocus
+                  className="w-full h-9 rounded border border-[#262626] bg-[#121212] px-3 font-mono text-xs text-white placeholder-neutral-600 outline-none hover:border-neutral-600 focus:border-neutral-300 theme-input"
+                />
+              </div>
+
+              {error && (
+                <div className="rounded border border-rose-900/50 bg-rose-950/30 p-2.5 font-mono text-[11px] text-rose-400">
+                  {error}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-9 font-mono text-xs font-semibold"
+              >
+                {isLoading ? 'AUTHENTICATING...' : 'AUTHENTICATE'}
+              </Button>
+            </form>
+          </CardContent>
+
+          <div className="flex items-center justify-between border-t border-[#1a1a1a] bg-[#050505] px-6 py-3 font-mono text-[10px] text-neutral-500 theme-header">
+            <span>BINDING: 127.0.0.1:9080</span>
+            <span className="text-emerald-500 font-semibold">ENCRYPTED SESSION</span>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

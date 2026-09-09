@@ -3,11 +3,9 @@ import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { Sparkline } from './ui/Sparkline';
 import { ProgressBar } from './ui/ProgressBar';
-import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell, TableEmpty } from './ui/Table';
 
 export function SystemHealthView({
   systemData,
-  osUpdatesData,
   cpuHistory = [],
   ramHistory = [],
   swapHistory = [],
@@ -23,171 +21,192 @@ export function SystemHealthView({
   const load1 = parseFloat(upt.load1m) || 0;
   const memPct = mem.usagePercent || 0;
   const swapPct = swap.usagePercent || 0;
-  const cpuHigh = load1 > (upt.cpus || 4);
 
   return (
     <div className="space-y-6">
-      {osUpdatesData?.available && osUpdatesData.pendingCount > 0 && (
-        <Card>
-          <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-medium text-[var(--text-primary)]">
-                {osUpdatesData.pendingCount} package update{osUpdatesData.pendingCount === 1 ? '' : 's'} pending
-              </div>
-              <div className="text-xs text-[var(--text-muted)] mt-1">
-                {osUpdatesData.securityHint ? 'Includes security updates' : 'Run apt upgrade when convenient'}
-              </div>
-            </div>
-            <Badge variant={osUpdatesData.securityHint ? 'warn' : 'neutral'}>
-              {osUpdatesData.securityHint ? 'Security' : 'Maintenance'}
-            </Badge>
-          </CardContent>
-        </Card>
-      )}
-
+      {/* ─── Hero Telemetry Cards with Real-Time Sparklines ─── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* CPU Load Card */}
         <Card>
-          <CardContent className="p-5 space-y-3">
+          <CardContent className="p-4 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="ops-label">CPU load (1m)</span>
-              <Badge variant={cpuHigh ? 'warn' : 'ok'}>{cpuHigh ? 'High' : 'Normal'}</Badge>
+              <span className="font-mono text-[11px] uppercase tracking-wider text-neutral-400">
+                CPU Load (1m)
+              </span>
+              <Badge variant={load1 > (upt.cpus || 4) ? 'warn' : 'ok'}>
+                {load1 > (upt.cpus || 4) ? 'HIGH LOAD' : 'NORMAL'}
+              </Badge>
             </div>
-            <div className="flex items-end justify-between gap-2">
-              <div className="ops-metric">{load1.toFixed(2)}</div>
-              <span className="text-xs text-[var(--text-muted)] pb-1">
-                {upt.cpus ? `${upt.cpus} cores` : '—'}
+            <div className="flex items-baseline justify-between">
+              <div className="font-mono text-2xl font-bold tracking-tight text-white">
+                {load1.toFixed(2)}
+              </div>
+              <span className="font-mono text-xs text-neutral-500">
+                {upt.cpus ? `${upt.cpus} Cores` : '--'}
               </span>
             </div>
-            <Sparkline data={cpuHistory} strokeColor="#22c55e" />
+            <div className="pt-2">
+              <Sparkline data={cpuHistory} strokeColor="#10b981" />
+            </div>
           </CardContent>
         </Card>
 
+        {/* RAM Usage Card */}
         <Card>
-          <CardContent className="p-5 space-y-3">
+          <CardContent className="p-4 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="ops-label">Memory</span>
-              <Badge variant={memPct > 85 ? 'err' : memPct > 65 ? 'warn' : 'ok'}>{memPct}%</Badge>
+              <span className="font-mono text-[11px] uppercase tracking-wider text-neutral-400">
+                RAM Utilization
+              </span>
+              <Badge variant={memPct > 85 ? 'err' : memPct > 65 ? 'warn' : 'ok'}>
+                {memPct}%
+              </Badge>
             </div>
-            <div className="flex items-end justify-between gap-2">
-              <div className="ops-metric">{mem.formattedUsed || '0 B'}</div>
-              <span className="text-xs text-[var(--text-muted)] pb-1">of {mem.formattedTotal || '0 B'}</span>
+            <div className="flex items-baseline justify-between">
+              <div className="font-mono text-2xl font-bold tracking-tight text-white">
+                {mem.formattedUsed || '0 B'}
+              </div>
+              <span className="font-mono text-xs text-neutral-500">
+                of {mem.formattedTotal || '0 B'}
+              </span>
             </div>
-            <Sparkline data={ramHistory} strokeColor="#3b82f6" />
+            <div className="pt-2">
+              <Sparkline data={ramHistory} strokeColor="#3b82f6" />
+            </div>
           </CardContent>
         </Card>
 
+        {/* Swap Usage Card */}
         <Card>
-          <CardContent className="p-5 space-y-3">
+          <CardContent className="p-4 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="ops-label">Swap</span>
-              <Badge variant={swapPct > 50 ? 'err' : swapPct > 20 ? 'warn' : 'neutral'}>{swapPct}%</Badge>
+              <span className="font-mono text-[11px] uppercase tracking-wider text-neutral-400">
+                Swap Utilization
+              </span>
+              <Badge variant={swapPct > 50 ? 'err' : swapPct > 20 ? 'warn' : 'neutral'}>
+                {swapPct}%
+              </Badge>
             </div>
-            <div className="flex items-end justify-between gap-2">
-              <div className="ops-metric">{swap.formattedUsed || '0 B'}</div>
-              <span className="text-xs text-[var(--text-muted)] pb-1">of {swap.formattedTotal || '0 B'}</span>
+            <div className="flex items-baseline justify-between">
+              <div className="font-mono text-2xl font-bold tracking-tight text-white">
+                {swap.formattedUsed || '0 B'}
+              </div>
+              <span className="font-mono text-xs text-neutral-500">
+                of {swap.formattedTotal || '0 B'}
+              </span>
             </div>
-            <Sparkline data={swapHistory} strokeColor="#8b5cf6" />
+            <div className="pt-2">
+              <Sparkline data={swapHistory} strokeColor="#8b5cf6" />
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* ─── Grid: Host Overview, Memory Progress, Services, Disks ─── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Host Uptime & Load Averages */}
         <Card>
           <CardHeader>
-            <CardTitle>Host overview</CardTitle>
+            <CardTitle>Host Uptime &amp; Load Averages</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-0">
-            <div className="ops-divider-row">
-              <span className="ops-row-label">Uptime</span>
-              <span className="ops-row-value">{upt.uptimeText || '—'}</span>
+          <CardContent className="p-4 space-y-3 font-mono text-xs">
+            <div className="flex justify-between py-1.5 border-b border-[#141414]">
+              <span className="text-neutral-500">SYSTEM UPTIME</span>
+              <span className="font-semibold text-neutral-200">{upt.uptimeText || '--'}</span>
             </div>
-            <div className="ops-divider-row">
-              <span className="ops-row-label">CPU cores</span>
-              <span className="ops-row-value">{upt.cpus || '—'}</span>
+            <div className="flex justify-between py-1.5 border-b border-[#141414]">
+              <span className="text-neutral-500">CPU CORES</span>
+              <span>{upt.cpus || '--'} Cores</span>
             </div>
-            <div className="ops-divider-row">
-              <span className="ops-row-label">Load (1m / 5m / 15m)</span>
-              <span className="ops-row-value">
-                <span className="text-[var(--success)]">{upt.load1m || '—'}</span>
-                {' / '}{upt.load5m || '—'}{' / '}{upt.load15m || '—'}
+            <div className="flex justify-between py-1.5">
+              <span className="text-neutral-500">LOAD (1m / 5m / 15m)</span>
+              <span>
+                <strong className="text-emerald-400">{upt.load1m || '--'}</strong>{' / '}
+                <span>{upt.load5m || '--'}</span>{' / '}
+                <span>{upt.load15m || '--'}</span>
               </span>
             </div>
           </CardContent>
         </Card>
 
+        {/* Memory & Swap Active Meters */}
         <Card>
           <CardHeader>
-            <CardTitle>Memory & swap</CardTitle>
+            <CardTitle>Memory &amp; Swap Consumption</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs">
-                <span className="ops-row-label">RAM</span>
-                <span className="ops-row-value">
-                  {mem.formattedUsed || '0 B'} / {mem.formattedTotal || '0 B'} ({memPct}%)
-                </span>
+          <CardContent className="p-4 space-y-4 font-mono text-xs">
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-[11px]">
+                <span className="text-neutral-400">RAM ACTIVE</span>
+                <span>{mem.formattedUsed || '0 B'} / {mem.formattedTotal || '0 B'} ({memPct}%)</span>
               </div>
               <ProgressBar value={memPct} variant="auto" />
             </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs">
-                <span className="ops-row-label">Swap</span>
-                <span className="ops-row-value">
-                  {swap.formattedUsed || '0 B'} / {swap.formattedTotal || '0 B'} ({swapPct}%)
-                </span>
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-[11px]">
+                <span className="text-neutral-400">SWAP ACTIVE</span>
+                <span>{swap.formattedUsed || '0 B'} / {swap.formattedTotal || '0 B'} ({swapPct}%)</span>
               </div>
               <ProgressBar value={swapPct} variant="warn" />
             </div>
           </CardContent>
         </Card>
 
+        {/* Key Systemd Services */}
         <Card>
           <CardHeader>
-            <CardTitle>Systemd services</CardTitle>
+            <CardTitle>Systemd Services</CardTitle>
           </CardHeader>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableHeader>Unit</TableHeader>
-                <TableHeader>State</TableHeader>
-                <TableHeader>Memory</TableHeader>
-                <TableHeader>PID</TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {services.length === 0 ? (
-                <TableEmpty colSpan={4}>No services configured for monitoring.</TableEmpty>
-              ) : (
-                services.map((s, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell className="font-medium text-[var(--text-primary)]">{s.fullUnit}</TableCell>
-                    <TableCell>
-                      <Badge variant={s.isActive ? 'ok' : 'err'}>{s.activeState || 'unknown'}</Badge>
-                    </TableCell>
-                    <TableCell>{s.formattedMemory || '—'}</TableCell>
-                    <TableCell className="font-mono text-xs">{s.pid || '—'}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left font-mono text-xs">
+              <thead className="border-b border-[#1a1a1a] bg-[#0c0c0c] text-[10px] uppercase text-neutral-500 theme-header">
+                <tr>
+                  <th className="px-4 py-2.5">Unit</th>
+                  <th className="px-4 py-2.5">State</th>
+                  <th className="px-4 py-2.5">Memory</th>
+                  <th className="px-4 py-2.5">PID</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#141414]">
+                {services.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-3 text-center text-neutral-500">
+                      No systemd services monitored.
+                    </td>
+                  </tr>
+                ) : (
+                  services.map((s, idx) => (
+                    <tr key={idx} className="hover:bg-[#0d0d0d]">
+                      <td className="px-4 py-2 font-medium">{s.fullUnit}</td>
+                      <td className="px-4 py-2">
+                        <Badge variant={s.isActive ? 'ok' : 'err'}>
+                          {(s.activeState || 'UNKNOWN').toUpperCase()}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-2 text-neutral-400">{s.formattedMemory || '--'}</td>
+                      <td className="px-4 py-2 text-neutral-400">{s.pid || '--'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </Card>
 
+        {/* Disk Usage Mounts */}
         <Card>
           <CardHeader>
-            <CardTitle>Storage</CardTitle>
+            <CardTitle>Storage Partitions</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-4 space-y-4 font-mono text-xs">
             {disk.length === 0 ? (
-              <div className="ops-empty py-6">No disk mounts configured.</div>
+              <div className="text-center text-neutral-500">No disk mounts configured.</div>
             ) : (
               disk.map((d, idx) => (
-                <div key={idx} className="space-y-2">
-                  <div className="flex justify-between text-xs gap-2">
-                    <span className="font-medium text-[var(--text-primary)]">
-                      {d.path}{d.mountPoint ? ` (${d.mountPoint})` : ''}
-                    </span>
-                    <span className="text-[var(--text-muted)] shrink-0">
+                <div key={idx} className="space-y-1.5">
+                  <div className="flex justify-between text-[11px]">
+                    <span className="font-semibold">{d.path} {d.mountPoint && `(${d.mountPoint})`}</span>
+                    <span className="text-neutral-400">
                       {d.formattedUsed || 'N/A'} / {d.formattedTotal || 'N/A'} ({d.percent}%)
                     </span>
                   </div>
@@ -198,81 +217,82 @@ export function SystemHealthView({
           </CardContent>
         </Card>
 
+        {/* Loopback Listening Ports */}
         <Card>
           <CardHeader>
-            <CardTitle>Listening ports</CardTitle>
+            <CardTitle>Listening Loopback Ports</CardTitle>
           </CardHeader>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableHeader>Service</TableHeader>
-                <TableHeader>Address</TableHeader>
-                <TableHeader>Status</TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {ports.length === 0 ? (
-                <TableEmpty colSpan={3}>Checking ports…</TableEmpty>
-              ) : (
-                ports.map((p, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell className="font-medium text-[var(--text-primary)]">{p.name}</TableCell>
-                    <TableCell className="font-mono text-xs">{p.host}:{p.port}</TableCell>
-                    <TableCell>
-                      <Badge variant={p.listening ? 'ok' : 'err'}>
-                        {p.listening ? 'Listening' : 'Not bound'}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left font-mono text-xs">
+              <thead className="border-b border-[#1a1a1a] bg-[#0c0c0c] text-[10px] uppercase text-neutral-500 theme-header">
+                <tr>
+                  <th className="px-4 py-2.5">Service</th>
+                  <th className="px-4 py-2.5">Socket</th>
+                  <th className="px-4 py-2.5">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#141414]">
+                {ports.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-3 text-center text-neutral-500">
+                      Checking ports...
+                    </td>
+                  </tr>
+                ) : (
+                  ports.map((p, idx) => (
+                    <tr key={idx} className="hover:bg-[#0d0d0d]">
+                      <td className="px-4 py-2 font-medium">{p.name}</td>
+                      <td className="px-4 py-2 text-neutral-400">{p.host}:{p.port}</td>
+                      <td className="px-4 py-2">
+                        <Badge variant={p.listening ? 'ok' : 'err'}>
+                          {p.listening ? 'BOUND' : 'UNBOUND'}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </Card>
 
+        {/* TLS Certificates Expiry */}
         <Card>
           <CardHeader>
-            <CardTitle>TLS certificates</CardTitle>
+            <CardTitle>TLS Certificate Expiry</CardTitle>
           </CardHeader>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableHeader>Hostname</TableHeader>
-                <TableHeader>Expires</TableHeader>
-                <TableHeader>Status</TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {tls.length === 0 ? (
-                <TableEmpty colSpan={3}>No domains configured — set TLS_HOSTS or nginx server_name</TableEmpty>
-              ) : (
-                tls.map((t, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell>
-                      <div className="font-medium text-[var(--text-primary)]">{t.target}</div>
-                      {t.issuer && (
-                        <div className="text-[10px] text-[var(--text-muted)]">{t.issuer}</div>
-                      )}
-                      {t.source && (
-                        <div className="text-[10px] text-[var(--text-muted)]">via {t.source}</div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {t.formattedValidTo || '—'}
-                      {t.daysRemaining != null && t.valid && (
-                        <div className="text-[10px] text-[var(--text-muted)]">{t.daysRemaining} days left</div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={t.valid ? (t.daysRemaining <= 14 ? 'warn' : 'ok') : 'err'} className="max-w-[200px] truncate">
-                        {t.valid ? 'Valid' : (t.statusText || 'Issue detected')}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left font-mono text-xs">
+              <thead className="border-b border-[#1a1a1a] bg-[#0c0c0c] text-[10px] uppercase text-neutral-500 theme-header">
+                <tr>
+                  <th className="px-4 py-2.5">Hostname / Cert</th>
+                  <th className="px-4 py-2.5">Valid Until</th>
+                  <th className="px-4 py-2.5">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#141414]">
+                {tls.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-3 text-center text-neutral-500">
+                      Checking certificates...
+                    </td>
+                  </tr>
+                ) : (
+                  tls.map((t, idx) => (
+                    <tr key={idx} className="hover:bg-[#0d0d0d]">
+                      <td className="px-4 py-2 font-medium">{t.target}</td>
+                      <td className="px-4 py-2 text-neutral-400">{t.formattedValidTo || 'N/A'}</td>
+                      <td className="px-4 py-2">
+                        <Badge variant={t.valid ? 'ok' : 'err'}>
+                          {t.statusText || (t.valid ? 'VALID' : 'EXPIRED')}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </Card>
       </div>
     </div>

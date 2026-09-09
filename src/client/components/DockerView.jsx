@@ -91,14 +91,14 @@ export function DockerView({ dockerData, onRefresh }) {
             <div className="text-rose-400 font-semibold">
               {permissionIssue ? 'DOCKER PERMISSION DENIED' : 'DOCKER UNAVAILABLE'}
             </div>
-            <div className="text-[var(--text-secondary)]">{dockerData.error}</div>
+            <div className="text-neutral-300">{dockerData.error}</div>
             {dockerData.hint && (
-              <div className="text-[var(--text-secondary)] text-[11px] leading-relaxed">
+              <div className="text-neutral-400 text-[11px] leading-relaxed">
                 Fix: {dockerData.hint}
               </div>
             )}
-            <div className="text-[var(--text-muted)] text-[10px]">
-              Run diagnostics: <code className="text-[var(--text-secondary)]">sudo bash /opt/system-ops/scripts/debug-docker.sh</code>
+            <div className="text-neutral-500 text-[10px]">
+              Run diagnostics: <code className="text-neutral-300">sudo bash /opt/system-ops/scripts/debug-docker.sh</code>
             </div>
           </CardContent>
         </Card>
@@ -114,17 +114,17 @@ export function DockerView({ dockerData, onRefresh }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 font-mono">
         <Card>
           <CardContent className="p-4 space-y-1">
-            <div className="flex justify-between items-center text-xs text-[var(--text-secondary)]">
+            <div className="flex justify-between items-center text-xs text-neutral-400">
               <span>TOTAL CONTAINERS</span>
               <Badge variant="neutral">DOCKER</Badge>
             </div>
-            <div className="text-2xl font-bold text-[var(--text-primary)]">{total}</div>
+            <div className="text-2xl font-bold text-white">{total}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-4 space-y-1">
-            <div className="flex justify-between items-center text-xs text-[var(--text-secondary)]">
+            <div className="flex justify-between items-center text-xs text-neutral-400">
               <span>RUNNING</span>
               <Badge variant="ok">ONLINE</Badge>
             </div>
@@ -134,33 +134,33 @@ export function DockerView({ dockerData, onRefresh }) {
 
         <Card>
           <CardContent className="p-4 space-y-1">
-            <div className="flex justify-between items-center text-xs text-[var(--text-secondary)]">
+            <div className="flex justify-between items-center text-xs text-neutral-400">
               <span>STOPPED / EXITED</span>
               <Badge variant={exited > 0 ? 'warn' : 'neutral'}>
                 {exited > 0 ? `${exited} DOWN` : 'CLEAN'}
               </Badge>
             </div>
-            <div className="text-2xl font-bold text-[var(--text-secondary)]">{exited}</div>
+            <div className="text-2xl font-bold text-neutral-300">{exited}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-4 space-y-1">
-            <div className="flex justify-between items-center text-xs text-[var(--text-secondary)]">
+            <div className="flex justify-between items-center text-xs text-neutral-400">
               <span>NETWORKS</span>
               <Badge variant="blue">NET</Badge>
             </div>
-            <div className="text-2xl font-bold text-[var(--text-primary)]">{networkCount}</div>
+            <div className="text-2xl font-bold text-white">{networkCount}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-4 space-y-1">
-            <div className="flex justify-between items-center text-xs text-[var(--text-secondary)]">
+            <div className="flex justify-between items-center text-xs text-neutral-400">
               <span>ACTIVE FOOTPRINT</span>
               <Badge variant="blue">STATS</Badge>
             </div>
-            <div className="text-2xl font-bold text-[var(--text-primary)] truncate">
+            <div className="text-2xl font-bold text-white truncate">
               {dockerData?.memoryFormatted || `${running} active`}
             </div>
           </CardContent>
@@ -185,22 +185,22 @@ export function DockerView({ dockerData, onRefresh }) {
                   placeholder="Filter containers..."
                   value={containerSearch}
                   onChange={(e) => setContainerSearch(e.target.value)}
-                  className="h-7 rounded ops-input border px-2 font-mono text-[11px] text-[var(--text-primary)] placeholder-neutral-500 outline-none w-32 md:w-40 ops-input"
+                  className="h-7 rounded border border-[#262626] bg-[#0d0d0d] px-2 font-mono text-[11px] text-white placeholder-neutral-500 outline-none w-32 md:w-40 theme-input"
                 />
-                <Button variant="secondary" size="sm" onClick={onRefresh}>
+                <Button variant="secondary" size="sm" onClick={onRefresh} className="font-mono text-[11px] h-7">
                   REFRESH
                 </Button>
               </div>
             </CardHeader>
 
             {/* Filter Tabs */}
-            <div className="px-4 py-2 border-b border-[var(--border)] flex gap-2 font-mono text-[11px]">
+            <div className="px-4 py-2 border-b border-[#141414] flex gap-2 font-mono text-[11px]">
               <button
                 onClick={() => setStatusFilter('all')}
                 className={`px-2 py-0.5 rounded cursor-pointer ${
                   statusFilter === 'all'
-                    ? 'bg-[#1f1f1f] text-[var(--text-primary)] font-semibold'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    ? 'bg-[#1f1f1f] text-white font-semibold'
+                    : 'text-neutral-400 hover:text-white'
                 }`}
               >
                 All ({total})
@@ -210,7 +210,7 @@ export function DockerView({ dockerData, onRefresh }) {
                 className={`px-2 py-0.5 rounded cursor-pointer ${
                   statusFilter === 'running'
                     ? 'bg-[#1f1f1f] text-emerald-400 font-semibold'
-                    : 'text-[var(--text-secondary)] hover:text-emerald-400'
+                    : 'text-neutral-400 hover:text-emerald-400'
                 }`}
               >
                 Running ({running})
@@ -219,17 +219,17 @@ export function DockerView({ dockerData, onRefresh }) {
                 onClick={() => setStatusFilter('exited')}
                 className={`px-2 py-0.5 rounded cursor-pointer ${
                   statusFilter === 'exited'
-                    ? 'bg-[#1f1f1f] text-[var(--text-secondary)] font-semibold'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    ? 'bg-[#1f1f1f] text-neutral-300 font-semibold'
+                    : 'text-neutral-400 hover:text-white'
                 }`}
               >
                 Exited ({exited})
               </button>
             </div>
 
-            <div className="divide-y divide-[var(--border)] max-h-[560px] overflow-y-auto font-mono text-xs flex-1">
+            <div className="divide-y divide-[#141414] max-h-[560px] overflow-y-auto font-mono text-xs flex-1">
               {filteredContainers.length === 0 ? (
-                <div className="p-6 text-center text-[var(--text-muted)] font-sans">
+                <div className="p-6 text-center text-neutral-500 font-sans">
                   {containers.length === 0
                     ? 'No Docker containers found on this host.'
                     : 'No containers match your search filter.'}
@@ -245,23 +245,23 @@ export function DockerView({ dockerData, onRefresh }) {
                       onClick={() => setSelectedContainer(c)}
                       className={`w-full flex items-center justify-between p-3.5 text-left transition-colors cursor-pointer ${
                         isSelected
-                          ? 'bg-[var(--accent-muted)] border-l-2 border-emerald-400 font-medium'
-                          : 'hover:bg-[var(--surface-raised)]'
+                          ? 'bg-[#171717] border-l-2 border-emerald-400 font-medium'
+                          : 'hover:bg-[#0d0d0d]'
                       }`}
                     >
                       <div className="min-w-0 pr-3 space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-[var(--text-primary)] truncate text-[13px]">{c.name}</span>
-                          <span className="text-[10px] text-[var(--text-muted)]">({c.id})</span>
+                          <span className="font-semibold text-white truncate text-[13px]">{c.name}</span>
+                          <span className="text-[10px] text-neutral-500">({c.id})</span>
                         </div>
-                        <div className="text-[11px] text-[var(--text-secondary)] truncate">{c.image}</div>
+                        <div className="text-[11px] text-neutral-400 truncate">{c.image}</div>
                         {c.ports && c.ports !== '--' && (
-                          <div className="text-[10px] text-[var(--text-muted)] truncate">
+                          <div className="text-[10px] text-neutral-500 truncate">
                             PORTS: {c.ports}
                           </div>
                         )}
                         {c.networks && (
-                          <div className="text-[10px] text-[var(--text-muted)] truncate">
+                          <div className="text-[10px] text-neutral-500 truncate">
                             NET: {c.networks}
                           </div>
                         )}
@@ -271,7 +271,7 @@ export function DockerView({ dockerData, onRefresh }) {
                         <Badge variant={isRunning ? 'ok' : 'neutral'} className="text-[9px]">
                           {c.state.toUpperCase()}
                         </Badge>
-                        <div className="text-[10px] text-[var(--text-secondary)]">{c.status}</div>
+                        <div className="text-[10px] text-neutral-400">{c.status}</div>
                         {isRunning && (
                           <div className="text-[10px] text-emerald-400/90 font-mono">
                             CPU: {c.cpu} | MEM: {c.memory}
@@ -303,7 +303,7 @@ export function DockerView({ dockerData, onRefresh }) {
                 <select
                   value={logLines}
                   onChange={(e) => setLogLines(e.target.value)}
-                  className="h-7 rounded ops-input border px-2 font-mono text-[11px] text-[var(--text-secondary)] outline-none hover:border-neutral-700 focus:border-neutral-400 ops-input"
+                  className="h-7 rounded border border-[#262626] bg-[#0d0d0d] px-2 font-mono text-[11px] text-neutral-300 outline-none hover:border-neutral-700 focus:border-neutral-400 theme-input"
                 >
                   <option value="50">50 lines</option>
                   <option value="100">100 lines</option>
@@ -315,13 +315,13 @@ export function DockerView({ dockerData, onRefresh }) {
                   placeholder="Filter logs..."
                   value={logFilter}
                   onChange={(e) => setLogFilter(e.target.value)}
-                  className="h-7 rounded ops-input border px-2 font-mono text-[11px] text-[var(--text-primary)] placeholder-neutral-500 outline-none w-28 md:w-36 ops-input"
+                  className="h-7 rounded border border-[#262626] bg-[#0d0d0d] px-2 font-mono text-[11px] text-white placeholder-neutral-500 outline-none w-28 md:w-36 theme-input"
                 />
                 <Button
                   variant="secondary"
                   size="sm"
                   onClick={handleCopyLogs}
-                 
+                  className="font-mono text-[11px] h-7"
                 >
                   {copySuccess ? 'COPIED' : 'COPY'}
                 </Button>
@@ -330,16 +330,16 @@ export function DockerView({ dockerData, onRefresh }) {
                   size="sm"
                   onClick={() => selectedContainer && fetchLogs(selectedContainer.id)}
                   disabled={isLoadingLogs}
-                 
+                  className="font-mono text-[11px] h-7"
                 >
                   {isLoadingLogs ? '...' : 'TAIL'}
                 </Button>
               </div>
             </CardHeader>
 
-            <div className="flex-1 bg-[var(--surface-muted)] p-4 font-mono text-[11px] leading-relaxed text-[var(--text-secondary)] overflow-y-auto max-h-[calc(100vh-320px)] select-text">
+            <div className="flex-1 bg-[#020202] p-4 font-mono text-[11px] leading-relaxed text-neutral-300 overflow-y-auto max-h-[calc(100vh-320px)] select-text">
               {isLoadingLogs ? (
-                <div className="text-[var(--text-muted)] font-sans">Tailing container logs...</div>
+                <div className="text-neutral-500 font-sans">Tailing container logs...</div>
               ) : filteredLogLines.length === 0 ? (
                 <div className="text-neutral-600 font-sans">No matching container log entries found.</div>
               ) : (
@@ -354,7 +354,7 @@ export function DockerView({ dockerData, onRefresh }) {
                           ? 'text-rose-400 font-semibold'
                           : isWarn
                           ? 'text-amber-400'
-                          : 'text-[var(--text-secondary)]'
+                          : 'text-neutral-300'
                       }`}
                     >
                       {line}
@@ -374,14 +374,14 @@ export function DockerView({ dockerData, onRefresh }) {
             <CardTitle>Networks ({networks.length})</CardTitle>
             <Badge variant="neutral" className="text-[9px]">BRIDGE / OVERLAY</Badge>
           </div>
-          <Button variant="secondary" size="sm" onClick={onRefresh}>
+          <Button variant="secondary" size="sm" onClick={onRefresh} className="font-mono text-[11px] h-7">
             REFRESH
           </Button>
         </CardHeader>
         <div className="overflow-x-auto">
           <table className="w-full font-mono text-xs">
             <thead>
-              <tr className="border-b border-[var(--border)] text-[var(--text-muted)] text-[10px] uppercase">
+              <tr className="border-b border-[#141414] text-neutral-500 text-[10px] uppercase">
                 <th className="px-4 py-2.5 text-left">Name</th>
                 <th className="px-4 py-2.5 text-left">ID</th>
                 <th className="px-4 py-2.5 text-left">Driver</th>
@@ -389,20 +389,20 @@ export function DockerView({ dockerData, onRefresh }) {
                 <th className="px-4 py-2.5 text-left">Flags</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--border)]">
+            <tbody className="divide-y divide-[#141414]">
               {networks.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-[var(--text-muted)] font-sans">
+                  <td colSpan={5} className="px-4 py-6 text-center text-neutral-500 font-sans">
                     {hasError ? 'Cannot list networks — see error above.' : 'No Docker networks found.'}
                   </td>
                 </tr>
               ) : (
                 networks.map((n) => (
-                  <tr key={n.id || n.name} className="hover:bg-[var(--surface-raised)]">
-                    <td className="px-4 py-2.5 text-[var(--text-primary)] font-semibold">{n.name}</td>
-                    <td className="px-4 py-2.5 text-[var(--text-secondary)]">{n.id}</td>
-                    <td className="px-4 py-2.5 text-[var(--text-secondary)]">{n.driver}</td>
-                    <td className="px-4 py-2.5 text-[var(--text-secondary)]">{n.scope}</td>
+                  <tr key={n.id || n.name} className="hover:bg-[#0d0d0d]">
+                    <td className="px-4 py-2.5 text-white font-semibold">{n.name}</td>
+                    <td className="px-4 py-2.5 text-neutral-400">{n.id}</td>
+                    <td className="px-4 py-2.5 text-neutral-300">{n.driver}</td>
+                    <td className="px-4 py-2.5 text-neutral-400">{n.scope}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex gap-1">
                         {n.internal && <Badge variant="neutral" className="text-[9px]">INTERNAL</Badge>}
