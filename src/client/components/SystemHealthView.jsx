@@ -7,6 +7,7 @@ import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell, TableEmp
 
 export function SystemHealthView({
   systemData,
+  osUpdatesData,
   cpuHistory = [],
   ramHistory = [],
   swapHistory = [],
@@ -26,6 +27,24 @@ export function SystemHealthView({
 
   return (
     <div className="space-y-6">
+      {osUpdatesData?.available && osUpdatesData.pendingCount > 0 && (
+        <Card>
+          <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-medium text-[var(--text-primary)]">
+                {osUpdatesData.pendingCount} package update{osUpdatesData.pendingCount === 1 ? '' : 's'} pending
+              </div>
+              <div className="text-xs text-[var(--text-muted)] mt-1">
+                {osUpdatesData.securityHint ? 'Includes security updates' : 'Run apt upgrade when convenient'}
+              </div>
+            </div>
+            <Badge variant={osUpdatesData.securityHint ? 'warn' : 'neutral'}>
+              {osUpdatesData.securityHint ? 'Security' : 'Maintenance'}
+            </Badge>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-5 space-y-3">
@@ -225,14 +244,27 @@ export function SystemHealthView({
             </TableHead>
             <TableBody>
               {tls.length === 0 ? (
-                <TableEmpty colSpan={3}>Checking certificates…</TableEmpty>
+                <TableEmpty colSpan={3}>No domains configured — set TLS_HOSTS or nginx server_name</TableEmpty>
               ) : (
                 tls.map((t, idx) => (
                   <TableRow key={idx}>
-                    <TableCell className="font-medium text-[var(--text-primary)]">{t.target}</TableCell>
-                    <TableCell>{t.formattedValidTo || '—'}</TableCell>
                     <TableCell>
-                      <Badge variant={t.valid ? 'ok' : 'err'} className="max-w-[200px] truncate">
+                      <div className="font-medium text-[var(--text-primary)]">{t.target}</div>
+                      {t.issuer && (
+                        <div className="text-[10px] text-[var(--text-muted)]">{t.issuer}</div>
+                      )}
+                      {t.source && (
+                        <div className="text-[10px] text-[var(--text-muted)]">via {t.source}</div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {t.formattedValidTo || '—'}
+                      {t.daysRemaining != null && t.valid && (
+                        <div className="text-[10px] text-[var(--text-muted)]">{t.daysRemaining} days left</div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={t.valid ? (t.daysRemaining <= 14 ? 'warn' : 'ok') : 'err'} className="max-w-[200px] truncate">
                         {t.valid ? 'Valid' : (t.statusText || 'Issue detected')}
                       </Badge>
                     </TableCell>

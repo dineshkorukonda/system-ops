@@ -43,13 +43,30 @@ function pathReadable(filePath) {
  * Detect host capabilities. Only mark features available when genuinely present.
  */
 async function getCapabilities() {
-  const [dockerCap, pm2Cap, ollamaCap, systemdCap, backupsCap, trafficCap] = await Promise.all([
+  const [
+    dockerCap,
+    pm2Cap,
+    ollamaCap,
+    systemdCap,
+    backupsCap,
+    trafficCap,
+    databasesCap,
+    securityCap,
+    osUpdatesCap,
+    certbotCap,
+    monixCap,
+  ] = await Promise.all([
     detectDocker(),
     detectPm2(),
     detectOllama(),
     detectSystemd(),
     detectBackups(),
     detectTraffic(),
+    detectDatabases(),
+    detectSecurity(),
+    detectOsUpdates(),
+    detectCertbot(),
+    detectMonix(),
   ]);
 
   return {
@@ -59,6 +76,11 @@ async function getCapabilities() {
     systemd: systemdCap,
     backups: backupsCap,
     traffic: trafficCap,
+    databases: databasesCap,
+    security: securityCap,
+    osUpdates: osUpdatesCap,
+    certbot: certbotCap,
+    monix: monixCap,
     timestamp: new Date().toISOString(),
   };
 }
@@ -252,6 +274,72 @@ async function detectTraffic() {
   }
 }
 
+async function detectDatabases() {
+  try {
+    const { checkPostgres, checkRedis, checkMysql } = require('./databases');
+    const [pg, redis, mysql] = await Promise.all([
+      checkPostgres(parseInt(process.env.POSTGRES_PORT, 10) || 5432),
+      checkRedis(parseInt(process.env.REDIS_PORT, 10) || 6379),
+      checkMysql(parseInt(process.env.MYSQL_PORT, 10) || 3306),
+    ]);
+    const count = [pg, redis, mysql].filter((e) => e.available).length;
+    return { available: count > 0, count, postgresql: pg.available, redis: redis.available, mysql: mysql.available };
+  } catch {
+    return { available: false, count: 0 };
+  }
+}
+
+async function detectSecurity() {
+  try {
+    const { getSecuritySnapshot } = require('./security');
+    const snap = await getSecuritySnapshot();
+    return {
+      available: snap.available,
+      ufw: snap.ufw?.available === true,
+      fail2ban: snap.fail2ban?.available === true,
+    };
+  } catch {
+    return { available: false };
+  }
+}
+
+async function detectOsUpdates() {
+  try {
+    if (process.platform === 'win32') return { available: false, pendingCount: 0 };
+    const which = await runCommand('which', ['apt'], 1500);
+    return { available: which.success && !!which.stdout.trim(), pendingCount: 0 };
+  } catch {
+    return { available: false, pendingCount: 0 };
+  }
+}
+
+async function detectCertbot() {
+  try {
+    const which = await runCommand('which', ['certbot'], 1500);
+    const installed = which.success && !!which.stdout.trim();
+    return { available: installed, installed };
+  } catch {
+    return { available: false, installed: false };
+  }
+}
+
+async function detectMonix() {
+  try {
+    const baseUrl = (process.env.MONIX_URL || '').trim();
+    if (!baseUrl) return { available: false, configured: false };
+    const { getMonixSnapshot } = require('./monix');
+    const snap = await getMonixSnapshot();
+    return {
+      available: snap.available,
+      configured: true,
+      siteCount: snap.siteCount || 0,
+      baseUrl: snap.baseUrl,
+    };
+  } catch {
+    return { available: false, configured: !!(process.env.MONIX_URL || '').trim() };
+  }
+}
+
 module.exports = {
   getCapabilities,
   detectDocker,
@@ -260,4 +348,9 @@ module.exports = {
   detectSystemd,
   detectBackups,
   detectTraffic,
+  detectDatabases,
+  detectSecurity,
+  detectOsUpdates,
+  detectCertbot,
+  detectMonix,
 };

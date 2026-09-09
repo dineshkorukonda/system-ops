@@ -11,6 +11,11 @@ const { listBackupFiles } = require('../collectors/backupFiles');
 const { checkApiHealth, getCliModelList } = require('../services/ollamaService');
 const { getCapabilities } = require('../collectors/capabilities');
 const { getDockerSnapshot } = require('../collectors/docker');
+const { getDatabaseSnapshot } = require('../collectors/databases');
+const { getSecuritySnapshot } = require('../collectors/security');
+const { getOsUpdatesSnapshot } = require('../collectors/osUpdates');
+const { getCertbotSnapshot } = require('../collectors/certbot');
+const { getMonixSnapshot } = require('../collectors/monix');
 const { getServiceStatus, checkPortListener, getHostMetrics } = require('../services/systemService');
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
@@ -169,6 +174,56 @@ function registerAllCollectors() {
     collect: async () => {
       return await getDockerSnapshot();
     }
+  });
+
+  // 10. Database engines (default: 20s)
+  const dbInterval = parseInt(process.env.SYSTEM_OPS_DATABASE_INTERVAL, 10) || 20000;
+  collectorManager.register({
+    name: 'databases',
+    stateKey: 'databases',
+    intervalMs: dbInterval,
+    critical: false,
+    collect: async () => getDatabaseSnapshot(),
+  });
+
+  // 11. Security (UFW / Fail2ban) (default: 30s)
+  const securityInterval = parseInt(process.env.SYSTEM_OPS_SECURITY_INTERVAL, 10) || 30000;
+  collectorManager.register({
+    name: 'security',
+    stateKey: 'security',
+    intervalMs: securityInterval,
+    critical: false,
+    collect: async () => getSecuritySnapshot(),
+  });
+
+  // 12. OS package updates (default: 5m)
+  const osUpdatesInterval = parseInt(process.env.SYSTEM_OPS_OS_UPDATES_INTERVAL, 10) || 300000;
+  collectorManager.register({
+    name: 'osUpdates',
+    stateKey: 'osUpdates',
+    intervalMs: osUpdatesInterval,
+    critical: false,
+    collect: async () => getOsUpdatesSnapshot(),
+  });
+
+  // 13. Certbot certificates (default: 5m)
+  const certbotInterval = parseInt(process.env.SYSTEM_OPS_CERTBOT_INTERVAL, 10) || 300000;
+  collectorManager.register({
+    name: 'certbot',
+    stateKey: 'certbot',
+    intervalMs: certbotInterval,
+    critical: false,
+    collect: async () => getCertbotSnapshot(),
+  });
+
+  // 14. Monix external uptime (default: 60s)
+  const monixInterval = parseInt(process.env.SYSTEM_OPS_MONIX_INTERVAL, 10) || 60000;
+  collectorManager.register({
+    name: 'monix',
+    stateKey: 'monix',
+    intervalMs: monixInterval,
+    critical: false,
+    collect: async () => getMonixSnapshot(),
   });
 }
 

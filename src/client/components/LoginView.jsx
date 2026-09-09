@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from './ui/Card';
-import { Button } from './ui/Button';
 
 export function LoginView({ branding, onLoginSuccess }) {
   const [password, setPassword] = useState('');
@@ -26,13 +24,11 @@ export function LoginView({ branding, onLoginSuccess }) {
   }, [branding]);
 
   const siteName = localBranding?.siteName || 'system-ops';
-  const siteSubtitle = localBranding?.siteSubtitle || 'Operations Console';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-
     try {
       const res = await fetch('/api/login', {
         method: 'POST',
@@ -40,64 +36,48 @@ export function LoginView({ branding, onLoginSuccess }) {
         body: JSON.stringify({ password }),
       });
       const data = await res.json();
-
-      if (res.ok && data.success) {
-        onLoginSuccess();
-      } else {
-        setError(data.error || 'Invalid password');
-      }
+      if (res.ok && data.success) onLoginSuccess();
+      else setError(data.error || 'Invalid password');
     } catch {
-      setError('Unable to connect. Check that the service is running.');
+      setError('Unable to connect.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center ops-app p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--accent-muted)] text-[var(--accent)]">
-            <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-            </svg>
+    <div className="shell flex min-h-screen items-center justify-center p-6">
+      <div className="w-full max-w-sm">
+        <div className="mb-10">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--line)] bg-[var(--bg-elevated)] text-lg font-semibold mb-4">
+            {siteName.charAt(0).toUpperCase()}
           </div>
-          <h1 className="text-xl font-semibold text-[var(--text-primary)]">{siteName}</h1>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">{siteSubtitle}</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{siteName}</h1>
+          <p className="mt-1 text-[var(--fg-muted)]">Sign in to continue</p>
         </div>
 
-        <Card>
-          <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="ops-label block">Password</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                  autoFocus
-                  className="ops-input w-full h-10 px-3 text-sm"
-                />
-              </div>
-
-              {error && (
-                <div className="rounded-lg border border-[var(--danger)]/20 bg-[var(--danger-muted)] p-3 text-sm text-[var(--danger)]">
-                  {error}
-                </div>
-              )}
-
-              <Button type="submit" disabled={isLoading} className="w-full">
-                {isLoading ? 'Signing in…' : 'Sign in'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        <p className="mt-6 text-center text-xs text-[var(--text-muted)]">
-          Secured session · Loopback binding recommended
-        </p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-[var(--fg-muted)] mb-1.5">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="field w-full"
+              placeholder="••••••••"
+              required
+              autoFocus
+            />
+          </div>
+          {error && <p className="text-sm text-[var(--negative)]">{error}</p>}
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full h-11 rounded-lg bg-[var(--fg)] text-[var(--bg)] font-medium text-sm hover:opacity-90 disabled:opacity-50"
+          >
+            {isLoading ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
       </div>
     </div>
   );

@@ -54,12 +54,17 @@ if [ -d "$INSTALL_DIR" ]; then
   fi
 
   if [ "$DEPLOY_FAILED" -eq 0 ]; then
-    echo "[4/5] Pruning dev dependencies..."
+    echo "[4/6] Pruning dev dependencies..."
     run_as_ops "npm prune --omit=dev" || true
+  fi
+
+  if [ "$DEPLOY_FAILED" -eq 0 ]; then
+    echo "[5/6] Building Go collector sidecar (if Go is installed)..."
+    bash "$INSTALL_DIR/scripts/build-go-collector.sh" || true
   fi
 fi
 
-echo "[5/5] Setting file permissions & restarting service..."
+echo "[6/6] Setting file permissions & restarting services..."
 chown -R "$OPS_USER:$OPS_USER" "$INSTALL_DIR"
 chmod 750 "$INSTALL_DIR"
 if [ -f "$INSTALL_DIR/.env" ]; then
@@ -82,8 +87,18 @@ if [ -f "$INSTALL_DIR/systemd/system-ops.service" ]; then
   fi
 fi
 
+if [ -f "$INSTALL_DIR/systemd/system-ops-collector.service" ] && [ -x "$INSTALL_DIR/go-collector/bin/system-ops-collector" ]; then
+  cp "$INSTALL_DIR/systemd/system-ops-collector.service" /etc/systemd/system/system-ops-collector.service 2>/dev/null || true
+  systemctl daemon-reload 2>/dev/null || true
+  systemctl enable system-ops-collector.service 2>/dev/null || true
+fi
+
 if [ "$DEPLOY_FAILED" -eq 1 ]; then
   echo "WARNING: Build failed — restarting service with previous build..."
+fi
+
+if systemctl list-unit-files system-ops-collector.service &>/dev/null && [ -x "$INSTALL_DIR/go-collector/bin/system-ops-collector" ]; then
+  systemctl restart system-ops-collector.service || systemctl start system-ops-collector.service
 fi
 
 systemctl restart system-ops.service || systemctl start system-ops.service

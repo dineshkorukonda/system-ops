@@ -29,6 +29,7 @@ const { getPm2Snapshot } = require('./collectors/pm2');
 const { getCapabilities } = require('./collectors/capabilities');
 const { getDockerSnapshot, getDockerLogs } = require('./collectors/docker');
 const { parseTrafficAnalytics } = require('./collectors/trafficAnalytics');
+const { getStatus: getGoCollectorStatus } = require('./services/goCollectorClient');
 
 const app = express();
 
@@ -116,7 +117,10 @@ app.use('/api', apiLimiter, requireAuth);
  * Internal Ops Diagnostics (Self-Monitoring for System-Ops itself)
  */
 app.get('/api/v2/ops/diagnostics', (req, res) => {
-  return res.json(stateStore.getDiagnostics());
+  return res.json({
+    ...stateStore.getDiagnostics(),
+    goCollector: getGoCollectorStatus()
+  });
 });
 
 /**
@@ -407,6 +411,66 @@ app.get('/api/v2/traffic/analytics', async (req, res) => {
     return res.json(data);
   } catch (error) {
     return res.status(500).json({ error: 'Failed to parse traffic analytics', details: error.message });
+  }
+});
+
+app.get('/api/v2/databases/snapshot', async (req, res) => {
+  const cached = stateStore.get('databases');
+  if (cached) return res.json(cached);
+  try {
+    const { getDatabaseSnapshot } = require('./collectors/databases');
+    const data = await getDatabaseSnapshot();
+    return res.json(data);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch database snapshot', details: error.message });
+  }
+});
+
+app.get('/api/v2/security/snapshot', async (req, res) => {
+  const cached = stateStore.get('security');
+  if (cached) return res.json(cached);
+  try {
+    const { getSecuritySnapshot } = require('./collectors/security');
+    const data = await getSecuritySnapshot();
+    return res.json(data);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch security snapshot', details: error.message });
+  }
+});
+
+app.get('/api/v2/system/updates', async (req, res) => {
+  const cached = stateStore.get('osUpdates');
+  if (cached) return res.json(cached);
+  try {
+    const { getOsUpdatesSnapshot } = require('./collectors/osUpdates');
+    const data = await getOsUpdatesSnapshot();
+    return res.json(data);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch OS updates', details: error.message });
+  }
+});
+
+app.get('/api/v2/certbot/snapshot', async (req, res) => {
+  const cached = stateStore.get('certbot');
+  if (cached) return res.json(cached);
+  try {
+    const { getCertbotSnapshot } = require('./collectors/certbot');
+    const data = await getCertbotSnapshot();
+    return res.json(data);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch certbot snapshot', details: error.message });
+  }
+});
+
+app.get('/api/v2/monix/snapshot', async (req, res) => {
+  const cached = stateStore.get('monix');
+  if (cached) return res.json(cached);
+  try {
+    const { getMonixSnapshot } = require('./collectors/monix');
+    const data = await getMonixSnapshot();
+    return res.json(data);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch Monix snapshot', details: error.message });
   }
 });
 

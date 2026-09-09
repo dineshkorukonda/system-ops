@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sidebar } from './components/Sidebar';
-import { TopBar } from './components/TopBar';
-import { SystemHealthView } from './components/SystemHealthView';
-import { ProcessMonitorView } from './components/ProcessMonitorView';
+import { AppShell } from './layout/AppShell';
+import { HomeView } from './views/HomeView';
+import { HostView } from './views/HostView';
 import { DockerView } from './components/DockerView';
 import { Pm2FleetView } from './components/Pm2FleetView';
 import { ServicesView } from './components/ServicesView';
@@ -12,6 +11,9 @@ import { TrafficAnalyticsView } from './components/TrafficAnalyticsView';
 import { TroubleshootingView } from './components/TroubleshootingView';
 import { SettingsView } from './components/SettingsView';
 import { IntegrationsView } from './components/IntegrationsView';
+import { DatabasesView } from './components/DatabasesView';
+import { SecurityView } from './components/SecurityView';
+import { MonixView } from './components/MonixView';
 import { LoginView } from './components/LoginView';
 
 const MAX_HISTORY = 30;
@@ -20,8 +22,8 @@ export function App() {
   // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(null);
 
-  // Active view — SYSTEM HEALTH is MAIN / DEFAULT
-  const [activeTab, setActiveTab] = useState('system');
+  const [activePage, setActivePage] = useState('home');
+  const [subPage, setSubPage] = useState('metrics');
 
   // Monochrome Theme: 'dark' (pure #000000) or 'light' (pure #ffffff)
   const [theme, setTheme] = useState(() => localStorage.getItem('ops_theme') || 'dark');
@@ -30,7 +32,6 @@ export function App() {
   const [refreshInterval, setRefreshInterval] = useState(10);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Telemetry rolling buffers
   const [cpuHistory, setCpuHistory] = useState([]);
@@ -52,12 +53,19 @@ export function App() {
   const [backupSources, setBackupSources] = useState([]);
   const [backupFiles, setBackupFiles] = useState([]);
   const [trafficData, setTrafficData] = useState(null);
+  const [databaseData, setDatabaseData] = useState(null);
+  const [securityData, setSecurityData] = useState(null);
+  const [certbotData, setCertbotData] = useState(null);
+  const [osUpdatesData, setOsUpdatesData] = useState(null);
+  const [monixData, setMonixData] = useState(null);
   const [branding, setBranding] = useState(null);
   const [updateAvailable, setUpdateAvailable] = useState(false);
 
   // Refs to avoid infinite effect re-trigger loops
-  const activeTabRef = useRef(activeTab);
-  activeTabRef.current = activeTab;
+  const activePageRef = useRef(activePage);
+  activePageRef.current = activePage;
+  const subPageRef = useRef(subPage);
+  subPageRef.current = subPage;
 
   const processSortRef = useRef(processSort);
   processSortRef.current = processSort;
@@ -113,23 +121,21 @@ export function App() {
 
   // Update document title when branding or active tab changes
   useEffect(() => {
-    const tabTitles = {
-      system: 'System Health',
-      processes: 'Process Monitor',
-      docker: 'Docker Containers',
-      pm2: 'PM2 Fleet',
-      services: 'Systemd Services',
-      ollama: 'Ollama AI',
-      backups: 'Backups & Recovery',
-      traffic: 'Traffic Analytics',
-      troubleshooting: 'Troubleshooting',
+    const pageTitles = {
+      home: 'Home',
+      host: subPage === 'processes' ? 'Processes' : 'Host',
+      workloads: 'Workloads',
+      traffic: 'Traffic',
+      data: 'Data',
+      security: 'Security',
+      monix: 'Monix',
+      troubleshooting: 'Help',
       settings: 'Settings',
       integrations: 'Integrations',
     };
     const siteName = branding?.siteName || 'system-ops';
-    const tabTitle = tabTitles[activeTab] || 'Console';
-    document.title = `${siteName} | ${tabTitle}`;
-  }, [branding, activeTab]);
+    document.title = `${siteName} | ${pageTitles[activePage] || 'Console'}`;
+  }, [branding, activePage, subPage]);
 
   const checkAuth = async () => {
     try {
@@ -164,16 +170,18 @@ export function App() {
         const data = await res.json();
         setCapabilities(data);
 
-        const currentTab = activeTabRef.current;
-        const tabCapabilityMap = {
-          docker: data.docker?.available,
-          pm2: data.pm2?.available,
-          ollama: data.ollama?.available,
-          backups: data.backups?.available,
-          traffic: data.traffic?.available,
-        };
-        if (tabCapabilityMap[currentTab] === false) {
-          setActiveTab('integrations');
+        const page = activePageRef.current;
+        const sub = subPageRef.current;
+        const unavailable =
+          (page === 'traffic' && !data.traffic?.available) ||
+          (page === 'data' && !data.backups?.available && !data.databases?.available) ||
+          (page === 'security' && !data.security?.available && !data.certbot?.available) ||
+          (page === 'monix' && !data.monix?.configured) ||
+          (page === 'workloads' && sub === 'docker' && !data.docker?.available) ||
+          (page === 'workloads' && sub === 'pm2' && !data.pm2?.available) ||
+          (page === 'workloads' && sub === 'ollama' && !data.ollama?.available);
+        if (unavailable) {
+          setActivePage('integrations');
         }
       }
     } catch (e) {}
@@ -279,30 +287,65 @@ export function App() {
     } catch (e) {}
   };
 
+  const fetchDatabaseData = async () => {
+    try {
+      const res = await fetch('/api/v2/databases/snapshot');
+      if (res.ok) setDatabaseData(await res.json());
+    } catch (e) {}
+  };
+
+  const fetchSecurityData = async () => {
+    try {
+      const [secRes, certRes] = await Promise.all([
+        fetch('/api/v2/security/snapshot'),
+        fetch('/api/v2/certbot/snapshot'),
+      ]);
+      if (secRes.ok) setSecurityData(await secRes.json());
+      if (certRes.ok) setCertbotData(await certRes.json());
+    } catch (e) {}
+  };
+
+  const fetchOsUpdates = async () => {
+    try {
+      const res = await fetch('/api/v2/system/updates');
+      if (res.ok) setOsUpdatesData(await res.json());
+    } catch (e) {}
+  };
+
+  const fetchMonixData = async () => {
+    try {
+      const res = await fetch('/api/v2/monix/snapshot');
+      if (res.ok) setMonixData(await res.json());
+    } catch (e) {}
+  };
+
   // Fetch only what is needed for the current active tab + system overview
   const syncCurrentView = async () => {
     if (!isAuthenticated) return;
     setIsSyncing(true);
-    const tab = activeTabRef.current;
+    const page = activePageRef.current;
+    const sub = subPageRef.current;
 
-    const promises = [fetchSystemSnapshot()];
+    const promises = [fetchSystemSnapshot(), fetchOsUpdates()];
 
-    if (tab === 'system') {
-      promises.push(fetchProcesses(), fetchServices());
-    } else if (tab === 'processes') {
+    if (page === 'home') {
+      promises.push(fetchServices(), fetchDockerData(), fetchPm2Data(), fetchTrafficData(), fetchSecurityData(), fetchMonixData());
+    } else if (page === 'host') {
       promises.push(fetchProcesses());
-    } else if (tab === 'docker') {
-      promises.push(fetchDockerData());
-    } else if (tab === 'pm2') {
-      promises.push(fetchPm2Data());
-    } else if (tab === 'services') {
-      promises.push(fetchServices());
-    } else if (tab === 'ollama') {
-      promises.push(fetchOllamaData());
-    } else if (tab === 'backups') {
-      promises.push(fetchBackupData());
-    } else if (tab === 'traffic') {
+    } else if (page === 'workloads') {
+      if (sub === 'docker') promises.push(fetchDockerData());
+      else if (sub === 'pm2') promises.push(fetchPm2Data());
+      else if (sub === 'ollama') promises.push(fetchOllamaData());
+      else promises.push(fetchServices());
+    } else if (page === 'traffic') {
       promises.push(fetchTrafficData());
+    } else if (page === 'data') {
+      if (sub === 'databases') promises.push(fetchDatabaseData());
+      else promises.push(fetchBackupData());
+    } else if (page === 'security') {
+      promises.push(fetchSecurityData());
+    } else if (page === 'monix') {
+      promises.push(fetchMonixData());
     }
 
     await Promise.allSettled(promises);
@@ -323,18 +366,44 @@ export function App() {
         fetchOllamaData(),
         fetchBackupData(),
         fetchTrafficData(),
+        fetchDatabaseData(),
+        fetchSecurityData(),
+        fetchOsUpdates(),
+        fetchMonixData(),
         fetchBranding(),
         fetchVersionCheck(),
       ]).then(() => setLastUpdated(new Date()));
     }
   }, [isAuthenticated]);
 
-  // Fetch immediately when user switches tab
+  useEffect(() => {
+    if (!capabilities) return;
+    if (activePage === 'workloads') {
+      const valid = [
+        capabilities.docker?.available && 'docker',
+        capabilities.pm2?.available && 'pm2',
+        capabilities.systemd?.available !== false && 'services',
+        capabilities.ollama?.available && 'ollama',
+      ].filter(Boolean);
+      if (valid.length && !valid.includes(subPage)) setSubPage(valid[0]);
+    }
+    if (activePage === 'data') {
+      const valid = [
+        capabilities.backups?.available && 'backups',
+        capabilities.databases?.available && 'databases',
+      ].filter(Boolean);
+      if (valid.length && !valid.includes(subPage)) setSubPage(valid[0]);
+    }
+    if (activePage === 'host' && subPage !== 'metrics' && subPage !== 'processes') {
+      setSubPage('metrics');
+    }
+  }, [activePage, capabilities]);
+
   useEffect(() => {
     if (isAuthenticated === true) {
       syncCurrentView();
     }
-  }, [activeTab, isAuthenticated]);
+  }, [activePage, subPage, isAuthenticated]);
 
   // Tab-Aware & Page-Visibility Adaptive Polling Timer
   useEffect(() => {
@@ -369,9 +438,9 @@ export function App() {
   // Loading state during auth check
   if (isAuthenticated === null) {
     return (
-      <div className="flex min-h-screen items-center justify-center ops-app">
-        <div className="flex items-center gap-3 text-sm text-[var(--text-muted)]">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--accent)]" />
+      <div className="shell flex min-h-screen items-center justify-center">
+        <div className="flex items-center gap-3 text-sm text-[var(--fg-muted)]">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--line)] border-t-[var(--fg)]" />
           Loading…
         </div>
       </div>
@@ -383,140 +452,156 @@ export function App() {
     return <LoginView branding={branding} onLoginSuccess={() => setIsAuthenticated(true)} />;
   }
 
-  const tabTitles = {
-    system: 'System Health',
-    processes: 'Process Monitor',
-    docker: 'Docker Containers',
-    pm2: 'PM2 Fleet',
-    services: 'Systemd Services',
-    ollama: 'Ollama AI',
-    backups: 'Backups & Recovery',
-    traffic: 'Traffic Analytics',
-    troubleshooting: 'Troubleshooting & Diagnostics',
-    settings: 'Settings',
-    integrations: 'Integrations & Setup',
-  };
-
   const pm2TotalCount = (pm2Data?.users || []).reduce(
     (acc, u) => acc + (u.processes || []).length,
     0
   );
 
+  const navItems = [
+    { id: 'home', label: 'Home' },
+    { id: 'host', label: 'Host', defaultSub: 'metrics' },
+    ...(capabilities?.docker?.available || capabilities?.pm2?.available || capabilities?.systemd?.available !== false || capabilities?.ollama?.available
+      ? [{ id: 'workloads', label: 'Workloads', defaultSub: capabilities?.docker?.available ? 'docker' : capabilities?.pm2?.available ? 'pm2' : 'services' }]
+      : []),
+    ...(capabilities?.traffic?.available ? [{ id: 'traffic', label: 'Traffic' }] : []),
+    ...(capabilities?.backups?.available || capabilities?.databases?.available
+      ? [{ id: 'data', label: 'Data', defaultSub: capabilities?.backups?.available ? 'backups' : 'databases' }]
+      : []),
+    ...(capabilities?.security?.available || capabilities?.certbot?.available ? [{ id: 'security', label: 'Security' }] : []),
+    ...(capabilities?.monix?.configured ? [{ id: 'monix', label: 'Monix' }] : []),
+  ];
+
+  const subNavItems =
+    activePage === 'host'
+      ? [
+          { id: 'metrics', label: 'Metrics' },
+          { id: 'processes', label: 'Processes' },
+        ]
+      : activePage === 'workloads'
+      ? [
+          ...(capabilities?.docker?.available ? [{ id: 'docker', label: 'Docker' }] : []),
+          ...(capabilities?.pm2?.available ? [{ id: 'pm2', label: 'PM2' }] : []),
+          ...(capabilities?.systemd?.available !== false ? [{ id: 'services', label: 'Services' }] : []),
+          ...(capabilities?.ollama?.available ? [{ id: 'ollama', label: 'Ollama' }] : []),
+        ]
+      : activePage === 'data'
+      ? [
+          ...(capabilities?.backups?.available ? [{ id: 'backups', label: 'Backups' }] : []),
+          ...(capabilities?.databases?.available ? [{ id: 'databases', label: 'Databases' }] : []),
+        ]
+      : null;
+
+  const handleNavigate = (page, sub) => {
+    setActivePage(page);
+    if (sub) setSubPage(sub);
+  };
+
   return (
-    <div className="flex min-h-screen ops-app">
-      {/* Persistent Sectionized Dynamic Sidebar */}
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        siteName={branding?.siteName || 'system-ops'}
-        updateAvailable={updateAvailable}
-        hostData={{
-          uptime: systemData?.uptime,
-          processCount: processes.length,
-        }}
-        capabilities={capabilities}
-        dockerData={dockerData}
-        pm2Count={pm2TotalCount}
-        servicesCount={servicesData?.activeCount}
-        ollamaStatus={ollamaStatus?.systemd?.isActive ? 'ONLINE' : 'STOPPED'}
-        backupStatus={
-          backupFiles.length > 0
-            ? 'SUCCESS'
-            : capabilities?.backups?.available
-            ? 'IDLE'
-            : undefined
-        }
-        trafficHits={trafficData?.summary?.total_hits || 0}
-        isOpen={isMobileMenuOpen}
-        onClose={() => setIsMobileMenuOpen(false)}
-      />
-
-      {/* Main Content Viewport */}
-      <div className="flex flex-1 flex-col md:pl-64 min-w-0">
-        <TopBar
-          activeTabTitle={tabTitles[activeTab] || 'Console'}
-          siteSubtitle={branding?.siteSubtitle || 'Operations Console'}
-          lastUpdated={lastUpdated}
-          isSyncing={isSyncing}
-          onSync={syncCurrentView}
-          refreshInterval={refreshInterval}
-          setRefreshInterval={setRefreshInterval}
-          theme={theme}
-          toggleTheme={toggleTheme}
-          onLogout={handleLogout}
-          onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
+    <AppShell
+      siteName={branding?.siteName || 'system-ops'}
+      activePage={activePage}
+      setActivePage={setActivePage}
+      subPage={subPage}
+      setSubPage={setSubPage}
+      navItems={navItems}
+      subNavItems={subNavItems}
+      lastUpdated={lastUpdated}
+      isSyncing={isSyncing}
+      onSync={syncCurrentView}
+      refreshInterval={refreshInterval}
+      setRefreshInterval={setRefreshInterval}
+      theme={theme}
+      toggleTheme={toggleTheme}
+      onLogout={handleLogout}
+      updateAvailable={updateAvailable}
+    >
+      {activePage === 'home' && (
+        <HomeView
+          systemData={systemData}
+          capabilities={capabilities}
+          dockerData={dockerData}
+          pm2Count={pm2TotalCount}
+          servicesData={servicesData}
+          trafficData={trafficData}
+          securityData={securityData}
+          monixData={monixData}
+          osUpdatesData={osUpdatesData}
+          cpuHistory={cpuHistory}
+          ramHistory={ramHistory}
+          onNavigate={handleNavigate}
         />
+      )}
 
-        <main className="flex-1 p-4 md:p-6 max-w-[1600px] w-full mx-auto">
-          {activeTab === 'system' && (
-            <SystemHealthView
-              systemData={systemData}
-              cpuHistory={cpuHistory}
-              ramHistory={ramHistory}
-              swapHistory={swapHistory}
-            />
-          )}
+      {activePage === 'host' && (
+        <HostView
+          subPage={subPage}
+          systemData={systemData}
+          osUpdatesData={osUpdatesData}
+          cpuHistory={cpuHistory}
+          ramHistory={ramHistory}
+          swapHistory={swapHistory}
+          processes={processes}
+          processSort={processSort}
+          setProcessSort={setProcessSort}
+          onRefreshProcesses={fetchProcesses}
+        />
+      )}
 
-          {activeTab === 'processes' && (
-            <ProcessMonitorView
-              processes={processes}
-              sort={processSort}
-              setSort={setProcessSort}
-              onRefresh={fetchProcesses}
-            />
-          )}
+      {activePage === 'workloads' && subPage === 'docker' && (
+        <DockerView dockerData={dockerData} onRefresh={fetchDockerData} />
+      )}
+      {activePage === 'workloads' && subPage === 'pm2' && (
+        <Pm2FleetView pm2Data={pm2Data} onRefresh={fetchPm2Data} />
+      )}
+      {activePage === 'workloads' && subPage === 'services' && (
+        <ServicesView servicesData={servicesData} onRefresh={fetchServices} />
+      )}
+      {activePage === 'workloads' && subPage === 'ollama' && (
+        <OllamaView
+          statusData={ollamaStatus}
+          models={ollamaModels}
+          logs={ollamaLogs}
+          logLines={ollamaLogLines}
+          setLogLines={setOllamaLogLines}
+          onRefreshLogs={fetchOllamaData}
+        />
+      )}
 
-          {activeTab === 'docker' && (
-            <DockerView dockerData={dockerData} onRefresh={fetchDockerData} />
-          )}
+      {activePage === 'traffic' && <TrafficAnalyticsView trafficData={trafficData} />}
 
-          {activeTab === 'pm2' && (
-            <Pm2FleetView pm2Data={pm2Data} onRefresh={fetchPm2Data} />
-          )}
+      {activePage === 'data' && subPage === 'backups' && (
+        <BackupsView sources={backupSources} files={backupFiles} onRefreshFiles={fetchBackupData} />
+      )}
+      {activePage === 'data' && subPage === 'databases' && (
+        <DatabasesView databaseData={databaseData} />
+      )}
 
-          {activeTab === 'services' && (
-            <ServicesView servicesData={servicesData} onRefresh={fetchServices} />
-          )}
+      {activePage === 'security' && (
+        <SecurityView securityData={securityData} certbotData={certbotData} />
+      )}
 
-          {activeTab === 'ollama' && (
-            <OllamaView
-              statusData={ollamaStatus}
-              models={ollamaModels}
-              logs={ollamaLogs}
-              logLines={ollamaLogLines}
-              setLogLines={setOllamaLogLines}
-              onRefreshLogs={fetchOllamaData}
-            />
-          )}
+      {activePage === 'monix' && <MonixView monixData={monixData} />}
 
-          {activeTab === 'backups' && (
-            <BackupsView
-              sources={backupSources}
-              files={backupFiles}
-              onRefreshFiles={fetchBackupData}
-            />
-          )}
+      {activePage === 'troubleshooting' && <TroubleshootingView capabilities={capabilities} />}
 
-          {activeTab === 'traffic' && (
-            <TrafficAnalyticsView trafficData={trafficData} />
-          )}
+      {activePage === 'integrations' && (
+        <IntegrationsView capabilities={capabilities} onNavigate={(tabId) => {
+          const map = {
+            docker: ['workloads', 'docker'],
+            pm2: ['workloads', 'pm2'],
+            services: ['workloads', 'services'],
+            ollama: ['workloads', 'ollama'],
+            backups: ['data', 'backups'],
+            traffic: ['traffic'],
+            databases: ['data', 'databases'],
+          };
+          const target = map[tabId];
+          if (target) handleNavigate(target[0], target[1]);
+          else handleNavigate(tabId);
+        }} />
+      )}
 
-          {activeTab === 'troubleshooting' && (
-            <TroubleshootingView capabilities={capabilities} />
-          )}
-
-          {activeTab === 'integrations' && (
-            <IntegrationsView
-              capabilities={capabilities}
-              onNavigate={(tabId) => setActiveTab(tabId)}
-            />
-          )}
-
-          {activeTab === 'settings' && (
-            <SettingsView onBrandingChange={handleBrandingChange} />
-          )}
-        </main>
-      </div>
-    </div>
+      {activePage === 'settings' && <SettingsView onBrandingChange={handleBrandingChange} />}
+    </AppShell>
   );
 }

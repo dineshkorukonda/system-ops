@@ -3,6 +3,7 @@ const path = require('path');
 const os = require('os');
 const { formatBytes } = require('../utils/formatters');
 const { runCommand } = require('../utils/exec');
+const goCollectorClient = require('../services/goCollectorClient');
 
 /**
  * Pure /proc Linux Process Sampler
@@ -229,6 +230,11 @@ async function sampleProcLinux(options = {}) {
 async function sampleProcesses(options = {}) {
   const limit = parseInt(options.limit, 10) || 50;
   const sortBy = options.sortBy === 'mem' ? 'mem' : 'cpu';
+
+  const goResult = await goCollectorClient.getProcesses({ limit, sortBy });
+  if (goResult && Array.isArray(goResult.processes)) {
+    return goResult;
+  }
 
   // 1. Linux fast path: /proc inspection (Zero subprocesses)
   if (fs.existsSync('/proc/stat') && fs.existsSync('/proc/1')) {

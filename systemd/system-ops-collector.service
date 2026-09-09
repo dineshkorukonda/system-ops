@@ -1,0 +1,25 @@
+[Unit]
+Description=System Ops Go Collector (Linux system/process telemetry)
+After=network.target
+Before=system-ops.service
+
+[Service]
+Type=simple
+User=ops
+Group=ops
+WorkingDirectory=/opt/system-ops/go-collector
+ExecStart=/opt/system-ops/go-collector/bin/system-ops-collector
+Restart=always
+RestartSec=3s
+EnvironmentFile=/opt/system-ops/.env
+
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=false
+NoNewPrivileges=false
+
+MemoryMax=128M
+MemoryHigh=96M
+
+[Install]
+WantedBy=multi-user.target
