@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bufio"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dineshkorukonda/system-ops/go-collector/internal/format"
 	"github.com/dineshkorukonda/system-ops/go-collector/internal/processes"
 	"github.com/dineshkorukonda/system-ops/go-collector/internal/system"
 )
@@ -105,16 +107,54 @@ func (s *Server) handleDiagnostics(w http.ResponseWriter, r *http.Request) {
 
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
+	rssBytes := readSelfRSS()
 
 	writeJSON(w, map[string]interface{}{
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 		"runtime":   "go",
 		"goos":      runtime.GOOS,
+		"uptimeSeconds": int(time.Since(startedAt).Seconds()),
 		"memory": map[string]interface{}{
-			"allocBytes": memStats.Alloc,
-			"sysBytes":   memStats.Sys,
+			"rssBytes":        rssBytes,
+			"rssFormatted":    format.FormatBytes(rssBytes),
+			"allocBytes":      memStats.Alloc,
+			"allocFormatted":  format.FormatBytes(memStats.Alloc),
+			"heapInuseBytes":  memStats.HeapInuse,
+			"heapInuseFormatted": format.FormatBytes(memStats.HeapInuse),
+			"sysBytes":        memStats.Sys,
+			"sysFormatted":    format.FormatBytes(memStats.Sys),
+			"numGC":           memStats.NumGC,
 		},
 	})
+}
+
+var startedAt = time.Now()
+
+func readSelfRSS() uint64 {
+	file, err := os.Open("/proc/self/status")
+	if err != nil {
+		return 0
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "VmRSS:") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			break
+		}
+		kb, err := strconv.ParseUint(fields[1], 10, 64)
+		if err != nil {
+			break
+		}
+		return kb * 1024
+	}
+
+	return 0
 }
 
 func writeJSON(w http.ResponseWriter, payload interface{}) {

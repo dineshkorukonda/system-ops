@@ -100,6 +100,18 @@ async function getProcesses({ limit = 50, sortBy = 'cpu' } = {}) {
   }
 }
 
+async function getDiagnostics() {
+  if (!(await checkHealth())) {
+    return null;
+  }
+
+  try {
+    return await fetchJson('/v1/diagnostics', 1500);
+  } catch (err) {
+    return null;
+  }
+}
+
 function getStatus() {
   return {
     enabled: !isExplicitlyDisabled(),
@@ -110,9 +122,65 @@ function getStatus() {
   };
 }
 
+function buildMemoryBreakdown(nodeDiagnostics, goDiagnostics, goStatus) {
+  const nodeMem = nodeDiagnostics?.systemOpsMemory || {};
+  const goMem = goDiagnostics?.memory || {};
+
+  const nodeRss = nodeMem.rssBytes || 0;
+  const goRss = goMem.rssBytes || goMem.allocBytes || 0;
+  const combinedRss = nodeRss + (goStatus?.available ? goRss : 0);
+
+  let activeCollector = 'node';
+  if (goStatus?.available) {
+    activeCollector = 'hybrid';
+  } else if (goStatus?.enabled === false) {
+    activeCollector = 'node-only';
+  }
+
+  return {
+    activeCollector,
+    node: {
+      runtime: 'node',
+      uptimeSeconds: nodeDiagnostics?.uptimeSeconds || 0,
+      rssBytes: nodeRss,
+      rssFormatted: nodeMem.rssFormatted || '0 B',
+      heapUsedBytes: nodeMem.heapUsedBytes || 0,
+      heapUsedFormatted: nodeMem.heapUsedFormatted || '0 B',
+      heapTotalBytes: nodeMem.heapTotalBytes || 0,
+      heapTotalFormatted: nodeMem.heapTotalFormatted || '0 B',
+      externalBytes: nodeMem.externalBytes || 0,
+      externalFormatted: nodeMem.externalFormatted || '0 B'
+    },
+    goCollector: {
+      runtime: 'go',
+      available: goStatus?.available === true,
+      url: goStatus?.url || null,
+      lastError: goStatus?.lastError || null,
+      uptimeSeconds: goDiagnostics?.uptimeSeconds || 0,
+      rssBytes: goRss,
+      rssFormatted: goMem.rssFormatted || goMem.allocFormatted || 'N/A',
+      allocBytes: goMem.allocBytes || 0,
+      allocFormatted: goMem.allocFormatted || 'N/A',
+      sysBytes: goMem.sysBytes || 0,
+      sysFormatted: goMem.sysFormatted || 'N/A',
+      heapInuseBytes: goMem.heapInuseBytes || 0,
+      heapInuseFormatted: goMem.heapInuseFormatted || 'N/A'
+    },
+    combinedRssBytes: combinedRss,
+    combinedRssFormatted: formatMb(combinedRss)
+  };
+}
+
+function formatMb(bytes) {
+  if (!bytes || bytes <= 0) return '0 B';
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
 module.exports = {
   checkHealth,
   getSystemSnapshot,
   getProcesses,
-  getStatus
+  getDiagnostics,
+  getStatus,
+  buildMemoryBreakdown
 };

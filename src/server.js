@@ -29,7 +29,11 @@ const { getPm2Snapshot } = require('./collectors/pm2');
 const { getCapabilities } = require('./collectors/capabilities');
 const { getDockerSnapshot, getDockerLogs } = require('./collectors/docker');
 const { parseTrafficAnalytics } = require('./collectors/trafficAnalytics');
-const { getStatus: getGoCollectorStatus } = require('./services/goCollectorClient');
+const {
+  getStatus: getGoCollectorStatus,
+  getDiagnostics: getGoCollectorDiagnostics,
+  buildMemoryBreakdown
+} = require('./services/goCollectorClient');
 
 const app = express();
 
@@ -116,10 +120,16 @@ app.use('/api', apiLimiter, requireAuth);
 /**
  * Internal Ops Diagnostics (Self-Monitoring for System-Ops itself)
  */
-app.get('/api/v2/ops/diagnostics', (req, res) => {
+app.get('/api/v2/ops/diagnostics', async (req, res) => {
+  const nodeDiagnostics = stateStore.getDiagnostics();
+  const goStatus = getGoCollectorStatus();
+  const goDiagnostics = await getGoCollectorDiagnostics();
+
   return res.json({
-    ...stateStore.getDiagnostics(),
-    goCollector: getGoCollectorStatus()
+    ...nodeDiagnostics,
+    goCollector: goStatus,
+    goCollectorDiagnostics: goDiagnostics,
+    memoryBreakdown: buildMemoryBreakdown(nodeDiagnostics, goDiagnostics, goStatus)
   });
 });
 
