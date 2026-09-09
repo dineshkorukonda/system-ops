@@ -34,6 +34,11 @@ if [ -d "$INSTALL_DIR" ]; then
     su -s /bin/bash "$OPS_USER" -c "cd $INSTALL_DIR && $*"
   }
 
+  # Git pull / prior sudo npm may leave root-owned files in dist/ — ops cannot
+  # overwrite them during vite build (EACCES on unlink).
+  echo "Fixing ownership before npm (prevents dist/ permission errors)..."
+  chown -R "$OPS_USER:$OPS_USER" "$INSTALL_DIR"
+
   echo "[2/5] Installing dependencies (including Vite build tools)..."
   if ! run_as_ops "npm ci"; then
     echo "ERROR: npm ci failed"
@@ -62,15 +67,20 @@ if [ -f "$INSTALL_DIR/.env" ]; then
 fi
 
 if [ -f "$INSTALL_DIR/sudoers/system-ops-sudoers" ]; then
-  cp "$INSTALL_DIR/sudoers/system-ops-sudoers" /etc/sudoers.d/system-ops
-  chmod 0440 /etc/sudoers.d/system-ops
+  if cp "$INSTALL_DIR/sudoers/system-ops-sudoers" /etc/sudoers.d/system-ops 2>/dev/null; then
+    chmod 0440 /etc/sudoers.d/system-ops
+  else
+    echo "Notice: Could not update /etc/sudoers.d/system-ops (filesystem may be read-only). Skipping."
+  fi
 fi
 
 if [ -f "$INSTALL_DIR/systemd/system-ops.service" ]; then
-  cp "$INSTALL_DIR/systemd/system-ops.service" /etc/systemd/system/system-ops.service
+  if cp "$INSTALL_DIR/systemd/system-ops.service" /etc/systemd/system/system-ops.service 2>/dev/null; then
+    systemctl daemon-reload 2>/dev/null || true
+  else
+    echo "Notice: Could not update systemd unit (filesystem may be read-only). Skipping."
+  fi
 fi
-
-systemctl daemon-reload
 
 if [ "$DEPLOY_FAILED" -eq 1 ]; then
   echo "WARNING: Build failed — restarting service with previous build..."
