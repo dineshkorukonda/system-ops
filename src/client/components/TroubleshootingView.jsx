@@ -277,8 +277,12 @@ export function TroubleshootingView({ capabilities }) {
       solution: "Use the automated deployment script which pulls code, builds frontend, and reloads systemd.",
       commands: [
         {
-          label: "Run 1-Click Update Script",
-          cmd: "cd /opt/system-ops\ngit pull origin main\nsudo bash scripts/deploy.sh",
+          label: "Recover service (when update failed or site is down)",
+          cmd: "sudo bash /opt/system-ops/scripts/recover.sh",
+        },
+        {
+          label: "Manual deploy (if recover.sh is missing)",
+          cmd: "sudo chown -R ops:ops /opt/system-ops\nsudo -u ops bash -c 'cd /opt/system-ops && git fetch origin main && git reset --hard origin/main'\nsudo bash /opt/system-ops/scripts/deploy.sh\ncurl http://127.0.0.1:9080/health",
         },
       ],
     },

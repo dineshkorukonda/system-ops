@@ -37,20 +37,31 @@ fix_ownership
 if [ -d "$INSTALL_DIR" ]; then
   cd "$INSTALL_DIR"
   echo "[1/6] Pulling latest code changes..."
+  # dist/ is rebuilt every deploy — discard local changes so pull never blocks
+  run_as_ops "git checkout -- dist/ 2>/dev/null || true"
+
+  pull_ok=0
   if id "$OPS_USER" &>/dev/null; then
-    run_as_ops "git pull origin main" || {
-      echo "Notice: Falling back to root git pull..."
-      git pull origin main
-      fix_ownership
-    }
+    if run_as_ops "git pull origin main"; then
+      pull_ok=1
+    fi
   elif id "$DEPLOY_USER" &>/dev/null; then
-    su - "$DEPLOY_USER" -c "cd $INSTALL_DIR && git pull origin main" || {
-      echo "Notice: Falling back to direct git pull..."
-      git pull origin main
-      fix_ownership
-    }
-  else
-    git pull origin main
+    if su - "$DEPLOY_USER" -c "cd $INSTALL_DIR && git pull origin main"; then
+      pull_ok=1
+    fi
+  elif git pull origin main; then
+    pull_ok=1
+  fi
+
+  if [ "$pull_ok" -eq 0 ]; then
+    echo "Notice: git pull blocked (local changes) — resetting to origin/main..."
+    if id "$OPS_USER" &>/dev/null; then
+      run_as_ops "git fetch origin main && git reset --hard origin/main" || {
+        git fetch origin main && git reset --hard origin/main
+      }
+    else
+      git fetch origin main && git reset --hard origin/main
+    fi
     fix_ownership
   fi
 

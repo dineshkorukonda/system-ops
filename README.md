@@ -18,6 +18,12 @@ curl -sSL https://raw.githubusercontent.com/dineshkorukonda/system-ops/main/scri
 sudo bash /opt/system-ops/scripts/deploy.sh
 ```
 
+If the dashboard update fails or the site is down:
+
+```bash
+sudo bash /opt/system-ops/scripts/recover.sh
+```
+
 ## Troubleshooting
 
 See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).

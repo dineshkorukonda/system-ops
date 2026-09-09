@@ -4,6 +4,30 @@ This guide covers solutions and diagnostic steps for all common configuration an
 
 ---
 
+## 0. Site down or dashboard update failed
+
+**Symptoms:** `curl http://127.0.0.1:9080/health` fails, `vite: not found`, git pull blocked on `dist/`, or `scripts/deploy.sh: No such file or directory` (wrong directory).
+
+**One-command recovery** (after pulling latest `recover.sh`):
+
+```bash
+sudo bash /opt/system-ops/scripts/recover.sh
+```
+
+**Manual recovery** (works even on older installs):
+
+```bash
+sudo chown -R ops:ops /opt/system-ops
+sudo -u ops bash -c 'cd /opt/system-ops && git fetch origin main && git reset --hard origin/main'
+sudo -u ops bash -c 'cd /opt/system-ops && npm ci && npm run build'
+sudo systemctl restart system-ops.service
+curl http://127.0.0.1:9080/health
+```
+
+> Never run `sudo npm ci` as root — it breaks ownership. Always use the `ops` user.
+
+---
+
 ## 1. PM2 Fleet Discovery Issues
 
 ### Symptom: `PM2 binary not found for '<user>'` or `0 active processes`
