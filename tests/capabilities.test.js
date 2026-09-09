@@ -13,4 +13,8 @@ test('getCapabilities returns expected capability structure with booleans', asyn
   assert.ok(typeof caps.pm2.available === 'boolean', 'pm2.available is boolean');
   assert.ok(typeof caps.ollama.available === 'boolean', 'ollama.available is boolean');
   assert.ok(typeof caps.systemd.available === 'boolean', 'systemd.available is boolean');
+  assert.ok('backups' in caps, 'backups key present');
+  assert.ok('traffic' in caps, 'traffic key present');
+  assert.ok(typeof caps.backups.available === 'boolean', 'backups.available is boolean');
+  assert.ok(typeof caps.traffic.available === 'boolean', 'traffic.available is boolean');
 });

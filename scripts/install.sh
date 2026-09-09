@@ -185,7 +185,7 @@ NGINX_LOG_PATH=/var/log/nginx/access.log
 TRACKED_DOMAINS=
 
 BACKUPS_DIR=/var/backups
-LOG_SOURCES=pg-backup:/var/backups/postgres/logs/backup.log:200
+LOG_SOURCES=
 
 OLLAMA_URL=http://127.0.0.1:11434
 OLLAMA_SERVICE_NAME=ollama

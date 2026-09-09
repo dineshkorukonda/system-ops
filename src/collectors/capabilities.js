@@ -3,6 +3,7 @@ const fs = require('fs');
 const { runCommand } = require('../utils/exec');
 const { runDocker, socketExists, buildDockerError } = require('../utils/dockerExec');
 const { collectPm2Snapshot } = require('../../plugins/superpowers/skills/pm2_discovery');
+const { discoverNginxDomains } = require('../utils/domainDiscovery');
 
 /**
  * Check if a TCP port is open locally
@@ -29,16 +30,26 @@ function probePort(port, host = '127.0.0.1', timeoutMs = 800) {
   });
 }
 
+function pathReadable(filePath) {
+  try {
+    fs.accessSync(filePath, fs.constants.R_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Detect host capabilities: Docker, PM2, Ollama, and Systemd.
- * All probes run concurrently with bounded timeouts.
+ * Detect host capabilities. Only mark features available when genuinely present.
  */
 async function getCapabilities() {
-  const [dockerCap, pm2Cap, ollamaCap, systemdCap] = await Promise.all([
+  const [dockerCap, pm2Cap, ollamaCap, systemdCap, backupsCap, trafficCap] = await Promise.all([
     detectDocker(),
     detectPm2(),
     detectOllama(),
-    detectSystemd()
+    detectSystemd(),
+    detectBackups(),
+    detectTraffic(),
   ]);
 
   return {
@@ -46,7 +57,9 @@ async function getCapabilities() {
     pm2: pm2Cap,
     ollama: ollamaCap,
     systemd: systemdCap,
-    timestamp: new Date().toISOString()
+    backups: backupsCap,
+    traffic: trafficCap,
+    timestamp: new Date().toISOString(),
   };
 }
 
@@ -74,7 +87,7 @@ async function detectDocker() {
     const hasSocket = socketExists();
 
     return {
-      available: hasSocket,
+      available: hasSocket && errInfo.permissionIssue,
       daemonReachable: false,
       count: 0,
       running: 0,
@@ -86,7 +99,7 @@ async function detectDocker() {
     };
   } catch (err) {
     return {
-      available: socketExists(),
+      available: false,
       daemonReachable: false,
       count: 0,
       running: 0,
@@ -102,48 +115,56 @@ async function detectPm2() {
     const snapshot = await collectPm2Snapshot();
     const users = snapshot?.users || [];
     let totalProcesses = 0;
-    let hasBinary = false;
+    let workingUsers = 0;
 
     for (const u of users) {
       const procs = u.processes || [];
       totalProcesses += procs.length;
-      if (u.binaryPath) hasBinary = true;
+      if (procs.length > 0 && !u.error) workingUsers++;
+      if (!u.error && u.pm2Path) workingUsers++;
     }
 
-    const available = totalProcesses > 0 || hasBinary;
+    const available = totalProcesses > 0 || workingUsers > 0;
     return {
       available,
-      count: totalProcesses
+      count: totalProcesses,
+      users: users.length,
+      workingUsers,
     };
   } catch (err) {
-    return { available: false, count: 0 };
+    return { available: false, count: 0, users: 0, workingUsers: 0 };
   }
 }
 
 async function detectOllama() {
   try {
-    // Check 1: Port listener probe on 11434
-    const portActive = await probePort(11434, '127.0.0.1', 800);
-    if (portActive) {
-      return { available: true, running: true };
+    if (process.env.ENABLE_OLLAMA === 'true') {
+      return { available: true, running: true, reason: 'enabled via ENABLE_OLLAMA' };
     }
 
-    // Check 2: systemctl status ollama (Linux)
-    if (process.platform !== 'win32') {
-      const sysRes = await runCommand('systemctl', ['is-active', 'ollama'], 1500);
-      if (sysRes.success && sysRes.stdout.trim() === 'active') {
-        return { available: true, running: true };
+    const ollamaUrl = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
+    try {
+      const https = require('http');
+      const health = await new Promise((resolve) => {
+        const req = https.get(`${ollamaUrl.replace(/\/$/, '')}/api/tags`, { timeout: 2000 }, (res) => {
+          resolve(res.statusCode === 200);
+        });
+        req.on('error', () => resolve(false));
+        req.on('timeout', () => { req.destroy(); resolve(false); });
+      });
+      if (health) {
+        return { available: true, running: true, reason: 'api responding' };
       }
-      // Check if unit file exists
-      const unitRes = await runCommand('systemctl', ['status', 'ollama'], 1500);
-      if (unitRes.stdout && !unitRes.stdout.includes('Unit ollama.service could not be found')) {
-        return { available: true, running: false };
-      }
+    } catch {
+      // continue
+    }
 
-      // Check if binary exists
+    if (process.platform !== 'win32') {
       const whichRes = await runCommand('which', ['ollama'], 1500);
       if (whichRes.success && whichRes.stdout.trim()) {
-        return { available: true, running: false };
+        const activeRes = await runCommand('systemctl', ['is-active', 'ollama'], 1500);
+        const running = activeRes.success && activeRes.stdout.trim() === 'active';
+        return { available: true, running, reason: 'binary installed' };
       }
     }
 
@@ -156,8 +177,7 @@ async function detectOllama() {
 async function detectSystemd() {
   try {
     if (process.platform === 'win32') {
-      // In dev environment on Windows, allow systemd to simulate/display
-      return { available: true, count: 4 };
+      return { available: true, count: 0 };
     }
     const isSystemd = fs.existsSync('/run/systemd/system');
     return { available: isSystemd, count: 0 };
@@ -166,10 +186,78 @@ async function detectSystemd() {
   }
 }
 
+async function detectBackups() {
+  try {
+    const backupDir = process.env.BACKUPS_DIR || process.env.BACKUP_DIR || '';
+    let dirExists = false;
+    let fileCount = 0;
+
+    if (backupDir && fs.existsSync(backupDir)) {
+      dirExists = true;
+      try {
+        const entries = fs.readdirSync(backupDir, { withFileTypes: true });
+        fileCount = entries.filter((e) => e.isFile()).length;
+      } catch {
+        // unreadable
+      }
+    }
+
+    const logSourcesEnv = process.env.LOG_SOURCES || '';
+    let configuredSources = 0;
+    let readableSources = 0;
+
+    if (logSourcesEnv.trim()) {
+      const entries = logSourcesEnv.split(',').map((s) => s.trim()).filter(Boolean);
+      configuredSources = entries.length;
+      for (const entry of entries) {
+        const parts = entry.split(':');
+        const target = parts.find((p) => p.startsWith('/'));
+        if (target && pathReadable(target)) readableSources++;
+      }
+    }
+
+    const available = dirExists || readableSources > 0;
+
+    return {
+      available,
+      backupDir: backupDir || null,
+      dirExists,
+      fileCount,
+      configuredSources,
+      readableSources,
+    };
+  } catch (err) {
+    return { available: false, dirExists: false, fileCount: 0 };
+  }
+}
+
+async function detectTraffic() {
+  try {
+    const logPath = process.env.NGINX_LOG_PATH || '/var/log/nginx/access.log';
+    const logExists = fs.existsSync(logPath);
+    const logReadable = logExists && pathReadable(logPath);
+    const nginxDomains = discoverNginxDomains();
+
+    const available = logReadable || nginxDomains.length > 0;
+
+    return {
+      available,
+      logPath,
+      logExists,
+      logReadable,
+      domainCount: nginxDomains.length,
+    };
+  } catch (err) {
+    return { available: false, logExists: false, logReadable: false, domainCount: 0 };
+  }
+}
+
 module.exports = {
   getCapabilities,
   detectDocker,
   detectPm2,
   detectOllama,
-  detectSystemd
+  detectSystemd,
+  detectBackups,
+  detectTraffic,
 };

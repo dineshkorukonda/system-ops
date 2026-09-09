@@ -17,7 +17,7 @@ async function discoverAllServices(forceRefresh = false) {
     return cachedDiscoveredUnits;
   }
 
-  const configured = (process.env.SYSTEMD_UNITS || 'nginx,ollama,system-ops,postgresql')
+  const configured = (process.env.SYSTEMD_UNITS || 'system-ops')
     .split(',')
     .map(u => u.trim())
     .filter(Boolean);
@@ -198,7 +198,7 @@ async function getServiceLogs(serviceName, lines = 100) {
 }
 
 function getConfiguredServices() {
-  return (process.env.SYSTEMD_UNITS || 'nginx,ollama,system-ops,postgresql')
+  return (process.env.SYSTEMD_UNITS || 'system-ops')
     .split(',')
     .map(u => u.trim())
     .filter(Boolean);

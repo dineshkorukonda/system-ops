@@ -125,8 +125,8 @@ function getMemoryAndSwap() {
  * Fetch Disk usage for configured paths using a single bulk `df` call.
  */
 async function getDiskUsage() {
-  const envPaths = process.env.DISK_PATHS || '/,/var,/root/backups';
-  const paths = envPaths.split(',').map(p => p.trim()).filter(Boolean);
+  const envPaths = process.env.DISK_PATHS || '/,/var';
+  const paths = [...new Set(envPaths.split(',').map((p) => p.trim()).filter(Boolean))];
 
   const existingPaths = paths.filter(p => fs.existsSync(p));
   const missingPaths = paths.filter(p => !fs.existsSync(p));
@@ -203,7 +203,7 @@ async function getDiskUsage() {
  * Query status of key systemd units in a single bulk call.
  */
 async function getSystemdUnits() {
-  const envUnits = process.env.SYSTEMD_UNITS || 'nginx,ollama,system-ops,postgresql';
+  const envUnits = process.env.SYSTEMD_UNITS || 'system-ops';
   const units = envUnits.split(',').map(u => u.trim()).filter(Boolean);
   const fullUnitNames = units.map(u => u.endsWith('.service') ? u : `${u}.service`);
 
@@ -336,8 +336,15 @@ async function getListeningPorts() {
  * Inspect TLS certificate validity for hostnames or cert paths.
  */
 async function getTlsCertStatus() {
-  const envHosts = process.env.TLS_HOSTS || 'ops.example.com';
-  const hosts = envHosts.split(',').map(h => h.trim()).filter(Boolean);
+  const { discoverNginxDomains } = require('../utils/domainDiscovery');
+  const envHosts = process.env.TLS_HOSTS || '';
+  let hosts = envHosts.split(',').map((h) => h.trim()).filter(Boolean);
+
+  if (hosts.length === 0) {
+    hosts = discoverNginxDomains().filter(
+      (d) => !d.includes('example.com') && !d.includes('example.org')
+    );
+  }
 
   const results = await Promise.all(hosts.map(async (hostOrPath) => {
     let certPath = hostOrPath;

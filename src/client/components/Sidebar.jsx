@@ -18,10 +18,8 @@ export function Sidebar({
   isOpen,
   onClose,
 }) {
-  // Build dynamic runtime items based on server capabilities
   const runtimeItems = [];
 
-  // 1. Docker (only if available)
   if (capabilities?.docker?.available) {
     runtimeItems.push({
       id: 'docker',
@@ -31,7 +29,6 @@ export function Sidebar({
     });
   }
 
-  // 2. PM2 (only if available / detected)
   if (capabilities?.pm2?.available) {
     runtimeItems.push({
       id: 'pm2',
@@ -41,21 +38,41 @@ export function Sidebar({
     });
   }
 
-  // 3. Systemd Services (always host supervisor)
-  runtimeItems.push({
-    id: 'services',
-    label: 'Systemd Services',
-    tag: servicesCount !== undefined ? `${servicesCount} UP` : 'SYSTEMD',
-    tagVariant: 'ok',
-  });
+  if (capabilities?.systemd?.available !== false) {
+    runtimeItems.push({
+      id: 'services',
+      label: 'Systemd Services',
+      tag: servicesCount !== undefined ? `${servicesCount} UP` : 'SYSTEMD',
+      tagVariant: 'ok',
+    });
+  }
 
-  // 4. Ollama AI (only if installed on host)
   if (capabilities?.ollama?.available) {
     runtimeItems.push({
       id: 'ollama',
       label: 'Ollama AI',
       tag: ollamaStatus || 'OLLAMA',
       tagVariant: ollamaStatus === 'ACTIVE' || ollamaStatus === 'ONLINE' ? 'ok' : 'err',
+    });
+  }
+
+  const storageItems = [];
+
+  if (capabilities?.backups?.available) {
+    storageItems.push({
+      id: 'backups',
+      label: 'Backups & Dumps',
+      tag: backupStatus || 'BACKUP',
+      tagVariant: backupStatus === 'SUCCESS' ? 'ok' : backupStatus === 'FAILED' ? 'err' : 'warn',
+    });
+  }
+
+  if (capabilities?.traffic?.available) {
+    storageItems.push({
+      id: 'traffic',
+      label: 'Traffic Analytics',
+      tag: trafficHits !== undefined ? `${trafficHits} HITS` : 'GEO',
+      tagVariant: 'neutral',
     });
   }
 
@@ -77,30 +94,21 @@ export function Sidebar({
         },
       ],
     },
-    {
-      title: 'CONTAINERS & RUNTIMES',
-      items: runtimeItems,
-    },
-    {
-      title: 'STORAGE & TRAFFIC',
-      items: [
-        {
-          id: 'backups',
-          label: 'Backups & Dumps',
-          tag: backupStatus || 'BACKUP',
-          tagVariant: backupStatus === 'SUCCESS' ? 'ok' : backupStatus === 'FAILED' ? 'err' : 'warn',
-        },
-        {
-          id: 'traffic',
-          label: 'Traffic Analytics',
-          tag: trafficHits !== undefined ? `${trafficHits} HITS` : 'GEO',
-          tagVariant: 'neutral',
-        },
-      ],
-    },
+    ...(runtimeItems.length > 0
+      ? [{ title: 'CONTAINERS & RUNTIMES', items: runtimeItems }]
+      : []),
+    ...(storageItems.length > 0
+      ? [{ title: 'STORAGE & TRAFFIC', items: storageItems }]
+      : []),
     {
       title: 'HELP & SYSTEM',
       items: [
+        {
+          id: 'integrations',
+          label: 'Integrations',
+          tag: 'SETUP',
+          tagVariant: 'neutral',
+        },
         {
           id: 'settings',
           label: 'Settings',
@@ -119,7 +127,6 @@ export function Sidebar({
 
   return (
     <>
-      {/* Mobile Backdrop */}
       {isOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden"
@@ -133,19 +140,12 @@ export function Sidebar({
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        {/* Brand Header */}
         <div className="flex h-14 items-center justify-between border-b border-[#1f1f1f] px-5 theme-header">
-          <div className="flex items-center gap-2.5">
-            <span className="font-mono text-sm font-bold tracking-tight text-white truncate max-w-[140px]">
-              {siteName.toUpperCase()}
-            </span>
-            <span className="rounded bg-[#141414] px-1.5 py-0.5 font-mono text-[9px] font-semibold text-neutral-400 border border-[#262626]">
-              v2.0
-            </span>
-          </div>
+          <span className="font-mono text-sm font-bold tracking-tight text-white truncate">
+            {siteName.toUpperCase()}
+          </span>
         </div>
 
-        {/* Sectionized Navigation */}
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
           {sections.map((section, sIdx) => (
             <div key={sIdx} className="space-y-1.5">
@@ -183,24 +183,17 @@ export function Sidebar({
           ))}
         </div>
 
-        {/* Host Node Footer */}
         <div className="border-t border-[#1f1f1f] bg-[#050505] p-4 text-xs space-y-2 theme-header">
           <div className="flex items-center justify-between text-[11px]">
             <span className="text-neutral-500 font-mono">NODE</span>
             <span className="font-mono font-medium text-neutral-300">
-              {hostData?.uptime?.hostname || 'ubuntu-vps'}
+              {hostData?.uptime?.hostname || '—'}
             </span>
           </div>
           <div className="flex items-center justify-between text-[11px]">
             <span className="text-neutral-500 font-mono">UPTIME</span>
             <span className="font-mono text-neutral-300">
               {hostData?.uptime?.uptimeText || '--'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-[11px] pt-1 border-t border-[#141414]">
-            <span className="text-neutral-500 font-mono">STATUS</span>
-            <span className="font-mono text-emerald-400 text-[10px] uppercase font-semibold">
-              SYSTEMD UNIFIED
             </span>
           </div>
         </div>

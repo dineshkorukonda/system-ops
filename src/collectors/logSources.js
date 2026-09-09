@@ -6,7 +6,9 @@ const { runCommand } = require('../utils/exec');
  * Example format: LOG_SOURCES=pg-backup:/var/backups/postgres/logs/backup.log:200,journal:postgresql:100
  */
 function parseLogSourcesConfig() {
-  const envStr = process.env.LOG_SOURCES || 'pg-backup:/var/backups/postgres/logs/backup.log:200,pg-log:/var/log/pg-backup.log:200,journal:postgresql:100';
+  const envStr = process.env.LOG_SOURCES || '';
+  if (!envStr.trim()) return [];
+
   const entries = envStr.split(',').map(s => s.trim()).filter(Boolean);
 
   const sources = [];
@@ -53,14 +55,6 @@ function parseLogSourcesConfig() {
       defaultLines
     });
   });
-
-  if (sources.length === 0) {
-    // Default fallback
-    sources.push(
-      { id: 'pg-backup', name: 'PG BACKUP', type: 'file', target: '/var/backups/postgres/logs/backup.log', defaultLines: 200 },
-      { id: 'postgresql', name: 'POSTGRESQL JOURNAL', type: 'journal', target: 'postgresql', defaultLines: 100 }
-    );
-  }
 
   return sources;
 }

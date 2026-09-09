@@ -11,6 +11,7 @@ import { BackupsView } from './components/BackupsView';
 import { TrafficAnalyticsView } from './components/TrafficAnalyticsView';
 import { TroubleshootingView } from './components/TroubleshootingView';
 import { SettingsView } from './components/SettingsView';
+import { IntegrationsView } from './components/IntegrationsView';
 import { LoginView } from './components/LoginView';
 
 const MAX_HISTORY = 30;
@@ -123,6 +124,7 @@ export function App() {
       traffic: 'Traffic Analytics',
       troubleshooting: 'Troubleshooting',
       settings: 'Settings',
+      integrations: 'Integrations',
     };
     const siteName = branding?.siteName || 'system-ops';
     const tabTitle = tabTitles[activeTab] || 'Console';
@@ -162,14 +164,16 @@ export function App() {
         const data = await res.json();
         setCapabilities(data);
 
-        // Fallback tab if currently active tab runtime is not available
         const currentTab = activeTabRef.current;
-        if (currentTab === 'ollama' && !data.ollama?.available) {
-          setActiveTab('system');
-        } else if (currentTab === 'docker' && !data.docker?.available) {
-          setActiveTab('system');
-        } else if (currentTab === 'pm2' && !data.pm2?.available) {
-          setActiveTab('system');
+        const tabCapabilityMap = {
+          docker: data.docker?.available,
+          pm2: data.pm2?.available,
+          ollama: data.ollama?.available,
+          backups: data.backups?.available,
+          traffic: data.traffic?.available,
+        };
+        if (tabCapabilityMap[currentTab] === false) {
+          setActiveTab('integrations');
         }
       }
     } catch (e) {}
@@ -387,6 +391,7 @@ export function App() {
     traffic: 'Traffic Analytics',
     troubleshooting: 'Troubleshooting & Diagnostics',
     settings: 'Settings',
+    integrations: 'Integrations & Setup',
   };
 
   const pm2TotalCount = (pm2Data?.users || []).reduce(
@@ -411,7 +416,13 @@ export function App() {
         pm2Count={pm2TotalCount}
         servicesCount={servicesData?.activeCount}
         ollamaStatus={ollamaStatus?.systemd?.isActive ? 'ONLINE' : 'STOPPED'}
-        backupStatus={backupSources.length > 0 ? 'SUCCESS' : 'IDLE'}
+        backupStatus={
+          backupFiles.length > 0
+            ? 'SUCCESS'
+            : capabilities?.backups?.available
+            ? 'IDLE'
+            : undefined
+        }
         trafficHits={trafficData?.summary?.total_hits || 0}
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
@@ -488,7 +499,14 @@ export function App() {
           )}
 
           {activeTab === 'troubleshooting' && (
-            <TroubleshootingView />
+            <TroubleshootingView capabilities={capabilities} />
+          )}
+
+          {activeTab === 'integrations' && (
+            <IntegrationsView
+              capabilities={capabilities}
+              onNavigate={(tabId) => setActiveTab(tabId)}
+            />
           )}
 
           {activeTab === 'settings' && (

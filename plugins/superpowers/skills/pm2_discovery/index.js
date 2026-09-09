@@ -141,16 +141,19 @@ async function resolvePm2Binary(user) {
   return null;
 }
 
-/** Discover PM2 users (default deploy and root plus any with ~/.pm2). */
+/** Discover PM2 users from PM2_USERS env or ~/.pm2 directories only. */
 function getPm2Users() {
-  const users = new Set(['deploy', 'root']);
+  const users = new Set();
+
   if (process.env.PM2_USERS) {
-    process.env.PM2_USERS.split(',').forEach(u => {
+    process.env.PM2_USERS.split(',').forEach((u) => {
       const clean = u.trim();
       if (clean) users.add(clean);
     });
   }
+
   try {
+    if (fs.existsSync('/root/.pm2')) users.add('root');
     if (fs.existsSync('/home')) {
       const dirs = fs.readdirSync('/home');
       for (const d of dirs) {
@@ -158,6 +161,7 @@ function getPm2Users() {
       }
     }
   } catch (e) {}
+
   return Array.from(users);
 }
 
@@ -226,8 +230,11 @@ function parsePm2Json(user, raw) {
 async function collectPm2Snapshot() {
   const users = getPm2Users();
   const results = await Promise.all(users.map(u => getPm2UserProcesses(u)));
+  const activeUsers = results.filter(
+    (r) => (r.processes && r.processes.length > 0) || (r.pm2Path && !r.error)
+  );
   let totalProcesses = 0, onlineCount = 0, errorCount = 0, totalMemory = 0;
-  for (const r of results) {
+  for (const r of activeUsers) {
     (r.processes || []).forEach(p => {
       totalProcesses++;
       if (p.status === 'online') onlineCount++;
@@ -241,7 +248,7 @@ async function collectPm2Snapshot() {
     errorCount,
     totalMemory,
     totalMemoryFormatted: formatBytes(totalMemory),
-    users: results
+    users: activeUsers
   };
 }
 

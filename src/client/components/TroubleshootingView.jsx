@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
 
-export function TroubleshootingView() {
+export function TroubleshootingView({ capabilities }) {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedIndex, setCopiedIndex] = useState(null);
@@ -284,7 +284,17 @@ export function TroubleshootingView() {
     },
   ];
 
+  const categoryAvailable = {
+    pm2: capabilities?.pm2?.available,
+    ollama: capabilities?.ollama?.available,
+    backups: capabilities?.backups?.available,
+    traffic: capabilities?.traffic?.available,
+    systemd: true,
+    deploy: true,
+  };
+
   const filteredGuides = guides.filter((g) => {
+    if (categoryAvailable[g.category] === false) return false;
     const matchesCategory = selectedCategory === 'all' || g.category === selectedCategory;
     const matchesSearch =
       searchQuery === '' ||
@@ -366,11 +376,11 @@ export function TroubleshootingView() {
         <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
           {[
             { id: 'all', label: 'All Issues' },
-            { id: 'pm2', label: 'PM2 & Node' },
+            ...(capabilities?.pm2?.available ? [{ id: 'pm2', label: 'PM2 & Node' }] : []),
             { id: 'systemd', label: 'Systemd & Sudo' },
-            { id: 'traffic', label: 'Traffic / Nginx' },
-            { id: 'ollama', label: 'Ollama AI' },
-            { id: 'backups', label: 'Backups' },
+            ...(capabilities?.traffic?.available ? [{ id: 'traffic', label: 'Traffic / Nginx' }] : []),
+            ...(capabilities?.ollama?.available ? [{ id: 'ollama', label: 'Ollama AI' }] : []),
+            ...(capabilities?.backups?.available ? [{ id: 'backups', label: 'Backups' }] : []),
             { id: 'deploy', label: 'Updates' },
           ].map((cat) => (
             <button
