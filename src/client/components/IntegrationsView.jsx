@@ -70,6 +70,43 @@ const GUIDES = [
     ],
     envVars: ['NGINX_LOG_PATH=/var/log/nginx/access.log'],
   },
+  {
+    id: 'databases',
+    name: 'Database Health',
+    description: 'Monitor PostgreSQL, Redis, and MySQL listeners on standard ports.',
+    capKey: 'databases',
+    setupSteps: [
+      'Ensure database services listen on localhost (5432, 6379, 3306)',
+      'Optional custom ports: POSTGRES_PORT, REDIS_PORT, MYSQL_PORT in .env',
+      'Install client tools for richer stats: postgresql-client, redis-tools, mysql-client',
+    ],
+    envVars: ['POSTGRES_PORT=5432', 'REDIS_PORT=6379', 'MYSQL_PORT=3306'],
+  },
+  {
+    id: 'security',
+    name: 'Security (UFW & Fail2ban)',
+    description: 'Firewall rule summary and fail2ban jail status.',
+    capKey: 'security',
+    setupSteps: [
+      'Install: sudo apt install ufw fail2ban',
+      'Enable UFW: sudo ufw enable',
+      'Grant passwordless sudo for ops user (see Troubleshooting)',
+    ],
+    envVars: [],
+  },
+  {
+    id: 'certbot',
+    name: 'Certbot / Let\'s Encrypt',
+    description: 'Certificate inventory and auto-renew timer status.',
+    capKey: 'certbot',
+    setupSteps: [
+      'Install: sudo apt install certbot python3-certbot-nginx',
+      'Issue cert: sudo certbot --nginx -d yourdomain.com',
+      'Enable timer: sudo systemctl enable --now certbot.timer',
+      'TLS on System Health uses live HTTPS probes (works with Cloudflare too)',
+    ],
+    envVars: ['TLS_HOSTS=ops.example.com,app.example.com'],
+  },
 ];
 
 export function IntegrationsView({ capabilities, onNavigate }) {
