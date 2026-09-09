@@ -54,7 +54,6 @@ async function getCapabilities() {
     securityCap,
     osUpdatesCap,
     certbotCap,
-    monixCap,
   ] = await Promise.all([
     detectDocker(),
     detectPm2(),
@@ -66,7 +65,6 @@ async function getCapabilities() {
     detectSecurity(),
     detectOsUpdates(),
     detectCertbot(),
-    detectMonix(),
   ]);
 
   return {
@@ -80,7 +78,6 @@ async function getCapabilities() {
     security: securityCap,
     osUpdates: osUpdatesCap,
     certbot: certbotCap,
-    monix: monixCap,
     timestamp: new Date().toISOString(),
   };
 }
@@ -323,23 +320,6 @@ async function detectCertbot() {
   }
 }
 
-async function detectMonix() {
-  try {
-    const baseUrl = (process.env.MONIX_URL || '').trim();
-    if (!baseUrl) return { available: false, configured: false };
-    const { getMonixSnapshot } = require('./monix');
-    const snap = await getMonixSnapshot();
-    return {
-      available: snap.available,
-      configured: true,
-      siteCount: snap.siteCount || 0,
-      baseUrl: snap.baseUrl,
-    };
-  } catch {
-    return { available: false, configured: !!(process.env.MONIX_URL || '').trim() };
-  }
-}
-
 module.exports = {
   getCapabilities,
   detectDocker,
@@ -352,5 +332,4 @@ module.exports = {
   detectSecurity,
   detectOsUpdates,
   detectCertbot,
-  detectMonix,
 };

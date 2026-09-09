@@ -462,18 +462,6 @@ app.get('/api/v2/certbot/snapshot', async (req, res) => {
   }
 });
 
-app.get('/api/v2/monix/snapshot', async (req, res) => {
-  const cached = stateStore.get('monix');
-  if (cached) return res.json(cached);
-  try {
-    const { getMonixSnapshot } = require('./collectors/monix');
-    const data = await getMonixSnapshot();
-    return res.json(data);
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to fetch Monix snapshot', details: error.message });
-  }
-});
-
 app.get('/api/traffic-analytics', async (req, res) => {
   const cached = stateStore.get('traffic');
   if (cached) {

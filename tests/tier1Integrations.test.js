@@ -52,8 +52,8 @@ Found the following certs:
 test('getCapabilities includes tier-1 integration keys', async () => {
   const { getCapabilities } = require('../src/collectors/capabilities');
   const caps = await getCapabilities();
-  for (const key of ['databases', 'security', 'osUpdates', 'certbot', 'monix']) {
+  for (const key of ['databases', 'security', 'osUpdates', 'certbot']) {
     assert.ok(key in caps, `${key} key present`);
-    assert.ok(typeof caps[key].available === 'boolean' || typeof caps[key].configured === 'boolean');
+    assert.equal(typeof caps[key].available, 'boolean');
   }
 });

@@ -16,7 +16,6 @@ export function Sidebar({
   backupStatus,
   trafficHits,
   securityBanned,
-  monixDown,
   dbCount,
   isOpen,
   onClose,
@@ -95,14 +94,6 @@ export function Sidebar({
       label: 'Security',
       tag: securityBanned ? `${securityBanned} BAN` : 'SEC',
       tagVariant: securityBanned ? 'warn' : 'neutral',
-    });
-  }
-  if (capabilities?.monix?.configured) {
-    observabilityItems.push({
-      id: 'monix',
-      label: 'Monix',
-      tag: monixDown ? `${monixDown} DOWN` : 'MONIX',
-      tagVariant: monixDown ? 'err' : 'ok',
     });
   }
 

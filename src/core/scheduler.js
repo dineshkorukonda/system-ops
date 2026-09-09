@@ -15,7 +15,6 @@ const { getDatabaseSnapshot } = require('../collectors/databases');
 const { getSecuritySnapshot } = require('../collectors/security');
 const { getOsUpdatesSnapshot } = require('../collectors/osUpdates');
 const { getCertbotSnapshot } = require('../collectors/certbot');
-const { getMonixSnapshot } = require('../collectors/monix');
 const { getServiceStatus, checkPortListener, getHostMetrics } = require('../services/systemService');
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
@@ -214,16 +213,6 @@ function registerAllCollectors() {
     intervalMs: certbotInterval,
     critical: false,
     collect: async () => getCertbotSnapshot(),
-  });
-
-  // 14. Monix external uptime (default: 60s)
-  const monixInterval = parseInt(process.env.SYSTEM_OPS_MONIX_INTERVAL, 10) || 60000;
-  collectorManager.register({
-    name: 'monix',
-    stateKey: 'monix',
-    intervalMs: monixInterval,
-    critical: false,
-    collect: async () => getMonixSnapshot(),
   });
 }
 

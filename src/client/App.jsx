@@ -14,7 +14,6 @@ import { SettingsView } from './components/SettingsView';
 import { IntegrationsView } from './components/IntegrationsView';
 import { DatabasesView } from './components/DatabasesView';
 import { SecurityView } from './components/SecurityView';
-import { MonixView } from './components/MonixView';
 import { LoginView } from './components/LoginView';
 
 const MAX_HISTORY = 30;
@@ -49,7 +48,7 @@ export function App() {
   const [databaseData, setDatabaseData] = useState(null);
   const [securityData, setSecurityData] = useState(null);
   const [certbotData, setCertbotData] = useState(null);
-  const [monixData, setMonixData] = useState(null);
+  const [osUpdatesData, setOsUpdatesData] = useState(null);
   const [branding, setBranding] = useState(null);
   const [updateAvailable, setUpdateAvailable] = useState(false);
 
@@ -111,7 +110,6 @@ export function App() {
       traffic: 'Traffic Analytics',
       databases: 'Databases',
       security: 'Security',
-      monix: 'Monix',
       troubleshooting: 'Troubleshooting',
       settings: 'Settings',
       integrations: 'Integrations',
@@ -159,7 +157,6 @@ export function App() {
           traffic: data.traffic?.available,
           databases: data.databases?.available,
           security: data.security?.available || data.certbot?.available,
-          monix: data.monix?.configured,
         };
         if (capMap[tab] === false) setActiveTab('integrations');
       }
@@ -257,10 +254,10 @@ export function App() {
     } catch (e) {}
   };
 
-  const fetchMonixData = async () => {
+  const fetchOsUpdates = async () => {
     try {
-      const res = await fetch('/api/v2/monix/snapshot');
-      if (res.ok) setMonixData(await res.json());
+      const res = await fetch('/api/v2/system/updates');
+      if (res.ok) setOsUpdatesData(await res.json());
     } catch (e) {}
   };
 
@@ -270,7 +267,7 @@ export function App() {
     const tab = activeTabRef.current;
     const promises = [fetchSystemSnapshot()];
 
-    if (tab === 'system') promises.push(fetchProcesses(), fetchServices());
+    if (tab === 'system') promises.push(fetchProcesses(), fetchServices(), fetchOsUpdates());
     else if (tab === 'processes') promises.push(fetchProcesses());
     else if (tab === 'docker') promises.push(fetchDockerData());
     else if (tab === 'pm2') promises.push(fetchPm2Data());
@@ -280,7 +277,6 @@ export function App() {
     else if (tab === 'traffic') promises.push(fetchTrafficData());
     else if (tab === 'databases') promises.push(fetchDatabaseData());
     else if (tab === 'security') promises.push(fetchSecurityData());
-    else if (tab === 'monix') promises.push(fetchMonixData());
 
     await Promise.allSettled(promises);
     setLastUpdated(new Date());
@@ -301,7 +297,7 @@ export function App() {
         fetchTrafficData(),
         fetchDatabaseData(),
         fetchSecurityData(),
-        fetchMonixData(),
+        fetchOsUpdates(),
         fetchBranding(),
         fetchVersionCheck(),
       ]).then(() => setLastUpdated(new Date()));
@@ -348,7 +344,6 @@ export function App() {
     traffic: 'Traffic Analytics',
     databases: 'Databases',
     security: 'Security',
-    monix: 'Monix',
     troubleshooting: 'Troubleshooting & Diagnostics',
     settings: 'Settings',
     integrations: 'Integrations & Setup',
@@ -377,7 +372,6 @@ export function App() {
         }
         trafficHits={trafficData?.summary?.total_hits || 0}
         securityBanned={securityData?.fail2ban?.totalBanned}
-        monixDown={monixData?.downCount}
         dbCount={databaseData?.count}
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
@@ -402,6 +396,7 @@ export function App() {
           {activeTab === 'system' && (
             <SystemHealthView
               systemData={systemData}
+              osUpdatesData={osUpdatesData}
               cpuHistory={cpuHistory}
               ramHistory={ramHistory}
               swapHistory={swapHistory}
@@ -436,7 +431,6 @@ export function App() {
           {activeTab === 'security' && (
             <SecurityView securityData={securityData} certbotData={certbotData} />
           )}
-          {activeTab === 'monix' && <MonixView monixData={monixData} />}
           {activeTab === 'troubleshooting' && <TroubleshootingView capabilities={capabilities} />}
           {activeTab === 'integrations' && (
             <IntegrationsView capabilities={capabilities} onNavigate={(tabId) => setActiveTab(tabId)} />

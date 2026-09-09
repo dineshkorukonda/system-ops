@@ -6,6 +6,7 @@ import { ProgressBar } from './ui/ProgressBar';
 
 export function SystemHealthView({
   systemData,
+  osUpdatesData,
   cpuHistory = [],
   ramHistory = [],
   swapHistory = [],
@@ -24,6 +25,24 @@ export function SystemHealthView({
 
   return (
     <div className="space-y-6">
+      {osUpdatesData?.available && osUpdatesData.pendingCount > 0 && (
+        <Card>
+          <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="font-mono text-sm font-medium text-white">
+                {osUpdatesData.pendingCount} package update{osUpdatesData.pendingCount === 1 ? '' : 's'} pending
+              </div>
+              <div className="font-mono text-xs text-neutral-500 mt-1">
+                {osUpdatesData.securityHint ? 'Includes security updates' : 'Run apt upgrade when convenient'}
+              </div>
+            </div>
+            <Badge variant={osUpdatesData.securityHint ? 'warn' : 'neutral'}>
+              {osUpdatesData.securityHint ? 'Security' : 'Maintenance'}
+            </Badge>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ─── Hero Telemetry Cards with Real-Time Sparklines ─── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* CPU Load Card */}
