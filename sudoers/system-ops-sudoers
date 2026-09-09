@@ -1,6 +1,29 @@
 # Sudoers configuration for system-ops
-# Install location: /etc/sudoers.d/system-ops
-# Permissions: 0440 (sudo chmod 0440 /etc/sudoers.d/system-ops)
+# Install: sudo cp sudoers/system-ops-sudoers /etc/sudoers.d/system-ops && sudo chmod 0440 /etc/sudoers.d/system-ops
+#
+# Narrow passwordless rules for the ops monitoring user. Adjust paths if your install dir differs.
 
-# Allow 'ops' monitoring user passwordless access for systemctl, journalctl, find, PM2, and telemetry
-ops ALL=(ALL:ALL) NOPASSWD: ALL
+# Journal and log tailing
+ops ALL=(ALL:ALL) NOPASSWD: /usr/bin/journalctl *
+ops ALL=(ALL:ALL) NOPASSWD: /usr/bin/tail *
+
+# Firewall and intrusion prevention (read-only status)
+ops ALL=(ALL:ALL) NOPASSWD: /usr/bin/ufw status *
+ops ALL=(ALL:ALL) NOPASSWD: /usr/bin/fail2ban-client status *
+
+# Systemd inspection (services fleet)
+ops ALL=(ALL:ALL) NOPASSWD: /usr/bin/systemctl show *
+ops ALL=(ALL:ALL) NOPASSWD: /usr/bin/systemctl list-units *
+
+# TLS certificate inventory
+ops ALL=(ALL:ALL) NOPASSWD: /usr/bin/certbot certificates
+
+# Docker CLI (fallback when ops is not in the docker group)
+ops ALL=(ALL:ALL) NOPASSWD: /usr/bin/docker *
+
+# Ollama model list as the ollama service user
+ops ALL=(ollama:ollama) NOPASSWD: /usr/bin/ollama list
+
+# In-dashboard self-update and recovery scripts
+ops ALL=(ALL:ALL) NOPASSWD: /usr/bin/bash /opt/system-ops/scripts/deploy.sh
+ops ALL=(ALL:ALL) NOPASSWD: /usr/bin/bash /opt/system-ops/scripts/recover.sh

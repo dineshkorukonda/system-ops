@@ -205,8 +205,8 @@
 (____/(__/  (____/ (__) (____)\_)(_/     (_____)(__)  (____/
     </div>
     <h1>system-ops</h1>
-    <div class="tagline">ARCHITECTURE: NATIVE SYSTEMD UNIFIED (&lt;35MB RAM)</div>
-    <p class="subtitle">Lightweight self-hosted operations console and telemetry dashboard for single Ubuntu VPS deployments.</p>
+    <div class="tagline">ARCHITECTURE: NATIVE SYSTEMD + GO SIDECAR (&lt;35MB RAM)</div>
+    <p class="subtitle">Lightweight self-hosted operations console for single Ubuntu VPS deployments — system health, security, databases, backups, traffic, and one-click updates.</p>
   </header>
 
   <section>
@@ -226,27 +226,35 @@
     <div class="grid-2">
       <div class="card">
         <div class="card-title">System Health &amp; Sparklines</div>
-        <p class="card-desc">Real-time SVG sparklines for CPU Load, RAM %, and Swap %. Load averages (1m/5m/15m), disk partition meters, listening ports, and TLS cert expiry countdowns.</p>
+        <p class="card-desc">Real-time CPU, RAM, and swap sparklines, load averages, disk meters, listening ports, TLS cert expiry countdowns, and pending OS package updates.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Security at a Glance</div>
+        <p class="card-desc">Plain-language UFW firewall rules (which ports are open and why), fail2ban jails, and currently banned IPs — no security jargon required.</p>
       </div>
       <div class="card">
         <div class="card-title">Systemd Services Fleet</div>
-        <p class="card-desc">Unified inspection of all tracked services with active state, memory consumption, PID, and live streaming journalctl log viewer.</p>
+        <p class="card-desc">Unified inspection of tracked services with active state, memory, PID, and live streaming journalctl log viewer. PM2 fleet view when PM2 is present.</p>
       </div>
       <div class="card">
-        <div class="card-title">Process Monitor</div>
-        <p class="card-desc">Interactive top system process table with fuzzy live search and instant sorting by % CPU or % RAM consumption.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">Ollama AI Local Models</div>
-        <p class="card-desc">Service state, loopback socket binding, API latency probe, installed model registry, and token-capped quick inference probe.</p>
+        <div class="card-title">Databases &amp; Certbot</div>
+        <p class="card-desc">PostgreSQL, Redis, and MySQL reachability probes. Let's Encrypt certificate inventory via certbot with renewal hints.</p>
       </div>
       <div class="card">
         <div class="card-title">PostgreSQL Backups</div>
-        <p class="card-desc">Log tailing with heuristic status parsing (SUCCESS / FAILED), log source switching, and direct .dump file downloads.</p>
+        <p class="card-desc">Configure BACKUPS_DIR and LOG_SOURCES when ready — setup checklist guides you. Log tailing with SUCCESS/FAILED parsing and .dump downloads.</p>
       </div>
       <div class="card">
         <div class="card-title">Traffic &amp; GeoIP Analytics</div>
-        <p class="card-desc">Streaming Nginx access log parser, mobile vs desktop ratio meters, HTTP status code distribution (2xx/3xx/4xx/5xx), top requested endpoints, and Leaflet GeoIP visitor map.</p>
+        <p class="card-desc">Streaming Nginx access log parser, mobile vs desktop meters, HTTP status distribution, top endpoints, and Leaflet GeoIP visitor map.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Docker Containers</div>
+        <p class="card-desc">Optional container fleet view when Docker is installed. Diagnostics script checks socket permissions and group membership.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">In-Dashboard Updates</div>
+        <p class="card-desc">Settings → Update now pulls latest main, rebuilds the SPA, and restarts systemd. Recovery script fixes broken git/deploy state.</p>
       </div>
     </div>
   </section>
@@ -261,6 +269,22 @@
     </div>
     <p class="card-desc">
       Automatically generates the Nginx reverse proxy configuration, verifies syntax, provisions a free Let's Encrypt SSL certificate with auto-renewal, and reloads Nginx.
+    </p>
+  </section>
+
+  <section>
+    <h2>Docker Deployment (Optional)</h2>
+    <p>For read-only host monitoring in a container. Native systemd install is recommended for full features (Go sidecar, security collectors, in-dashboard updates).</p>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+      <div class="code-block">git clone https://github.com/dineshkorukonda/system-ops.git
+cd system-ops
+cp .env.docker.example .env.docker
+# edit APP_PASSWORD, then:
+docker compose --env-file .env.docker up -d --build</div>
+    </div>
+    <p class="card-desc">
+      The Docker image includes a multi-stage Vite build. Mount <code>/var/run/docker.sock</code> only if you need the Docker page (see security warning in docker-compose.yml).
     </p>
   </section>
 
@@ -332,7 +356,12 @@ ENABLE_SYSTEM_COLLECTOR=true
 SYSTEMD_UNITS=nginx,postgresql,ollama,system-ops,docker
 DISK_PATHS=/,/var,/var/backups
 NGINX_LOG_PATH=/var/log/nginx/access.log
-BACKUPS_DIR=/var/backups
+TRACKED_DOMAINS=
+
+# Leave empty until backups are configured (Integrations page shows setup steps)
+BACKUPS_DIR=
+LOG_SOURCES=
+
 OLLAMA_URL=http://127.0.0.1:11434
 OLLAMA_SERVICE_NAME=ollama
 EOF
@@ -341,10 +370,12 @@ chown -R ops:ops /opt/system-ops</div>
     </div>
 
     <h3>Step 4: Grant Narrow Sudoers Access</h3>
+    <p class="card-desc">Install the bundled narrow sudoers file (journalctl, tail, ufw, fail2ban, docker, systemctl, certbot, deploy/recover scripts):</p>
     <div class="code-container">
       <button class="copy-btn" onclick="copyCode(this)">COPY</button>
       <div class="code-block">sudo cp /opt/system-ops/sudoers/system-ops-sudoers /etc/sudoers.d/system-ops
-sudo chmod 0440 /etc/sudoers.d/system-ops</div>
+sudo chmod 0440 /etc/sudoers.d/system-ops
+sudo visudo -c</div>
     </div>
 
     <h3>Step 5: Install &amp; Start Systemd Unit</h3>
@@ -379,13 +410,12 @@ sudo systemctl restart system-ops.service</div>
     </div>
 
     <h3>2. Sudo Password Required / Permission Denied</h3>
-    <p>If you see <code>Sudo password required for user 'ops'</code>:</p>
+    <p>If you see <code>Sudo password required for user 'ops'</code>, reinstall the bundled sudoers file from the repo (do not use <code>NOPASSWD: ALL</code> in production):</p>
     <div class="code-container">
       <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">sudo tee /etc/sudoers.d/system-ops > /dev/null &lt;&lt; 'EOF'
-ops ALL=(ALL:ALL) NOPASSWD: ALL
-EOF
-sudo chmod 0440 /etc/sudoers.d/system-ops</div>
+      <div class="code-block">sudo cp /opt/system-ops/sudoers/system-ops-sudoers /etc/sudoers.d/system-ops
+sudo chmod 0440 /etc/sudoers.d/system-ops
+sudo visudo -c</div>
     </div>
 
     <h3>3. Service Fails to Start (status=1/FAILURE)</h3>
@@ -412,10 +442,14 @@ sudo systemctl restart system-ops.service</div>
     </div>
 
     <h3>5. Updating system-ops to Latest Version</h3>
-    <p>Pull latest code, rebuild frontend, and restart service in 1 command:</p>
+    <p>Use the dashboard (Settings → Update now), or run deploy/recover from SSH:</p>
     <div class="code-container">
       <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">sudo bash /opt/system-ops/scripts/deploy.sh</div>
+      <div class="code-block"># Normal update
+sudo bash /opt/system-ops/scripts/deploy.sh
+
+# If update failed or git state is broken
+sudo bash /opt/system-ops/scripts/recover.sh</div>
     </div>
   </section>
 
@@ -453,7 +487,25 @@ sudo systemctl restart system-ops.service</div>
           <td>GET</td>
           <td>/api/v2/system/snapshot</td>
           <td>Yes</td>
-          <td>Host health (CPU, RAM, Swap, Disk, Ports, TLS)</td>
+          <td>Host health (CPU, RAM, swap, disk, ports, TLS, OS updates)</td>
+        </tr>
+        <tr>
+          <td>GET</td>
+          <td>/api/v2/security/snapshot</td>
+          <td>Yes</td>
+          <td>UFW firewall rules and fail2ban status</td>
+        </tr>
+        <tr>
+          <td>GET</td>
+          <td>/api/v2/databases/snapshot</td>
+          <td>Yes</td>
+          <td>PostgreSQL, Redis, MySQL probes</td>
+        </tr>
+        <tr>
+          <td>GET</td>
+          <td>/api/v2/certbot/snapshot</td>
+          <td>Yes</td>
+          <td>Let's Encrypt certificate inventory</td>
         </tr>
         <tr>
           <td>GET</td>
@@ -484,6 +536,12 @@ sudo systemctl restart system-ops.service</div>
           <td>/api/v2/backups/files</td>
           <td>Yes</td>
           <td>List PostgreSQL dump files</td>
+        </tr>
+        <tr>
+          <td>POST</td>
+          <td>/api/v2/system/update</td>
+          <td>Yes</td>
+          <td>Trigger in-dashboard deploy (systemd installs)</td>
         </tr>
         <tr>
           <td>GET</td>
