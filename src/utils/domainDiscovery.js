@@ -47,6 +47,65 @@ function discoverNginxDomains() {
 }
 
 /**
+ * Map hostnames to ssl_certificate paths parsed from nginx server blocks.
+ */
+function discoverNginxSslMap() {
+  const map = new Map();
+  const searchDirs = ['/etc/nginx/sites-enabled', '/etc/nginx/conf.d', '/etc/nginx/sites-available'];
+
+  for (const dir of searchDirs) {
+    if (!fs.existsSync(dir)) continue;
+    try {
+      const files = fs.readdirSync(dir);
+      for (const file of files) {
+        const fullPath = path.join(dir, file);
+        try {
+          const stat = fs.statSync(fullPath);
+          if (!stat.isFile()) continue;
+          const content = fs.readFileSync(fullPath, 'utf8');
+          parseNginxServerBlocks(content, map);
+        } catch (e) {}
+      }
+    } catch (e) {}
+  }
+
+  return map;
+}
+
+function parseNginxServerBlocks(content, map) {
+  const blocks = content.split(/\bserver\s*\{/i).slice(1);
+
+  for (const block of blocks) {
+    const endIdx = block.indexOf('}');
+    const body = endIdx >= 0 ? block.slice(0, endIdx) : block;
+
+    const certMatch = body.match(/ssl_certificate\s+([^;\s]+)/i);
+    if (!certMatch || !certMatch[1] || certMatch[1].includes('ssl_certificate_key')) continue;
+
+    const certPath = certMatch[1].trim();
+    if (certPath.endsWith('.key')) continue;
+
+    const nameMatches = body.matchAll(/server_name\s+([^;]+);/gi);
+    for (const match of nameMatches) {
+      const domainList = match[1].trim().split(/\s+/);
+      for (const dom of domainList) {
+        const cleanDom = dom.toLowerCase().replace(/^\*\./, '').trim();
+        if (
+          cleanDom &&
+          cleanDom !== '_' &&
+          cleanDom !== 'localhost' &&
+          cleanDom !== 'default_server' &&
+          !/^\d{1,3}(\.\d{1,3}){3}$/.test(cleanDom) &&
+          cleanDom.includes('.')
+        ) {
+          map.set(cleanDom, certPath);
+        }
+      }
+    }
+  }
+}
+
+/**
  * Discover domains from Docker containers (VIRTUAL_HOST / Traefik / labels)
  */
 async function discoverDockerDomains() {
@@ -96,6 +155,7 @@ function discoverNginxLogFiles() {
 
 module.exports = {
   discoverNginxDomains,
+  discoverNginxSslMap,
   discoverDockerDomains,
   discoverNginxLogFiles
 };

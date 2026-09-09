@@ -1,10 +1,11 @@
 const os = require('os');
 const fs = require('fs');
 const net = require('net');
-const tls = require('tls');
 const { runCommand } = require('../utils/exec');
 const { formatBytes } = require('../utils/formatters');
 const { sampleProcesses } = require('./processCollector');
+const { getTlsCertStatus } = require('./tlsCerts');
+const goCollectorClient = require('../services/goCollectorClient');
 
 /**
  * Format uptime seconds into human-readable text.
@@ -333,95 +334,6 @@ async function getListeningPorts() {
 }
 
 /**
- * Inspect TLS certificate validity for hostnames or cert paths.
- */
-async function getTlsCertStatus() {
-  const { discoverNginxDomains } = require('../utils/domainDiscovery');
-  const envHosts = process.env.TLS_HOSTS || '';
-  let hosts = envHosts.split(',').map((h) => h.trim()).filter(Boolean);
-
-  if (hosts.length === 0) {
-    hosts = discoverNginxDomains().filter(
-      (d) => !d.includes('example.com') && !d.includes('example.org')
-    );
-  }
-
-  const results = await Promise.all(hosts.map(async (hostOrPath) => {
-    let certPath = hostOrPath;
-    if (!certPath.includes('/')) {
-      certPath = `/etc/letsencrypt/live/${hostOrPath}/cert.pem`;
-    }
-
-    if (fs.existsSync(certPath)) {
-      const opensslRes = await runCommand('openssl', ['x509', '-enddate', '-noout', '-in', certPath], 3000);
-      if (opensslRes.success && opensslRes.stdout.includes('notAfter=')) {
-        const dateStr = opensslRes.stdout.replace('notAfter=', '').trim();
-        const validTo = new Date(dateStr);
-        const daysRemaining = Math.floor((validTo - Date.now()) / (1000 * 60 * 60 * 24));
-        const isValid = daysRemaining > 0;
-
-        return {
-          target: hostOrPath,
-          source: 'file',
-          valid: isValid,
-          daysRemaining: daysRemaining,
-          validTo: validTo.toISOString(),
-          formattedValidTo: validTo.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-          statusText: isValid ? `${daysRemaining} days remaining` : 'EXPIRED'
-        };
-      }
-    }
-
-    if (hostOrPath.includes('.') && !hostOrPath.includes('/')) {
-      const netCert = await checkNetworkTlsCert(hostOrPath);
-      if (netCert) return netCert;
-    }
-
-    return {
-      target: hostOrPath,
-      source: 'unknown',
-      valid: false,
-      daysRemaining: 0,
-      validTo: null,
-      formattedValidTo: 'N/A',
-      statusText: `Certificate file or endpoint not found (${certPath})`
-    };
-  }));
-
-  return results;
-}
-
-function checkNetworkTlsCert(hostname, port = 443) {
-  return new Promise((resolve) => {
-    const socket = tls.connect(port, hostname, { servername: hostname, rejectUnauthorized: false, timeout: 3000 }, () => {
-      try {
-        const cert = socket.getPeerCertificate();
-        socket.destroy();
-        if (cert && cert.valid_to) {
-          const validTo = new Date(cert.valid_to);
-          const daysRemaining = Math.floor((validTo - Date.now()) / (1000 * 60 * 60 * 24));
-          const isValid = daysRemaining > 0;
-          resolve({
-            target: hostname,
-            source: 'https',
-            valid: isValid,
-            daysRemaining: daysRemaining,
-            validTo: validTo.toISOString(),
-            formattedValidTo: validTo.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-            statusText: isValid ? `${daysRemaining} days remaining` : 'EXPIRED'
-          });
-          return;
-        }
-      } catch (e) {}
-      resolve(null);
-    });
-
-    socket.on('error', () => { resolve(null); });
-    socket.on('timeout', () => { socket.destroy(); resolve(null); });
-  });
-}
-
-/**
  * Fetch running system processes. Delegates to sampleProcesses (/proc Linux fast path).
  */
 async function getSystemProcesses(options = {}) {
@@ -432,9 +344,15 @@ async function getSystemProcesses(options = {}) {
  * GET /api/v2/system/snapshot - Combined System Snapshot.
  */
 async function getSystemSnapshot() {
+  const goSnapshot = await goCollectorClient.getSystemSnapshot();
+  if (goSnapshot) {
+    goSnapshot.tls = await getTlsCertStatus();
+    return goSnapshot;
+  }
+
   const uptimeLoad = getUptimeAndLoad();
   const memorySwap = getMemoryAndSwap();
-  
+
   const [disk, services, ports, tlsStatus] = await Promise.all([
     getDiskUsage(),
     getSystemdUnits(),

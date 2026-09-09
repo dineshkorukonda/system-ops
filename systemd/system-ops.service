@@ -1,6 +1,7 @@
 [Unit]
 Description=System Ops Dashboard (Subdomain Ops Mini-Site)
-After=network.target
+After=network.target system-ops-collector.service
+Wants=system-ops-collector.service
 
 [Service]
 Type=simple

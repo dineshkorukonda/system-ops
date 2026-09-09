@@ -16,6 +16,9 @@ export function Sidebar({
   ollamaStatus,
   backupStatus,
   trafficHits,
+  databaseCount,
+  securityBanned,
+  monixDownCount,
   isOpen,
   onClose,
 }) {
@@ -54,6 +57,33 @@ export function Sidebar({
       label: 'Ollama',
       tag: ollamaStatus === 'ONLINE' || ollamaStatus === 'ACTIVE' ? 'Online' : 'Stopped',
       tagVariant: ollamaStatus === 'ACTIVE' || ollamaStatus === 'ONLINE' ? 'ok' : 'err',
+    });
+  }
+
+  if (capabilities?.databases?.available) {
+    runtimeItems.push({
+      id: 'databases',
+      label: 'Databases',
+      tag: databaseCount !== undefined ? `${databaseCount} up` : null,
+      tagVariant: databaseCount > 0 ? 'ok' : 'neutral',
+    });
+  }
+
+  if (capabilities?.security?.available || capabilities?.certbot?.available) {
+    runtimeItems.push({
+      id: 'security',
+      label: 'Security',
+      tag: securityBanned > 0 ? `${securityBanned} banned` : null,
+      tagVariant: securityBanned > 0 ? 'warn' : 'ok',
+    });
+  }
+
+  if (capabilities?.monix?.configured) {
+    runtimeItems.push({
+      id: 'monix',
+      label: 'Monix Uptime',
+      tag: monixDownCount > 0 ? `${monixDownCount} down` : capabilities?.monix?.available ? 'Linked' : 'Setup',
+      tagVariant: monixDownCount > 0 ? 'err' : capabilities?.monix?.available ? 'ok' : 'neutral',
     });
   }
 
