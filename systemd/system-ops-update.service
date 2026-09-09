@@ -1,0 +1,9 @@
+[Unit]
+Description=system-ops daily auto-update
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/system-ops
+ExecStart=/bin/bash -c '/opt/system-ops/scripts/deploy.sh >> /opt/system-ops/data/update.log 2>&1'

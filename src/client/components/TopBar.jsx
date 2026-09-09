@@ -4,6 +4,7 @@ import { Badge } from './ui/Badge';
 
 export function TopBar({
   activeTabTitle,
+  siteSubtitle = 'Operations Console',
   lastUpdated,
   isSyncing,
   onSync,
@@ -28,8 +29,8 @@ export function TopBar({
           <span className="font-semibold text-white tracking-tight">
             {activeTabTitle}
           </span>
-          <span className="font-mono text-neutral-500 text-[11px] hidden sm:inline">
-            // OPERATIONS CONSOLE
+          <span className="font-mono text-neutral-500 text-[11px] hidden sm:inline truncate max-w-[200px]">
+            // {siteSubtitle.toUpperCase()}
           </span>
         </div>
       </div>

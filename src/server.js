@@ -9,6 +9,8 @@ const { requireAuth, handleLogin, handleLogout, generateSessionToken } = require
 const { apiLimiter, chatTestLimiter, logTailLimiter } = require('./middleware/rateLimiter');
 const { getJournalLogs } = require('./services/systemService');
 const { runQuickChatTest } = require('./services/ollamaService');
+const { getSettings, getPublicBranding, updateSettings } = require('./services/settingsService');
+const { getVersionInfo, getUpdateStatus, startUpdate } = require('./services/updateService');
 
 // Core Architecture Modules
 const { stateStore } = require('./core/stateStore');
@@ -75,6 +77,11 @@ app.get('/api/health', (req, res) => {
  */
 app.post('/api/login', handleLogin);
 app.post('/api/logout', handleLogout);
+
+// Public branding (no auth — used on login page)
+app.get('/api/v2/settings/branding', (req, res) => {
+  return res.json(getPublicBranding());
+});
 
 app.get('/api/auth/status', (req, res) => {
   const appPassword = process.env.APP_PASSWORD || 'admin-password-change-me';
@@ -414,6 +421,62 @@ app.get('/api/traffic-analytics', async (req, res) => {
   } catch (error) {
     return res.status(500).json({ error: 'Failed to parse traffic analytics', details: error.message });
   }
+});
+
+/**
+ * Settings & Branding
+ */
+app.get('/api/v2/settings', (req, res) => {
+  return res.json(getSettings());
+});
+
+app.put('/api/v2/settings', async (req, res) => {
+  const result = updateSettings(req.body || {});
+  if (!result.success) {
+    return res.status(400).json(result);
+  }
+
+  // Toggle auto-update timer when setting changes
+  const autoUpdateScript = path.join(__dirname, '../scripts/setup-auto-update.sh');
+  if (req.body?.autoUpdateEnabled !== undefined && fs.existsSync(autoUpdateScript)) {
+    const flag = req.body.autoUpdateEnabled ? '--enable' : '--disable';
+    const { spawn } = require('child_process');
+    spawn('sudo', ['bash', autoUpdateScript, flag], { detached: true, stdio: 'ignore' }).unref();
+  }
+
+  return res.json(result);
+});
+
+/**
+ * System Version & Updates
+ */
+app.get('/api/v2/system/version', async (req, res) => {
+  try {
+    const forceRefresh = req.query.refresh === '1';
+    const info = await getVersionInfo(forceRefresh);
+    return res.json(info);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to check version', details: error.message });
+  }
+});
+
+app.get('/api/v2/system/update/status', (req, res) => {
+  return res.json(getUpdateStatus());
+});
+
+app.post('/api/v2/system/update', (req, res) => {
+  const appPassword = process.env.APP_PASSWORD || 'admin-password-change-me';
+  const { password } = req.body || {};
+
+  if (!password || password !== appPassword) {
+    return res.status(401).json({ success: false, error: 'Invalid password' });
+  }
+
+  const result = startUpdate();
+  if (!result.success) {
+    return res.status(409).json(result);
+  }
+  return res.json({ success: true, pid: result.pid });
 });
 
 /**

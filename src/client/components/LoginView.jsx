@@ -1,11 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
 
-export function LoginView({ onLoginSuccess }) {
+export function LoginView({ branding, onLoginSuccess }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [localBranding, setLocalBranding] = useState(branding);
+
+  useEffect(() => {
+    if (branding) {
+      setLocalBranding(branding);
+      document.title = branding.pageTitle || `${branding.siteName} | Login`;
+      return;
+    }
+    fetch('/api/v2/settings/branding')
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data) {
+          setLocalBranding(data);
+          document.title = data.pageTitle || `${data.siteName} | Login`;
+        }
+      })
+      .catch(() => {});
+  }, [branding]);
+
+  const siteName = localBranding?.siteName || 'system-ops';
+  const siteSubtitle = localBranding?.siteSubtitle || 'Operations Console Authentication';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,10 +59,10 @@ export function LoginView({ onLoginSuccess }) {
         <Card className="border-[#262626] bg-[#080808] shadow-2xl">
           <div className="p-6 text-center space-y-1.5 border-b border-[#1a1a1a] theme-header">
             <h2 className="font-mono text-base font-bold tracking-tight text-white">
-              SYSTEM-OPS
+              {siteName.toUpperCase()}
             </h2>
             <p className="text-xs text-neutral-400">
-              Operations Console Authentication
+              {siteSubtitle}
             </p>
           </div>
 

@@ -10,6 +10,7 @@ import { OllamaView } from './components/OllamaView';
 import { BackupsView } from './components/BackupsView';
 import { TrafficAnalyticsView } from './components/TrafficAnalyticsView';
 import { TroubleshootingView } from './components/TroubleshootingView';
+import { SettingsView } from './components/SettingsView';
 import { LoginView } from './components/LoginView';
 
 const MAX_HISTORY = 30;
@@ -50,6 +51,8 @@ export function App() {
   const [backupSources, setBackupSources] = useState([]);
   const [backupFiles, setBackupFiles] = useState([]);
   const [trafficData, setTrafficData] = useState(null);
+  const [branding, setBranding] = useState(null);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
 
   // Refs to avoid infinite effect re-trigger loops
   const activeTabRef = useRef(activeTab);
@@ -72,10 +75,59 @@ export function App() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
-  // Check auth on mount
+  const fetchBranding = async () => {
+    try {
+      const res = await fetch('/api/v2/settings/branding');
+      if (res.ok) {
+        const data = await res.json();
+        setBranding(data);
+      }
+    } catch (e) {}
+  };
+
+  const fetchVersionCheck = async () => {
+    try {
+      const res = await fetch('/api/v2/system/version');
+      if (res.ok) {
+        const data = await res.json();
+        setUpdateAvailable(data.updateAvailable === true);
+      }
+    } catch (e) {}
+  };
+
+  const handleBrandingChange = (settings) => {
+    setBranding({
+      siteName: settings.resolvedSiteName || settings.siteName,
+      siteSubtitle: settings.siteSubtitle,
+      pageTitle: settings.pageTitle,
+      hostname: settings.hostname,
+    });
+  };
+
+  // Check auth and load branding on mount
   useEffect(() => {
+    fetchBranding();
     checkAuth();
   }, []);
+
+  // Update document title when branding or active tab changes
+  useEffect(() => {
+    const tabTitles = {
+      system: 'System Health',
+      processes: 'Process Monitor',
+      docker: 'Docker Containers',
+      pm2: 'PM2 Fleet',
+      services: 'Systemd Services',
+      ollama: 'Ollama AI',
+      backups: 'Backups & Recovery',
+      traffic: 'Traffic Analytics',
+      troubleshooting: 'Troubleshooting',
+      settings: 'Settings',
+    };
+    const siteName = branding?.siteName || 'system-ops';
+    const tabTitle = tabTitles[activeTab] || 'Console';
+    document.title = `${siteName} | ${tabTitle}`;
+  }, [branding, activeTab]);
 
   const checkAuth = async () => {
     try {
@@ -267,6 +319,8 @@ export function App() {
         fetchOllamaData(),
         fetchBackupData(),
         fetchTrafficData(),
+        fetchBranding(),
+        fetchVersionCheck(),
       ]).then(() => setLastUpdated(new Date()));
     }
   }, [isAuthenticated]);
@@ -319,7 +373,7 @@ export function App() {
 
   // Render Login View if unauthenticated
   if (!isAuthenticated) {
-    return <LoginView onLoginSuccess={() => setIsAuthenticated(true)} />;
+    return <LoginView branding={branding} onLoginSuccess={() => setIsAuthenticated(true)} />;
   }
 
   const tabTitles = {
@@ -332,6 +386,7 @@ export function App() {
     backups: 'Backups & Recovery',
     traffic: 'Traffic Analytics',
     troubleshooting: 'Troubleshooting & Diagnostics',
+    settings: 'Settings',
   };
 
   const pm2TotalCount = (pm2Data?.users || []).reduce(
@@ -345,6 +400,8 @@ export function App() {
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        siteName={branding?.siteName || 'system-ops'}
+        updateAvailable={updateAvailable}
         hostData={{
           uptime: systemData?.uptime,
           processCount: processes.length,
@@ -364,6 +421,7 @@ export function App() {
       <div className="flex flex-1 flex-col md:pl-64 min-w-0">
         <TopBar
           activeTabTitle={tabTitles[activeTab] || 'Console'}
+          siteSubtitle={branding?.siteSubtitle || 'Operations Console'}
           lastUpdated={lastUpdated}
           isSyncing={isSyncing}
           onSync={syncCurrentView}
@@ -431,6 +489,10 @@ export function App() {
 
           {activeTab === 'troubleshooting' && (
             <TroubleshootingView />
+          )}
+
+          {activeTab === 'settings' && (
+            <SettingsView onBrandingChange={handleBrandingChange} />
           )}
         </main>
       </div>

@@ -1,0 +1,365 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
+import { Button } from './ui/Button';
+import { Badge } from './ui/Badge';
+
+export function SettingsView({ onBrandingChange }) {
+  const [settings, setSettings] = useState(null);
+  const [form, setForm] = useState({
+    siteName: '',
+    siteSubtitle: '',
+    syncNameWithHostname: false,
+    autoUpdateEnabled: false,
+  });
+  const [versionInfo, setVersionInfo] = useState(null);
+  const [updateStatus, setUpdateStatus] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [isCheckingVersion, setIsCheckingVersion] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [updatePassword, setUpdatePassword] = useState('');
+  const [updateError, setUpdateError] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const loadSettings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/v2/settings');
+      if (res.ok) {
+        const data = await res.json();
+        setSettings(data);
+        setForm({
+          siteName: data.siteName || '',
+          siteSubtitle: data.siteSubtitle || '',
+          syncNameWithHostname: data.syncNameWithHostname || false,
+          autoUpdateEnabled: data.autoUpdateEnabled || false,
+        });
+      }
+    } catch (e) {
+      console.error('Failed to load settings', e);
+    }
+  }, []);
+
+  const loadVersionInfo = useCallback(async (force = false) => {
+    setIsCheckingVersion(true);
+    try {
+      const res = await fetch(`/api/v2/system/version${force ? '?refresh=1' : ''}`);
+      if (res.ok) {
+        const data = await res.json();
+        setVersionInfo(data);
+      }
+    } catch (e) {
+      console.error('Failed to check version', e);
+    } finally {
+      setIsCheckingVersion(false);
+    }
+  }, []);
+
+  const loadUpdateStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/v2/system/update/status');
+      if (res.ok) {
+        const data = await res.json();
+        setUpdateStatus(data);
+        return data;
+      }
+    } catch (e) {
+      console.error('Failed to load update status', e);
+    }
+    return null;
+  }, []);
+
+  useEffect(() => {
+    loadSettings();
+    loadVersionInfo();
+    loadUpdateStatus();
+  }, [loadSettings, loadVersionInfo, loadUpdateStatus]);
+
+  useEffect(() => {
+    if (!updateStatus?.running) return undefined;
+    const interval = setInterval(loadUpdateStatus, 2000);
+    return () => clearInterval(interval);
+  }, [updateStatus?.running, loadUpdateStatus]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveMessage('');
+    try {
+      const res = await fetch('/api/v2/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSettings(data.settings);
+        setSaveMessage('Settings saved');
+        if (onBrandingChange) onBrandingChange(data.settings);
+      } else {
+        setSaveMessage(data.errors?.join(', ') || data.error || 'Failed to save');
+      }
+    } catch (e) {
+      setSaveMessage('Connection error');
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => setSaveMessage(''), 3000);
+    }
+  };
+
+  const handleStartUpdate = async () => {
+    setUpdateError('');
+    setIsUpdating(true);
+    try {
+      const res = await fetch('/api/v2/system/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: updatePassword }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setShowUpdateModal(false);
+        setUpdatePassword('');
+        await loadUpdateStatus();
+      } else {
+        setUpdateError(data.error || 'Update failed to start');
+      }
+    } catch (e) {
+      setUpdateError('Connection error');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const previewName = form.syncNameWithHostname
+    ? (settings?.hostname || 'hostname')
+    : (form.siteName || 'system-ops');
+
+  const previewTitle = `${previewName} | ${settings?.hostname || 'hostname'}`;
+
+  return (
+    <div className="space-y-6 max-w-3xl">
+      {/* Branding */}
+      <Card>
+        <CardHeader>
+          <CardTitle>General</CardTitle>
+          <Badge variant="neutral">BRANDING</Badge>
+        </CardHeader>
+        <CardContent className="space-y-4 font-mono text-xs">
+          <div className="space-y-1.5">
+            <label className="text-neutral-400 block">Site Name</label>
+            <input
+              type="text"
+              value={form.siteName}
+              onChange={(e) => setForm({ ...form, siteName: e.target.value })}
+              disabled={form.syncNameWithHostname}
+              maxLength={64}
+              className="w-full h-9 rounded border border-[#262626] bg-[#0d0d0d] px-3 text-sm text-white outline-none focus:border-neutral-500 disabled:opacity-50 theme-input"
+              placeholder="system-ops"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-neutral-400 block">Subtitle</label>
+            <input
+              type="text"
+              value={form.siteSubtitle}
+              onChange={(e) => setForm({ ...form, siteSubtitle: e.target.value })}
+              maxLength={128}
+              className="w-full h-9 rounded border border-[#262626] bg-[#0d0d0d] px-3 text-sm text-white outline-none focus:border-neutral-500 theme-input"
+              placeholder="Operations Console"
+            />
+          </div>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.syncNameWithHostname}
+              onChange={(e) => setForm({ ...form, syncNameWithHostname: e.target.checked })}
+              className="rounded border-[#262626]"
+            />
+            <span className="text-neutral-300">Sync site name with hostname</span>
+          </label>
+
+          <div className="rounded border border-[#1a1a1a] bg-[#050505] p-3 space-y-1">
+            <div className="text-neutral-500 text-[10px] uppercase tracking-wider">Preview</div>
+            <div className="text-white font-semibold">{previewName.toUpperCase()}</div>
+            <div className="text-neutral-400">{form.siteSubtitle}</div>
+            <div className="text-neutral-500 text-[10px] pt-1">Tab: {previewTitle}</div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleSave}
+              disabled={isSaving}
+              className="font-mono text-[11px]"
+            >
+              {isSaving ? 'SAVING...' : 'SAVE CHANGES'}
+            </Button>
+            {saveMessage && (
+              <span className={`text-[11px] ${saveMessage.includes('saved') ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {saveMessage}
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Updates */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Updates</CardTitle>
+          {versionInfo?.updateAvailable ? (
+            <Badge variant="warn">UPDATE AVAILABLE</Badge>
+          ) : (
+            <Badge variant="ok">UP TO DATE</Badge>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-4 font-mono text-xs">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className="text-neutral-500 text-[10px] uppercase">Installed</div>
+              <div className="text-white text-sm font-semibold">v{versionInfo?.current || '—'}</div>
+            </div>
+            <div>
+              <div className="text-neutral-500 text-[10px] uppercase">Latest</div>
+              <div className="text-white text-sm font-semibold">
+                {versionInfo?.latest ? `v${versionInfo.latest}` : '—'}
+              </div>
+            </div>
+          </div>
+
+          {versionInfo?.checkError && (
+            <div className="text-amber-400 text-[11px]">
+              Could not check for updates: {versionInfo.checkError}
+            </div>
+          )}
+
+          {versionInfo?.releaseNotes && versionInfo.updateAvailable && (
+            <div className="rounded border border-[#1a1a1a] bg-[#050505] p-3">
+              <div className="text-neutral-500 text-[10px] uppercase mb-1">Release Notes</div>
+              <pre className="text-neutral-300 whitespace-pre-wrap text-[11px] leading-relaxed">
+                {versionInfo.releaseNotes}
+              </pre>
+              {versionInfo.releaseUrl && (
+                <a
+                  href={versionInfo.releaseUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:underline text-[11px] mt-2 inline-block"
+                >
+                  View on GitHub
+                </a>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => loadVersionInfo(true)}
+              disabled={isCheckingVersion}
+              className="font-mono text-[11px]"
+            >
+              {isCheckingVersion ? 'CHECKING...' : 'CHECK FOR UPDATES'}
+            </Button>
+
+            {versionInfo?.installType === 'systemd' && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowUpdateModal(true)}
+                disabled={updateStatus?.running}
+                className="font-mono text-[11px]"
+              >
+                {updateStatus?.running ? 'UPDATING...' : 'UPDATE NOW'}
+              </Button>
+            )}
+          </div>
+
+          {versionInfo?.installType === 'docker' && (
+            <div className="text-neutral-400 text-[11px] leading-relaxed">
+              Docker installs: run <code className="text-neutral-200">docker compose pull && docker compose up -d</code>.
+              For automated image monitoring, consider Diun (notify-only) or WUD (semver-aware auto-update).
+            </div>
+          )}
+
+          <label className="flex items-center gap-2 cursor-pointer pt-2 border-t border-[#1a1a1a]">
+            <input
+              type="checkbox"
+              checked={form.autoUpdateEnabled}
+              onChange={(e) => setForm({ ...form, autoUpdateEnabled: e.target.checked })}
+              className="rounded border-[#262626]"
+            />
+            <span className="text-neutral-300">Enable automatic daily updates (systemd timer)</span>
+          </label>
+          <div className="text-neutral-500 text-[10px]">
+            Save settings to apply the auto-update timer change.
+          </div>
+
+          {updateStatus?.logTail && (
+            <div className="rounded border border-[#1a1a1a] bg-[#050505] p-3">
+              <div className="text-neutral-500 text-[10px] uppercase mb-1">
+                Update Log {updateStatus.running ? '(live)' : ''}
+              </div>
+              <pre className="text-neutral-400 whitespace-pre-wrap text-[10px] leading-relaxed max-h-48 overflow-y-auto">
+                {updateStatus.logTail}
+              </pre>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Update confirmation modal */}
+      {showUpdateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-sm">
+            <CardHeader>
+              <CardTitle>Confirm Update</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 font-mono text-xs">
+              <p className="text-neutral-400 leading-relaxed">
+                This will pull the latest code, rebuild the frontend, and restart the service.
+                The dashboard will be briefly unavailable.
+              </p>
+              <div className="space-y-1.5">
+                <label className="text-neutral-400 block">Re-enter password to confirm</label>
+                <input
+                  type="password"
+                  value={updatePassword}
+                  onChange={(e) => setUpdatePassword(e.target.value)}
+                  className="w-full h-9 rounded border border-[#262626] bg-[#0d0d0d] px-3 text-sm text-white outline-none focus:border-neutral-500 theme-input"
+                  placeholder="Password"
+                  autoFocus
+                />
+              </div>
+              {updateError && (
+                <div className="text-rose-400 text-[11px]">{updateError}</div>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleStartUpdate}
+                  disabled={isUpdating || !updatePassword}
+                  className="font-mono text-[11px]"
+                >
+                  {isUpdating ? 'STARTING...' : 'START UPDATE'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setShowUpdateModal(false); setUpdatePassword(''); setUpdateError(''); }}
+                  className="font-mono text-[11px]"
+                >
+                  CANCEL
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}

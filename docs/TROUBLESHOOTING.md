@@ -152,13 +152,34 @@ sudo chmod 0440 /etc/sudoers.d/system-ops
 
 ## 7. How to Update / Upgrade `system-ops`
 
-To pull the latest updates, build the frontend, and restart all services cleanly:
+### From the Dashboard (recommended)
+
+1. Open **Settings** in the sidebar.
+2. Check the **Updates** section for the installed vs latest version.
+3. Click **Update Now** and re-enter your password to confirm.
+4. Watch the live update log. The dashboard will briefly disconnect while the service restarts.
+
+### Automatic daily updates
+
+Enable from **Settings → Updates → Enable automatic daily updates**, or during install.
+
+CLI equivalent:
+```bash
+sudo bash /opt/system-ops/scripts/setup-auto-update.sh --enable
+```
+
+Disable:
+```bash
+sudo bash /opt/system-ops/scripts/setup-auto-update.sh --disable
+```
+
+### Manual CLI update
 
 ```bash
 sudo bash /opt/system-ops/scripts/deploy.sh
 ```
 
-Or manually:
+Or step-by-step:
 ```bash
 cd /opt/system-ops
 git pull origin main
@@ -167,6 +188,26 @@ sudo cp systemd/system-ops.service /etc/systemd/system/system-ops.service
 sudo systemctl daemon-reload
 sudo systemctl restart system-ops.service
 ```
+
+### Docker deployments
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+For automated image monitoring, consider **Diun** (notify-only) or **WUD** (semver-aware auto-update). Avoid the archived `containrrr/watchtower` image.
+
+---
+
+## 7b. Customizing Site Name / Branding
+
+Open **Settings** in the dashboard to change:
+
+- **Site Name** — shown in the sidebar, login page, and browser tab
+- **Subtitle** — shown in the top bar
+- **Sync name with hostname** — automatically uses the Linux hostname as the display name
+
+Settings are stored in `/opt/system-ops/data/settings.json`.
 
 ---
 
