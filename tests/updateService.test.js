@@ -20,3 +20,12 @@ test('detectInstallType identifies local dev install', () => {
   const type = detectInstallType();
   assert.ok(['systemd', 'docker', 'unknown'].includes(type));
 });
+
+test('fetchLatestFromMain returns version from GitHub package.json', async () => {
+  const { fetchLatestFromMain } = require('../src/services/updateService');
+  const info = await fetchLatestFromMain();
+  assert.ok(info.latest, 'should return a version string');
+  assert.ok(/^\d+\.\d+\.\d+/.test(info.latest));
+  assert.strictEqual(info.source, 'main-branch');
+  assert.ok(info.remoteCommit, 'should include remote commit sha');
+});

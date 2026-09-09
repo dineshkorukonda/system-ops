@@ -209,7 +209,9 @@ export function SettingsView({ onBrandingChange }) {
       <Card>
         <CardHeader>
           <CardTitle>Updates</CardTitle>
-          {versionInfo?.updateAvailable ? (
+          {versionInfo?.checkError ? (
+            <Badge variant="warn">CHECK FAILED</Badge>
+          ) : versionInfo?.updateAvailable ? (
             <Badge variant="warn">UPDATE AVAILABLE</Badge>
           ) : (
             <Badge variant="ok">UP TO DATE</Badge>
@@ -220,18 +222,36 @@ export function SettingsView({ onBrandingChange }) {
             <div>
               <div className="text-neutral-500 text-[10px] uppercase">Installed</div>
               <div className="text-white text-sm font-semibold">v{versionInfo?.current || '—'}</div>
+              {versionInfo?.currentCommit && (
+                <div className="text-neutral-500 text-[10px] mt-0.5">{versionInfo.currentCommit}</div>
+              )}
             </div>
             <div>
-              <div className="text-neutral-500 text-[10px] uppercase">Latest</div>
+              <div className="text-neutral-500 text-[10px] uppercase">Latest on main</div>
               <div className="text-white text-sm font-semibold">
                 {versionInfo?.latest ? `v${versionInfo.latest}` : '—'}
               </div>
+              {versionInfo?.latestCommit && (
+                <div className="text-neutral-500 text-[10px] mt-0.5">{versionInfo.latestCommit}</div>
+              )}
             </div>
           </div>
+
+          {versionInfo?.source && !versionInfo?.checkError && (
+            <div className="text-neutral-500 text-[10px]">
+              Checked via {versionInfo.source === 'github-release' ? 'GitHub release' : 'main branch'}
+            </div>
+          )}
 
           {versionInfo?.checkError && (
             <div className="text-amber-400 text-[11px]">
               Could not check for updates: {versionInfo.checkError}
+            </div>
+          )}
+
+          {versionInfo?.commitUpdate && !versionInfo?.versionUpdate && versionInfo?.updateAvailable && (
+            <div className="text-amber-400/90 text-[11px]">
+              New commits on main ({versionInfo.latestCommit}) — version unchanged, update recommended.
             </div>
           )}
 
