@@ -50,9 +50,10 @@ export function LoginView({ branding, onLoginSuccess }) {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
-      <Card className="w-full max-w-sm">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-info/5 pointer-events-none" />
+      <Card className="relative w-full max-w-sm border-primary/20 shadow-card">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-lg border border-border text-sm font-bold">
+          <div className="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-sm">
             {siteName.charAt(0).toUpperCase()}
           </div>
           <CardTitle>{siteName}</CardTitle>
@@ -71,7 +72,7 @@ export function LoginView({ branding, onLoginSuccess }) {
                 autoFocus
               />
             </div>
-            {error && <p className="text-sm text-destructive-foreground">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? 'Signing in…' : 'Sign in'}
             </Button>

@@ -13,11 +13,16 @@ function NavItem({ item, isActive, onClick }) {
       className={cn(
         'group flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
         isActive
-          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-          : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+          ? 'bg-primary/10 text-primary border-l-2 border-primary -ml-px pl-[11px]'
+          : 'text-sidebar-muted hover:bg-muted hover:text-foreground border-l-2 border-transparent -ml-px pl-[11px]'
       )}
     >
-      {Icon && <Icon className="h-4 w-4 shrink-0 opacity-70 group-hover:opacity-100" />}
+      {Icon && (
+        <Icon className={cn(
+          'h-4 w-4 shrink-0',
+          isActive ? 'text-primary' : 'opacity-60 group-hover:opacity-100'
+        )} />
+      )}
       <span className="flex-1 truncate text-left">{item.label}</span>
       {item.badge && (
         <Badge variant={item.badgeVariant || 'muted'} className="ml-auto text-[10px]">
@@ -128,19 +133,19 @@ export function AppSidebar({
         )}
       >
         <div className="flex h-14 items-center gap-3 border-b border-sidebar-border px-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-sidebar-border bg-background text-xs font-bold">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-xs font-bold shadow-sm">
             {siteName.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{siteName}</p>
-            <p className="truncate text-xs text-muted-foreground">Operations</p>
+            <p className="truncate text-xs text-sidebar-muted">Operations Console</p>
           </div>
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
           {sections.map((section) => (
             <div key={section.title}>
-              <p className="mb-2 px-3 text-xs font-medium text-muted-foreground">{section.title}</p>
+              <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-muted">{section.title}</p>
               <div className="space-y-0.5">
                 {section.items.map((item) => (
                   <NavItem
@@ -156,7 +161,7 @@ export function AppSidebar({
         </nav>
 
         <div className="border-t border-sidebar-border p-4">
-          <div className="rounded-lg border border-sidebar-border bg-background/50 p-3 text-xs space-y-1.5">
+          <div className="rounded-lg border border-sidebar-border bg-primary/5 p-3 text-xs space-y-1.5">
             <div className="flex justify-between gap-2">
               <span className="text-muted-foreground">Host</span>
               <span className="font-medium truncate">{m.hostname || '—'}</span>
