@@ -31,39 +31,41 @@ run_as_ops() {
   su -s /bin/bash "$OPS_USER" -c "cd $INSTALL_DIR && $*"
 }
 
+# Production installs should always match origin/main exactly.
+# git pull + rebase.autoStash leaves orphaned stashes when dist/ has local changes.
+sync_git_to_main() {
+  echo "Syncing repository to origin/main..."
+
+  run_as_ops "git checkout -- dist/ 2>/dev/null || true"
+
+  local stash_count
+  stash_count=$(su -s /bin/bash "$OPS_USER" -c "cd $INSTALL_DIR && git stash list 2>/dev/null | wc -l" | tr -d '[:space:]')
+  if [ -n "$stash_count" ] && [ "$stash_count" -gt 0 ] 2>/dev/null; then
+    echo "Notice: clearing ${stash_count} leftover git stash(es) from prior updates..."
+    run_as_ops "git stash clear" || true
+  fi
+
+  if id "$OPS_USER" &>/dev/null; then
+    run_as_ops "git fetch origin main && git reset --hard origin/main" || {
+      git fetch origin main && git reset --hard origin/main
+    }
+  elif id "$DEPLOY_USER" &>/dev/null; then
+    su - "$DEPLOY_USER" -c "cd $INSTALL_DIR && git fetch origin main && git reset --hard origin/main" || {
+      git fetch origin main && git reset --hard origin/main
+    }
+  else
+    git fetch origin main && git reset --hard origin/main
+  fi
+}
+
 # Always repair permissions first — fixes root/deploy-owned files from prior failed updates
 fix_ownership
 
 if [ -d "$INSTALL_DIR" ]; then
   cd "$INSTALL_DIR"
   echo "[1/6] Pulling latest code changes..."
-  # dist/ is rebuilt every deploy — discard local changes so pull never blocks
-  run_as_ops "git checkout -- dist/ 2>/dev/null || true"
-
-  pull_ok=0
-  if id "$OPS_USER" &>/dev/null; then
-    if run_as_ops "git pull origin main"; then
-      pull_ok=1
-    fi
-  elif id "$DEPLOY_USER" &>/dev/null; then
-    if su - "$DEPLOY_USER" -c "cd $INSTALL_DIR && git pull origin main"; then
-      pull_ok=1
-    fi
-  elif git pull origin main; then
-    pull_ok=1
-  fi
-
-  if [ "$pull_ok" -eq 0 ]; then
-    echo "Notice: git pull blocked (local changes) — resetting to origin/main..."
-    if id "$OPS_USER" &>/dev/null; then
-      run_as_ops "git fetch origin main && git reset --hard origin/main" || {
-        git fetch origin main && git reset --hard origin/main
-      }
-    else
-      git fetch origin main && git reset --hard origin/main
-    fi
-    fix_ownership
-  fi
+  sync_git_to_main
+  fix_ownership
 
   echo "[2/6] Installing dependencies (including Vite build tools)..."
   if ! run_as_ops "npm ci"; then

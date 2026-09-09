@@ -153,10 +153,7 @@ export function App() {
           docker: data.docker?.available,
           pm2: data.pm2?.available,
           ollama: data.ollama?.available,
-          backups: data.backups?.available,
           traffic: data.traffic?.available,
-          databases: data.databases?.available,
-          security: data.security?.available || data.certbot?.available,
         };
         if (capMap[tab] === false) setActiveTab('integrations');
       }

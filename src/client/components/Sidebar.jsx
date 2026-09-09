@@ -58,16 +58,22 @@ export function Sidebar({
     });
   }
 
-  const storageItems = [];
-
-  if (capabilities?.backups?.available) {
-    storageItems.push({
+  const storageItems = [
+    {
       id: 'backups',
       label: 'Backups & Dumps',
-      tag: backupStatus || 'BACKUP',
-      tagVariant: backupStatus === 'SUCCESS' ? 'ok' : backupStatus === 'FAILED' ? 'err' : 'warn',
-    });
-  }
+      tag: capabilities?.backups?.needsSetup
+        ? 'SETUP'
+        : (backupStatus || 'BACKUP'),
+      tagVariant: capabilities?.backups?.needsSetup
+        ? 'warn'
+        : backupStatus === 'SUCCESS'
+          ? 'ok'
+          : backupStatus === 'FAILED'
+            ? 'err'
+            : 'neutral',
+    },
+  ];
 
   if (capabilities?.traffic?.available) {
     storageItems.push({
@@ -78,24 +84,34 @@ export function Sidebar({
     });
   }
 
-  if (capabilities?.databases?.available) {
-    storageItems.push({
-      id: 'databases',
-      label: 'Databases',
-      tag: dbCount !== undefined ? `${dbCount} DB` : 'SQL',
-      tagVariant: 'neutral',
-    });
-  }
+  storageItems.push({
+    id: 'databases',
+    label: 'Databases',
+    tag: capabilities?.databases?.needsSetup
+      ? 'SETUP'
+      : (dbCount !== undefined ? `${dbCount} DB` : 'SQL'),
+    tagVariant: capabilities?.databases?.needsSetup ? 'warn' : 'neutral',
+  });
 
-  const observabilityItems = [];
-  if (capabilities?.security?.available || capabilities?.certbot?.available) {
-    observabilityItems.push({
+  const securityTag = securityBanned
+    ? `${securityBanned} BAN`
+    : capabilities?.security?.needsSetup
+      ? 'SETUP'
+      : 'SEC';
+  const securityTagVariant = securityBanned
+    ? 'warn'
+    : capabilities?.security?.needsSetup
+      ? 'warn'
+      : 'neutral';
+
+  const observabilityItems = [
+    {
       id: 'security',
       label: 'Security',
-      tag: securityBanned ? `${securityBanned} BAN` : 'SEC',
-      tagVariant: securityBanned ? 'warn' : 'neutral',
-    });
-  }
+      tag: securityTag,
+      tagVariant: securityTagVariant,
+    },
+  ];
 
   const sections = [
     {
@@ -118,19 +134,15 @@ export function Sidebar({
     ...(runtimeItems.length > 0
       ? [{ title: 'CONTAINERS & RUNTIMES', items: runtimeItems }]
       : []),
-    ...(storageItems.length > 0
-      ? [{ title: 'STORAGE & TRAFFIC', items: storageItems }]
-      : []),
-    ...(observabilityItems.length > 0
-      ? [{ title: 'OBSERVABILITY', items: observabilityItems }]
-      : []),
+    { title: 'STORAGE & TRAFFIC', items: storageItems },
+    { title: 'OBSERVABILITY', items: observabilityItems },
     {
       title: 'HELP & SYSTEM',
       items: [
         {
           id: 'integrations',
           label: 'Integrations',
-          tag: 'SETUP',
+          tag: 'GUIDES',
           tagVariant: 'neutral',
         },
         {
