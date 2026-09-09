@@ -10,6 +10,7 @@ const INSTALL_DIR = process.env.INSTALL_DIR || path.join(__dirname, '../../');
 const DEPLOY_SCRIPT = path.join(INSTALL_DIR, 'scripts/deploy.sh');
 const LOCK_FILE = path.join(DATA_DIR, '.update.lock');
 const UPDATE_LOG = path.join(DATA_DIR, 'update.log');
+const UPDATE_RESULT = path.join(DATA_DIR, 'update-result.json');
 const GITHUB_REPO = process.env.GITHUB_REPO || 'dineshkorukonda/system-ops';
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
 const LOCK_TIMEOUT_MS = 10 * 60 * 1000;
@@ -248,10 +249,114 @@ function tailLog(maxLines = 200) {
   return lines.slice(-maxLines).join('\n');
 }
 
+function readFullLog() {
+  if (!fs.existsSync(UPDATE_LOG)) return '';
+  return fs.readFileSync(UPDATE_LOG, 'utf8');
+}
+
+function parseLogOutcome(logContent) {
+  const log = logContent || '';
+
+  if (log.includes('Deployment Complete!')) {
+    return {
+      phase: 'success',
+      success: true,
+      failed: false,
+      message: 'Update complete. The service has been restarted — refresh this page to load the new version.',
+      needsRefresh: true,
+    };
+  }
+
+  if (
+    log.includes('Deployment FAILED') ||
+    log.includes('ERROR: npm ci failed') ||
+    log.includes('ERROR: npm run build failed') ||
+    /EACCES|permission denied/i.test(log)
+  ) {
+    return {
+      phase: 'failed',
+      success: false,
+      failed: true,
+      message: 'Update failed. Fix permissions with: sudo chown -R ops:ops /opt/system-ops — then retry.',
+      needsRefresh: false,
+    };
+  }
+
+  if (log.includes('health check FAILED')) {
+    return {
+      phase: 'failed',
+      success: false,
+      failed: true,
+      message: 'Deploy finished but the service did not become healthy. Check logs, then refresh and retry.',
+      needsRefresh: false,
+    };
+  }
+
+  const finishMatch = log.match(/Update finished with exit code (\d+)/);
+  if (finishMatch) {
+    const code = parseInt(finishMatch[1], 10);
+    if (code === 0) {
+      return {
+        phase: 'success',
+        success: true,
+        failed: false,
+        message: 'Update complete. Refresh this page to load the new version.',
+        needsRefresh: true,
+      };
+    }
+    return {
+      phase: 'failed',
+      success: false,
+      failed: true,
+      message: `Update exited with code ${code}. See the log below for details.`,
+      needsRefresh: false,
+    };
+  }
+
+  return {
+    phase: 'failed',
+    success: false,
+    failed: true,
+    message: 'Update ended unexpectedly. See the log below.',
+    needsRefresh: false,
+  };
+}
+
+function writeUpdateResult(result) {
+  ensureDataDir();
+  fs.writeFileSync(
+    UPDATE_RESULT,
+    JSON.stringify({ ...result, finishedAt: new Date().toISOString() }),
+    'utf8'
+  );
+}
+
+function readUpdateResult() {
+  if (!fs.existsSync(UPDATE_RESULT)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(UPDATE_RESULT, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function finalizeUpdateFromLog(exitCode = null) {
+  const outcome = parseLogOutcome(readFullLog());
+  if (exitCode !== null && exitCode !== 0 && outcome.phase === 'success') {
+    outcome.phase = 'failed';
+    outcome.success = false;
+    outcome.failed = true;
+    outcome.needsRefresh = false;
+    outcome.message = `Update exited with code ${exitCode}. See the log below.`;
+  }
+  writeUpdateResult(outcome);
+  clearLock();
+  return outcome;
+}
+
 function getUpdateStatus() {
   const lock = readLock();
   let running = false;
-  let exitCode = null;
 
   if (lock) {
     try {
@@ -260,11 +365,7 @@ function getUpdateStatus() {
     } catch {
       running = false;
       if (fs.existsSync(LOCK_FILE)) {
-        const logContent = fs.existsSync(UPDATE_LOG)
-          ? fs.readFileSync(UPDATE_LOG, 'utf8')
-          : '';
-        exitCode = logContent.includes('Deployment Complete!') ? 0 : 1;
-        clearLock();
+        finalizeUpdateFromLog();
       }
     }
   }
@@ -274,11 +375,22 @@ function getUpdateStatus() {
     lastRunAt = fs.statSync(UPDATE_LOG).mtime.toISOString();
   }
 
+  const saved = readUpdateResult();
+  const phase = running ? 'running' : (saved?.phase || 'idle');
+
   return {
     running,
-    exitCode,
+    phase,
+    success: Boolean(saved?.success),
+    failed: Boolean(saved?.failed),
+    message: running
+      ? 'Update in progress. The dashboard may disconnect briefly while the service restarts.'
+      : (saved?.message || null),
+    needsRefresh: Boolean(!running && saved?.needsRefresh),
+    exitCode: saved?.success ? 0 : (saved?.failed ? 1 : null),
     logTail: tailLog(200),
     lastRunAt,
+    finishedAt: saved?.finishedAt || null,
     startedAt: lock?.startedAt || null,
   };
 }
@@ -302,6 +414,9 @@ function startUpdate() {
   }
 
   ensureDataDir();
+  if (fs.existsSync(UPDATE_RESULT)) {
+    fs.unlinkSync(UPDATE_RESULT);
+  }
   const logStream = fs.openSync(UPDATE_LOG, 'a');
   const header = `\n=== Update started at ${new Date().toISOString()} on ${os.hostname()} ===\n`;
   fs.writeSync(logStream, header);
@@ -329,7 +444,7 @@ function startUpdate() {
     } catch {
       // process may have already closed
     }
-    clearLock();
+    finalizeUpdateFromLog(code);
   });
 
   return { success: true, pid: child.pid };
@@ -343,6 +458,8 @@ module.exports = {
   isNewerVersion,
   detectInstallType,
   fetchLatestFromMain,
+  parseLogOutcome,
   LOCK_FILE,
   UPDATE_LOG,
+  UPDATE_RESULT,
 };
