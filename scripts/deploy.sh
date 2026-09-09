@@ -47,6 +47,9 @@ if [ -d "$INSTALL_DIR" ]; then
 
   if [ "$DEPLOY_FAILED" -eq 0 ]; then
     echo "[3/5] Building production frontend..."
+    # Clear stale root-owned vite assets before build (EACCES on unlink)
+    run_as_ops "rm -rf dist/assets" 2>/dev/null || true
+    chown -R "$OPS_USER:$OPS_USER" "$INSTALL_DIR/dist" 2>/dev/null || true
     if ! run_as_ops "npm run build"; then
       echo "ERROR: npm run build failed"
       DEPLOY_FAILED=1
@@ -126,6 +129,7 @@ elif [ "$HEALTH_OK" -eq 0 ]; then
   exit 1
 else
   echo "  Deployment Complete!"
+  echo "  - Refresh the dashboard in your browser to load the new version."
   echo "  - Service Status: sudo systemctl status system-ops"
 fi
 echo "========================================================"

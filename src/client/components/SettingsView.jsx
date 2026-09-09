@@ -20,6 +20,8 @@ export function SettingsView({ onBrandingChange }) {
   const [updatePassword, setUpdatePassword] = useState('');
   const [updateError, setUpdateError] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [dismissedResultAt, setDismissedResultAt] = useState(null);
+  const [updateInProgress, setUpdateInProgress] = useState(false);
 
   const loadSettings = useCallback(async () => {
     try {
@@ -60,13 +62,26 @@ export function SettingsView({ onBrandingChange }) {
       if (res.ok) {
         const data = await res.json();
         setUpdateStatus(data);
+        if (!data.running && (data.phase === 'success' || data.phase === 'failed')) {
+          setUpdateInProgress(false);
+        }
         return data;
       }
     } catch (e) {
-      console.error('Failed to load update status', e);
+      // Expected while the service restarts mid-update
+      if (updateInProgress) {
+        setUpdateStatus((prev) => ({
+          ...prev,
+          running: true,
+          phase: 'running',
+          message: 'Service is restarting… waiting for it to come back online.',
+        }));
+      } else {
+        console.error('Failed to load update status', e);
+      }
     }
     return null;
-  }, []);
+  }, [updateInProgress]);
 
   useEffect(() => {
     loadSettings();
@@ -75,10 +90,27 @@ export function SettingsView({ onBrandingChange }) {
   }, [loadSettings, loadVersionInfo, loadUpdateStatus]);
 
   useEffect(() => {
-    if (!updateStatus?.running) return undefined;
+    if (!updateStatus?.running && !updateInProgress) return undefined;
     const interval = setInterval(loadUpdateStatus, 2000);
     return () => clearInterval(interval);
-  }, [updateStatus?.running, loadUpdateStatus]);
+  }, [updateStatus?.running, updateInProgress, loadUpdateStatus]);
+
+  const showUpdateResult = updateStatus
+    && !updateStatus.running
+    && !updateInProgress
+    && (updateStatus.phase === 'success' || updateStatus.phase === 'failed')
+    && updateStatus.finishedAt !== dismissedResultAt;
+
+  useEffect(() => {
+    if (
+      updateStatus?.phase === 'success'
+      && versionInfo
+      && !versionInfo.updateAvailable
+      && updateStatus.finishedAt
+    ) {
+      setDismissedResultAt(updateStatus.finishedAt);
+    }
+  }, [updateStatus, versionInfo]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -118,6 +150,8 @@ export function SettingsView({ onBrandingChange }) {
       if (res.ok && data.success) {
         setShowUpdateModal(false);
         setUpdatePassword('');
+        setUpdateInProgress(true);
+        setDismissedResultAt(null);
         await loadUpdateStatus();
       } else {
         setUpdateError(data.error || 'Update failed to start');
@@ -216,6 +250,71 @@ export function SettingsView({ onBrandingChange }) {
           )}
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
+          {(updateStatus?.running || updateInProgress) && !showUpdateResult && (
+            <div className="rounded border border-[var(--border)] bg-[var(--surface-muted)] p-3 space-y-1">
+              <div className="text-[var(--text-primary)] text-sm font-medium">Updating…</div>
+              <p className="text-[var(--text-secondary)] text-[11px] leading-relaxed">
+                Pulling code, rebuilding, and restarting the service. This page may stop responding for 30–60 seconds — keep this tab open. When finished, you will be prompted to refresh.
+              </p>
+            </div>
+          )}
+
+          {showUpdateResult && updateStatus.phase === 'success' && (
+            <div className="rounded border border-emerald-500/40 bg-emerald-500/10 p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-emerald-400 text-sm font-semibold">Update complete</div>
+                  <p className="text-[var(--text-secondary)] text-[11px] mt-1 leading-relaxed">
+                    {updateStatus.message || 'The service has been restarted. Refresh this page to load the new version.'}
+                  </p>
+                </div>
+                <Badge variant="ok">Done</Badge>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => window.location.reload()}
+                >
+                  Refresh now
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setDismissedResultAt(updateStatus.finishedAt);
+                    loadVersionInfo(true);
+                  }}
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {showUpdateResult && updateStatus.phase === 'failed' && (
+            <div className="rounded border border-rose-500/40 bg-rose-500/10 p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-rose-400 text-sm font-semibold">Update failed</div>
+                  <p className="text-[var(--text-secondary)] text-[11px] mt-1 leading-relaxed">
+                    {updateStatus.message || 'Check the log below, fix any permission errors, then retry.'}
+                  </p>
+                </div>
+                <Badge variant="err">Failed</Badge>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDismissedResultAt(updateStatus.finishedAt)}
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="ops-label">Installed</div>
@@ -337,7 +436,7 @@ export function SettingsView({ onBrandingChange }) {
             <CardContent className="space-y-4 text-sm">
               <p className="text-[var(--text-secondary)] leading-relaxed">
                 This will pull the latest code, rebuild the frontend, and restart the service.
-                The dashboard will be offline for 30–60 seconds. Do not refresh the page — wait for the log to finish.
+                The dashboard may go offline for 30–60 seconds. When the update finishes, you will see a &quot;Refresh now&quot; button — use it to load the new version.
               </p>
               {!versionInfo?.updateAvailable && (
                 <p className="text-amber-400/90 text-[11px]">
