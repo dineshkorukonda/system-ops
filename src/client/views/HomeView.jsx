@@ -1,12 +1,7 @@
 import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Sparkline } from '../components/ui/Sparkline';
-import { cn } from '../lib/utils';
-
-function StatusDot({ status }) {
-  const cls =
-    status === 'ok' ? 'status-dot-ok' : status === 'warn' ? 'status-dot-warn' : status === 'err' ? 'status-dot-err' : 'status-dot-off';
-  return <span className={cn('status-dot', cls)} />;
-}
+import { Separator } from '../components/ui/Separator';
 
 export function HomeView({
   systemData,
@@ -15,8 +10,6 @@ export function HomeView({
   pm2Count,
   servicesData,
   trafficData,
-  securityData,
-  monixData,
   osUpdatesData,
   cpuHistory,
   ramHistory,
@@ -26,165 +19,111 @@ export function HomeView({
   const mem = systemData?.memory || {};
   const load1 = parseFloat(upt.load1m) || 0;
   const memPct = mem.usagePercent || 0;
-  const failedServices = (systemData?.services || []).filter((s) => !s.isActive).length;
-  const pendingUpdates = osUpdatesData?.pendingCount || 0;
+  const pending = osUpdatesData?.pendingCount || 0;
 
-  const tiles = [];
-
-  if (capabilities?.docker?.available) {
-    tiles.push({
-      id: 'workloads',
-      sub: 'docker',
-      title: 'Docker',
-      value: dockerData?.running ?? '—',
-      suffix: 'running',
-      status: dockerData?.daemonReachable ? 'ok' : 'err',
-    });
-  }
-  if (capabilities?.pm2?.available) {
-    tiles.push({
-      id: 'workloads',
-      sub: 'pm2',
-      title: 'PM2',
-      value: pm2Count ?? '—',
-      suffix: 'apps',
-      status: pm2Count > 0 ? 'ok' : 'off',
-    });
-  }
-  if (capabilities?.systemd?.available !== false) {
-    tiles.push({
-      id: 'workloads',
-      sub: 'services',
-      title: 'Services',
-      value: servicesData?.activeCount ?? '—',
-      suffix: 'active',
-      status: failedServices > 0 ? 'warn' : 'ok',
-    });
-  }
-  if (capabilities?.traffic?.available) {
-    tiles.push({
-      id: 'traffic',
-      title: 'Traffic',
-      value: trafficData?.summary?.total_hits ?? '—',
-      suffix: 'hits',
-      status: 'ok',
-    });
-  }
-  if (capabilities?.security?.available || capabilities?.certbot?.available) {
-    const banned = securityData?.fail2ban?.totalBanned ?? 0;
-    tiles.push({
-      id: 'security',
-      title: 'Security',
-      value: banned,
-      suffix: 'banned IPs',
-      status: banned > 0 ? 'warn' : 'ok',
-    });
-  }
-  if (capabilities?.monix?.configured) {
-    tiles.push({
-      id: 'monix',
-      title: 'Monix',
-      value: monixData?.downCount ?? 0,
-      suffix: 'down',
-      status: (monixData?.downCount || 0) > 0 ? 'err' : 'ok',
-    });
-  }
+  const shortcuts = [
+    { label: 'System health', tab: 'system' },
+    { label: 'Processes', tab: 'processes' },
+    capabilities?.docker?.available && { label: 'Docker', tab: 'docker' },
+    capabilities?.services?.available !== false && { label: 'Services', tab: 'services' },
+    capabilities?.traffic?.available && { label: 'Traffic', tab: 'traffic' },
+    { label: 'Settings', tab: 'settings' },
+  ].filter(Boolean);
 
   return (
     <div className="space-y-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-          {upt.hostname || 'Server'}
-        </h1>
-        <p className="text-[var(--fg-muted)] text-sm md:text-base">
-          Uptime {upt.uptimeText || '—'} · Load {load1.toFixed(2)} · {upt.cpus || '?'} cores
-          {pendingUpdates > 0 && (
-            <span className="text-[var(--caution)]"> · {pendingUpdates} OS updates pending</span>
-          )}
+      <div>
+        <h2 className="text-2xl font-semibold tracking-tight">{upt.hostname || 'Server'}</h2>
+        <p className="text-muted-foreground mt-1">
+          Uptime {upt.uptimeText || '—'} · Load {load1.toFixed(2)}
+          {pending > 0 && ` · ${pending} OS updates pending`}
         </p>
-      </header>
-
-      <div className="bento">
-        <div className="bento-span-4 panel p-5 space-y-4">
-          <div className="stat-label">CPU load</div>
-          <div className="stat-value">{load1.toFixed(2)}</div>
-          <Sparkline data={cpuHistory} strokeColor="var(--fg-muted)" height={48} />
-        </div>
-        <div className="bento-span-4 panel p-5 space-y-4">
-          <div className="stat-label">Memory</div>
-          <div className="stat-value">{memPct}%</div>
-          <div className="text-sm text-[var(--fg-muted)]">{mem.formattedUsed} of {mem.formattedTotal}</div>
-          <Sparkline data={ramHistory} strokeColor="var(--fg-faint)" height={48} />
-        </div>
-        <div className="bento-span-4 panel p-5 flex flex-col justify-between">
-          <div className="stat-label">Quick actions</div>
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            <button type="button" className="tile-link !p-3 text-sm" onClick={() => onNavigate('host')}>
-              Host metrics
-            </button>
-            <button type="button" className="tile-link !p-3 text-sm" onClick={() => onNavigate('host', 'processes')}>
-              Processes
-            </button>
-            <button type="button" className="tile-link !p-3 text-sm" onClick={() => onNavigate('workloads', 'services')}>
-              Service logs
-            </button>
-            <button type="button" className="tile-link !p-3 text-sm" onClick={() => onNavigate('integrations')}>
-              Setup guides
-            </button>
-          </div>
-        </div>
-
-        {tiles.length > 0 && (
-          <div className="bento-span-12">
-            <h2 className="text-sm font-medium text-[var(--fg-muted)] mb-3">Infrastructure</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {tiles.map((tile) => (
-                <button
-                  key={tile.title}
-                  type="button"
-                  className="tile-link flex items-start justify-between gap-3"
-                  onClick={() => onNavigate(tile.id, tile.sub)}
-                >
-                  <div>
-                    <div className="text-sm text-[var(--fg-muted)]">{tile.title}</div>
-                    <div className="mt-1 flex items-baseline gap-2">
-                      <span className="text-2xl font-semibold tracking-tight">{tile.value}</span>
-                      <span className="text-sm text-[var(--fg-faint)]">{tile.suffix}</span>
-                    </div>
-                  </div>
-                  <StatusDot status={tile.status} />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {(systemData?.services || []).length > 0 && (
-          <div className="bento-span-12 panel overflow-hidden">
-            <div className="px-5 py-4 border-b border-[var(--line)] flex justify-between items-center">
-              <h2 className="font-medium">Monitored services</h2>
-              <button
-                type="button"
-                className="text-sm text-[var(--fg-muted)] hover:text-[var(--fg)]"
-                onClick={() => onNavigate('workloads', 'services')}
-              >
-                View all →
-              </button>
-            </div>
-            <div className="divide-y divide-[var(--line)]">
-              {(systemData.services || []).slice(0, 6).map((s, i) => (
-                <div key={i} className="flex items-center justify-between px-5 py-3 text-sm">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <StatusDot status={s.isActive ? 'ok' : 'err'} />
-                    <span className="truncate font-medium">{s.fullUnit}</span>
-                  </div>
-                  <span className="text-[var(--fg-muted)] shrink-0 ml-2">{s.formattedMemory || '—'}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>CPU load (1m)</CardDescription>
+            <CardTitle className="text-3xl font-semibold tabular-nums">{load1.toFixed(2)}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Sparkline data={cpuHistory} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Memory</CardDescription>
+            <CardTitle className="text-3xl font-semibold tabular-nums">{memPct}%</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground mb-2">{mem.formattedUsed} / {mem.formattedTotal}</p>
+            <Sparkline data={ramHistory} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>At a glance</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {capabilities?.docker?.available && (
+              <div className="flex justify-between"><span className="text-muted-foreground">Docker</span><span>{dockerData?.running ?? '—'} running</span></div>
+            )}
+            {capabilities?.pm2?.available && (
+              <div className="flex justify-between"><span className="text-muted-foreground">PM2</span><span>{pm2Count ?? '—'} apps</span></div>
+            )}
+            <div className="flex justify-between"><span className="text-muted-foreground">Services</span><span>{servicesData?.activeCount ?? '—'} active</span></div>
+            {capabilities?.traffic?.available && (
+              <div className="flex justify-between"><span className="text-muted-foreground">Traffic</span><span>{trafficData?.summary?.total_hits ?? '—'} hits</span></div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick navigation</CardTitle>
+          <CardDescription>Jump to any section</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+            {shortcuts.map((s) => (
+              <button
+                key={s.tab}
+                type="button"
+                onClick={() => onNavigate(s.tab)}
+                className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-medium hover:bg-accent transition-colors text-left"
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {(systemData?.services || []).length > 0 && (
+        <Card>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle>Services</CardTitle>
+              <CardDescription>Monitored systemd units</CardDescription>
+            </div>
+            <button type="button" className="text-sm text-muted-foreground hover:text-foreground" onClick={() => onNavigate('services')}>
+              View all
+            </button>
+          </CardHeader>
+          <CardContent className="p-0">
+            {(systemData.services || []).slice(0, 5).map((s, i) => (
+              <div key={i}>
+                {i > 0 && <Separator />}
+                <div className="flex items-center justify-between px-6 py-3 text-sm">
+                  <span className="font-medium">{s.fullUnit}</span>
+                  <span className="text-muted-foreground">{s.activeState || 'unknown'}</span>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

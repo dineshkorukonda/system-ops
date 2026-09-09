@@ -131,6 +131,7 @@ export function IconPulse({ className = iconClass }) {
 }
 
 export const NAV_ICONS = {
+  overview: IconActivity,
   system: IconActivity,
   processes: IconCpu,
   docker: IconBox,
