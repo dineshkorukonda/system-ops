@@ -11,22 +11,22 @@ export function LoginView({ branding, onLoginSuccess }) {
   useEffect(() => {
     if (branding) {
       setLocalBranding(branding);
-      document.title = branding.pageTitle || `${branding.siteName} | Login`;
+      document.title = branding.pageTitle || `${branding.siteName} | Sign in`;
       return;
     }
     fetch('/api/v2/settings/branding')
-      .then((res) => res.ok ? res.json() : null)
+      .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data) {
           setLocalBranding(data);
-          document.title = data.pageTitle || `${data.siteName} | Login`;
+          document.title = data.pageTitle || `${data.siteName} | Sign in`;
         }
       })
       .catch(() => {});
   }, [branding]);
 
   const siteName = localBranding?.siteName || 'system-ops';
-  const siteSubtitle = localBranding?.siteSubtitle || 'Operations Console Authentication';
+  const siteSubtitle = localBranding?.siteSubtitle || 'Operations Console';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -46,64 +46,58 @@ export function LoginView({ branding, onLoginSuccess }) {
       } else {
         setError(data.error || 'Invalid password');
       }
-    } catch (err) {
-      setError('Connection error. Verify host connectivity.');
+    } catch {
+      setError('Unable to connect. Check that the service is running.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-black p-4 theme-bg">
-      <div className="w-full max-w-sm">
-        <Card className="border-[#262626] bg-[#080808] shadow-2xl">
-          <div className="p-6 text-center space-y-1.5 border-b border-[#1a1a1a] theme-header">
-            <h2 className="font-mono text-base font-bold tracking-tight text-white">
-              {siteName.toUpperCase()}
-            </h2>
-            <p className="text-xs text-neutral-400">
-              {siteSubtitle}
-            </p>
+    <div className="flex min-h-screen items-center justify-center ops-app p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--accent-muted)] text-[var(--accent)]">
+            <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            </svg>
           </div>
+          <h1 className="text-xl font-semibold text-[var(--text-primary)]">{siteName}</h1>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">{siteSubtitle}</p>
+        </div>
 
+        <Card>
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="block font-mono text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
-                  Access Password
-                </label>
+                <label className="ops-label block">Password</label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter console password..."
+                  placeholder="Enter your password"
                   required
                   autoFocus
-                  className="w-full h-9 rounded border border-[#262626] bg-[#121212] px-3 font-mono text-xs text-white placeholder-neutral-600 outline-none hover:border-neutral-600 focus:border-neutral-300 theme-input"
+                  className="ops-input w-full h-10 px-3 text-sm"
                 />
               </div>
 
               {error && (
-                <div className="rounded border border-rose-900/50 bg-rose-950/30 p-2.5 font-mono text-[11px] text-rose-400">
+                <div className="rounded-lg border border-[var(--danger)]/20 bg-[var(--danger-muted)] p-3 text-sm text-[var(--danger)]">
                   {error}
                 </div>
               )}
 
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="w-full h-9 font-mono text-xs font-semibold"
-              >
-                {isLoading ? 'AUTHENTICATING...' : 'AUTHENTICATE'}
+              <Button type="submit" disabled={isLoading} className="w-full">
+                {isLoading ? 'Signing in…' : 'Sign in'}
               </Button>
             </form>
           </CardContent>
-
-          <div className="flex items-center justify-between border-t border-[#1a1a1a] bg-[#050505] px-6 py-3 font-mono text-[10px] text-neutral-500 theme-header">
-            <span>BINDING: 127.0.0.1:9080</span>
-            <span className="text-emerald-500 font-semibold">ENCRYPTED SESSION</span>
-          </div>
         </Card>
+
+        <p className="mt-6 text-center text-xs text-[var(--text-muted)]">
+          Secured session · Loopback binding recommended
+        </p>
       </div>
     </div>
   );

@@ -26,7 +26,7 @@ export function TrafficAnalyticsView({ trafficData }) {
       const map = window.L.map(mapContainerRef.current).setView([20, 0], 2);
       window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap',
-        className: 'cyber-map-tiles',
+        className: 'map-tiles-dark',
         maxZoom: 18,
       }).addTo(map);
 
@@ -86,24 +86,24 @@ export function TrafficAnalyticsView({ trafficData }) {
                 </Badge>
               </CardHeader>
               <CardContent className="p-4 space-y-3 font-mono text-xs">
-                <div className="text-neutral-400 truncate text-[11px] font-semibold">{key}</div>
+                <div className="text-[var(--text-secondary)] truncate text-[11px] font-semibold">{key}</div>
                 <div className="flex justify-between items-baseline">
                   <div>
-                    <div className="text-xl font-bold text-white">
+                    <div className="text-xl font-bold text-[var(--text-primary)]">
                       {formatNumber(dom.hits || 0)}
                     </div>
-                    <div className="text-[10px] text-neutral-500">TOTAL HITS</div>
+                    <div className="text-[10px] text-[var(--text-muted)]">TOTAL HITS</div>
                   </div>
                   <div className="text-right">
                     <div className="text-xl font-bold text-emerald-400">
                       {formatNumber(dom.unique || 0)}
                     </div>
-                    <div className="text-[10px] text-neutral-500">UNIQUE DEVICES</div>
+                    <div className="text-[10px] text-[var(--text-muted)]">UNIQUE DEVICES</div>
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-[#141414] space-y-1.5">
-                  <div className="flex justify-between text-[10px] text-neutral-400">
+                <div className="pt-2 border-t border-[var(--border)] space-y-1.5">
+                  <div className="flex justify-between text-[10px] text-[var(--text-secondary)]">
                     <span>MOBILE: {mobPct}%</span>
                     <span>DESKTOP: {deskPct}%</span>
                   </div>
@@ -121,22 +121,22 @@ export function TrafficAnalyticsView({ trafficData }) {
             <Badge variant="warn">ALL SITES</Badge>
           </CardHeader>
           <CardContent className="p-4 space-y-3 font-mono text-xs">
-            <div className="text-neutral-400 text-[11px] font-semibold">Deduplicated Telemetry</div>
+            <div className="text-[var(--text-secondary)] text-[11px] font-semibold">Deduplicated Telemetry</div>
             <div className="flex justify-between items-baseline">
               <div>
-                <div className="text-xl font-bold text-white">
+                <div className="text-xl font-bold text-[var(--text-primary)]">
                   {formatNumber(summary.total_hits || 0)}
                 </div>
-                <div className="text-[10px] text-neutral-500">RAW HITS</div>
+                <div className="text-[10px] text-[var(--text-muted)]">RAW HITS</div>
               </div>
               <div className="text-right">
                 <div className="text-xl font-bold text-amber-400">
                   {formatNumber(summary.unique_devices || 0)}
                 </div>
-                <div className="text-[10px] text-neutral-500">DEVICES</div>
+                <div className="text-[10px] text-[var(--text-muted)]">DEVICES</div>
               </div>
             </div>
-            <div className="pt-2 border-t border-[#141414] flex justify-between text-[11px] text-neutral-400">
+            <div className="pt-2 border-t border-[var(--border)] flex justify-between text-[11px] text-[var(--text-secondary)]">
               <span>BANDWIDTH: <strong className="text-neutral-200">{formatBytes(summary.total_bytes || 0)}</strong></span>
               <span>MOBILE: {summary.total_mobile_hits || 0}</span>
             </div>
@@ -161,11 +161,11 @@ export function TrafficAnalyticsView({ trafficData }) {
         <Card className="lg:col-span-5 flex flex-col">
           <CardHeader>
             <CardTitle>Recent Visitor Sessions</CardTitle>
-            <span className="font-mono text-[10px] text-neutral-500">LIVE FEED</span>
+            <span className="font-mono text-[10px] text-[var(--text-muted)]">LIVE FEED</span>
           </CardHeader>
           <div className="overflow-x-auto max-h-[360px] overflow-y-auto">
             <table className="w-full text-left font-mono text-xs">
-              <thead className="sticky top-0 border-b border-[#1a1a1a] bg-[#0c0c0c] text-[10px] uppercase text-neutral-500 theme-header">
+              <thead className="sticky top-0 border-b border-[var(--border)] bg-[var(--surface-raised)] text-[10px] uppercase text-[var(--text-muted)] ">
                 <tr>
                   <th className="px-3 py-2">Time</th>
                   <th className="px-3 py-2">Host</th>
@@ -173,22 +173,22 @@ export function TrafficAnalyticsView({ trafficData }) {
                   <th className="px-3 py-2">Client</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#141414]">
+              <tbody className="divide-y divide-[var(--border)]">
                 {recent.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-neutral-500 font-sans">
+                    <td colSpan={4} className="px-4 py-8 text-center text-[var(--text-muted)] font-sans">
                       No recent visitors recorded in access log.
                     </td>
                   </tr>
                 ) : (
                   recent.map((r, idx) => (
-                    <tr key={idx} className="hover:bg-[#0d0d0d]">
-                      <td className="px-3 py-2 text-neutral-500 text-[11px] whitespace-nowrap">{r.timestamp || '--'}</td>
-                      <td className="px-3 py-2 text-neutral-300 font-medium">{r.host}</td>
-                      <td className="px-3 py-2 text-neutral-400 whitespace-nowrap">
+                    <tr key={idx} className="hover:bg-[var(--surface-raised)]">
+                      <td className="px-3 py-2 text-[var(--text-muted)] text-[11px] whitespace-nowrap">{r.timestamp || '--'}</td>
+                      <td className="px-3 py-2 text-[var(--text-secondary)] font-medium">{r.host}</td>
+                      <td className="px-3 py-2 text-[var(--text-secondary)] whitespace-nowrap">
                         {r.city && r.city !== 'Unknown' ? `${r.city}, ${r.country}` : r.country || 'Unknown'}
                       </td>
-                      <td className="px-3 py-2 text-neutral-500 text-[11px] truncate max-w-[120px]">
+                      <td className="px-3 py-2 text-[var(--text-muted)] text-[11px] truncate max-w-[120px]">
                         {r.os} ({r.device})
                       </td>
                     </tr>
@@ -208,27 +208,27 @@ export function TrafficAnalyticsView({ trafficData }) {
             <CardTitle>HTTP Status Codes</CardTitle>
           </CardHeader>
           <CardContent className="p-4 grid grid-cols-2 gap-2 text-center font-mono">
-            <div className="rounded border border-[#1f1f1f] bg-[#0c0c0c] p-2.5 theme-header">
+            <div className="rounded border border-[var(--border)] bg-[var(--surface-raised)] p-2.5 ">
               <Badge variant="ok">2xx OK</Badge>
-              <div className="text-xl font-bold mt-1 text-white">
+              <div className="text-xl font-bold mt-1 text-[var(--text-primary)]">
                 {formatNumber(statusCodes['2xx'] || 0)}
               </div>
             </div>
-            <div className="rounded border border-[#1f1f1f] bg-[#0c0c0c] p-2.5 theme-header">
+            <div className="rounded border border-[var(--border)] bg-[var(--surface-raised)] p-2.5 ">
               <Badge variant="blue">3xx REDIR</Badge>
-              <div className="text-xl font-bold mt-1 text-white">
+              <div className="text-xl font-bold mt-1 text-[var(--text-primary)]">
                 {formatNumber(statusCodes['3xx'] || 0)}
               </div>
             </div>
-            <div className="rounded border border-[#1f1f1f] bg-[#0c0c0c] p-2.5 theme-header">
+            <div className="rounded border border-[var(--border)] bg-[var(--surface-raised)] p-2.5 ">
               <Badge variant="warn">4xx CLIENT</Badge>
-              <div className="text-xl font-bold mt-1 text-white">
+              <div className="text-xl font-bold mt-1 text-[var(--text-primary)]">
                 {formatNumber(statusCodes['4xx'] || 0)}
               </div>
             </div>
-            <div className="rounded border border-[#1f1f1f] bg-[#0c0c0c] p-2.5 theme-header">
+            <div className="rounded border border-[var(--border)] bg-[var(--surface-raised)] p-2.5 ">
               <Badge variant="err">5xx SERVER</Badge>
-              <div className="text-xl font-bold mt-1 text-white">
+              <div className="text-xl font-bold mt-1 text-[var(--text-primary)]">
                 {formatNumber(statusCodes['5xx'] || 0)}
               </div>
             </div>
@@ -242,26 +242,26 @@ export function TrafficAnalyticsView({ trafficData }) {
           </CardHeader>
           <div className="overflow-x-auto max-h-[220px] overflow-y-auto">
             <table className="w-full text-left font-mono text-xs">
-              <thead className="sticky top-0 border-b border-[#1a1a1a] bg-[#0c0c0c] text-[10px] uppercase text-neutral-500 theme-header">
+              <thead className="sticky top-0 border-b border-[var(--border)] bg-[var(--surface-raised)] text-[10px] uppercase text-[var(--text-muted)] ">
                 <tr>
                   <th className="px-4 py-2">Host</th>
                   <th className="px-4 py-2">Endpoint Path</th>
                   <th className="px-4 py-2 text-right">Hits</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#141414]">
+              <tbody className="divide-y divide-[var(--border)]">
                 {topEndpoints.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="px-4 py-4 text-center text-neutral-500 font-sans">
+                    <td colSpan={3} className="px-4 py-4 text-center text-[var(--text-muted)] font-sans">
                       No endpoint data recorded.
                     </td>
                   </tr>
                 ) : (
                   topEndpoints.map((ep, idx) => (
-                    <tr key={idx} className="hover:bg-[#0d0d0d]">
-                      <td className="px-4 py-2 font-medium text-neutral-300">{ep.host}</td>
-                      <td className="px-4 py-2 text-neutral-400 truncate max-w-sm">{ep.path}</td>
-                      <td className="px-4 py-2 text-right font-bold text-white">
+                    <tr key={idx} className="hover:bg-[var(--surface-raised)]">
+                      <td className="px-4 py-2 font-medium text-[var(--text-secondary)]">{ep.host}</td>
+                      <td className="px-4 py-2 text-[var(--text-secondary)] truncate max-w-sm">{ep.path}</td>
+                      <td className="px-4 py-2 text-right font-bold text-[var(--text-primary)]">
                         {formatNumber(ep.hits)}
                       </td>
                     </tr>
@@ -282,28 +282,28 @@ export function TrafficAnalyticsView({ trafficData }) {
           </CardHeader>
           <div className="overflow-x-auto max-h-[220px] overflow-y-auto">
             <table className="w-full text-left font-mono text-xs">
-              <thead className="sticky top-0 border-b border-[#1a1a1a] bg-[#0c0c0c] text-[10px] uppercase text-neutral-500 theme-header">
+              <thead className="sticky top-0 border-b border-[var(--border)] bg-[var(--surface-raised)] text-[10px] uppercase text-[var(--text-muted)] ">
                 <tr>
                   <th className="px-4 py-2">IP Address</th>
                   <th className="px-4 py-2">Location</th>
                   <th className="px-4 py-2 text-right">Hits</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#141414]">
+              <tbody className="divide-y divide-[var(--border)]">
                 {topIps.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="px-4 py-4 text-center text-neutral-500 font-sans">
+                    <td colSpan={3} className="px-4 py-4 text-center text-[var(--text-muted)] font-sans">
                       No IP data available.
                     </td>
                   </tr>
                 ) : (
                   topIps.map((ip, idx) => (
-                    <tr key={idx} className="hover:bg-[#0d0d0d]">
+                    <tr key={idx} className="hover:bg-[var(--surface-raised)]">
                       <td className="px-4 py-2 font-medium text-neutral-200">{ip.ip}</td>
-                      <td className="px-4 py-2 text-neutral-400">
+                      <td className="px-4 py-2 text-[var(--text-secondary)]">
                         {ip.city && ip.city !== 'Unknown' ? `${ip.city}, ${ip.country}` : ip.country || 'Unknown'}
                       </td>
-                      <td className="px-4 py-2 text-right font-bold text-white">
+                      <td className="px-4 py-2 text-right font-bold text-[var(--text-primary)]">
                         {formatNumber(ip.hits)}
                       </td>
                     </tr>
@@ -321,17 +321,17 @@ export function TrafficAnalyticsView({ trafficData }) {
           </CardHeader>
           <CardContent className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-3 font-mono text-xs">
             {Object.keys(osStats).length === 0 ? (
-              <div className="col-span-full text-center text-neutral-500 font-sans py-4">
+              <div className="col-span-full text-center text-[var(--text-muted)] font-sans py-4">
                 No OS statistics recorded.
               </div>
             ) : (
               Object.entries(osStats).map(([os, count]) => (
                 <div
                   key={os}
-                  className="rounded border border-[#1a1a1a] bg-[#0c0c0c] p-3 space-y-1 theme-header"
+                  className="rounded border border-[var(--border)] bg-[var(--surface-raised)] p-3 space-y-1 "
                 >
-                  <div className="text-[10px] uppercase font-semibold text-neutral-500">{os}</div>
-                  <div className="text-lg font-bold text-white">
+                  <div className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">{os}</div>
+                  <div className="text-lg font-bold text-[var(--text-primary)]">
                     {formatNumber(count)}
                   </div>
                 </div>

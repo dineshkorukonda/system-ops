@@ -3,13 +3,7 @@ import { cn } from '../../lib/utils';
 
 export function Card({ className, children, ...props }) {
   return (
-    <div
-      className={cn(
-        'rounded-md border border-[#1f1f1f] bg-[#080808] text-white shadow-sm transition-colors theme-card',
-        className
-      )}
-      {...props}
-    >
+    <div className={cn('ops-card', className)} {...props}>
       {children}
     </div>
   );
@@ -17,13 +11,7 @@ export function Card({ className, children, ...props }) {
 
 export function CardHeader({ className, children, ...props }) {
   return (
-    <div
-      className={cn(
-        'flex items-center justify-between border-b border-[#1a1a1a] px-4 py-3 bg-[#0d0d0d] theme-header',
-        className
-      )}
-      {...props}
-    >
+    <div className={cn('ops-card-header flex items-center justify-between px-4 py-3 rounded-t-[0.75rem]', className)} {...props}>
       {children}
     </div>
   );
@@ -31,13 +19,7 @@ export function CardHeader({ className, children, ...props }) {
 
 export function CardTitle({ className, children, ...props }) {
   return (
-    <h3
-      className={cn(
-        'text-xs font-semibold uppercase tracking-wider text-neutral-300',
-        className
-      )}
-      {...props}
-    >
+    <h3 className={cn('text-sm font-semibold text-[var(--text-primary)]', className)} {...props}>
       {children}
     </h3>
   );

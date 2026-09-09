@@ -10,24 +10,26 @@ export function Button({
   ...props
 }) {
   const baseStyles =
-    'inline-flex items-center justify-center rounded font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-400 disabled:pointer-events-none disabled:opacity-40 select-none cursor-pointer';
+    'inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer';
 
   const variants = {
     default:
-      'bg-white text-black hover:bg-neutral-200 font-semibold',
+      'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] shadow-sm',
     secondary:
-      'bg-[#141414] text-white border border-[#262626] hover:bg-[#1f1f1f]',
+      'bg-[var(--surface-raised)] text-[var(--text-primary)] border border-[var(--border)] hover:bg-[var(--surface-muted)]',
     outline:
-      'border border-[#262626] bg-transparent text-neutral-300 hover:bg-[#141414] hover:text-white',
+      'border border-[var(--border-subtle)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]',
     ghost:
-      'bg-transparent text-neutral-400 hover:bg-[#141414] hover:text-white',
+      'bg-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]',
+    danger:
+      'border border-transparent bg-[var(--danger-muted)] text-[var(--danger)] hover:opacity-90',
   };
 
   const sizes = {
-    sm: 'h-7 px-2.5 text-xs',
-    default: 'h-8 px-3.5 text-xs',
+    sm: 'h-8 px-3 text-xs',
+    default: 'h-9 px-4 text-sm',
     lg: 'h-10 px-5 text-sm',
-    icon: 'h-8 w-8',
+    icon: 'h-9 w-9',
   };
 
   return (

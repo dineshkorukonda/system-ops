@@ -3,18 +3,18 @@ import { cn } from '../../lib/utils';
 
 export function Badge({ variant = 'neutral', className, children, ...props }) {
   const variantStyles = {
-    neutral: 'bg-[#141414] text-neutral-300 border-[#262626]',
-    ok: 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50',
-    warn: 'bg-amber-950/40 text-amber-400 border-amber-800/50',
-    err: 'bg-rose-950/40 text-rose-400 border-rose-800/50',
-    blue: 'bg-blue-950/40 text-blue-400 border-blue-800/50',
-    outline: 'border border-neutral-700 text-neutral-300',
+    neutral: 'bg-[var(--surface-raised)] text-[var(--text-secondary)] border-[var(--border)]',
+    ok: 'bg-[var(--success-muted)] text-[var(--success)] border-transparent',
+    warn: 'bg-[var(--warning-muted)] text-[var(--warning)] border-transparent',
+    err: 'bg-[var(--danger-muted)] text-[var(--danger)] border-transparent',
+    blue: 'bg-[var(--accent-muted)] text-[var(--accent)] border-transparent',
+    outline: 'border border-[var(--border-subtle)] text-[var(--text-secondary)] bg-transparent',
   };
 
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider border',
+        'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium border',
         variantStyles[variant] || variantStyles.neutral,
         className
       )}

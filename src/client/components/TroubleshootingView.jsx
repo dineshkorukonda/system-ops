@@ -307,7 +307,7 @@ export function TroubleshootingView({ capabilities }) {
   return (
     <div className="space-y-6">
       {/* Top Banner & Diagnostic Runner */}
-      <Card className="border-[#262626] bg-[#0a0a0a]">
+      <Card className="border-[var(--border-subtle)] bg-[#0a0a0a]">
         <CardHeader className="bg-[#121212]">
           <div className="flex items-center gap-2">
             <CardTitle>OPS DIAGNOSTICS & SYSTEM TROUBLESHOOTING</CardTitle>
@@ -324,16 +324,16 @@ export function TroubleshootingView({ capabilities }) {
           </Button>
         </CardHeader>
         <CardContent className="p-4 space-y-4">
-          <p className="text-xs text-neutral-400">
+          <p className="text-xs text-[var(--text-secondary)]">
             Interactive guide to resolve permissions, PM2 discovery, systemd sandboxing, and telemetry issues. Run the live audit to automatically verify all core dashboard components.
           </p>
 
           {/* Diagnostic Results Box */}
           {diagResults && (
-            <div className="space-y-2 border border-[#222] bg-[#050505] p-3 rounded font-mono text-xs">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 pb-1 border-b border-[#1f1f1f] flex justify-between">
+            <div className="space-y-2 border border-[var(--border)] bg-[var(--surface-muted)] p-3 rounded font-mono text-xs">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] pb-1 border-b border-[var(--border)] flex justify-between">
                 <span>AUDIT RESULTS</span>
-                <span className="text-neutral-500">
+                <span className="text-[var(--text-muted)]">
                   {diagResults.filter((r) => r.ok).length} / {diagResults.length} HEALTHY
                 </span>
               </div>
@@ -351,13 +351,13 @@ export function TroubleshootingView({ capabilities }) {
                         {r.ok ? 'PASSED' : 'ACTION REQUIRED'}
                       </Badge>
                     </div>
-                    <div className="text-[11px] text-neutral-400 mt-1">{r.message}</div>
+                    <div className="text-[11px] text-[var(--text-secondary)] mt-1">{r.message}</div>
                     {!r.ok && (
                       <div className="mt-2 text-[10px] text-rose-300 bg-black/60 p-1.5 rounded border border-rose-900/50 flex items-center justify-between gap-2">
                         <span className="truncate">{r.fix}</span>
                         <button
                           onClick={() => handleCopy(r.fix, `diag-${i}`)}
-                          className="shrink-0 text-[9px] underline cursor-pointer text-neutral-300 hover:text-white"
+                          className="shrink-0 text-[9px] underline cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         >
                           {copiedIndex === `diag-${i}` ? 'COPIED!' : 'COPY'}
                         </button>
@@ -389,7 +389,7 @@ export function TroubleshootingView({ capabilities }) {
               className={`px-2.5 py-1 text-xs font-mono rounded cursor-pointer transition-colors ${
                 selectedCategory === cat.id
                   ? 'bg-neutral-200 text-black font-semibold'
-                  : 'bg-[#121212] text-neutral-400 hover:bg-[#1f1f1f] border border-[#262626]'
+                  : 'bg-[#121212] text-[var(--text-secondary)] hover:bg-[#1f1f1f] border border-[var(--border-subtle)]'
               }`}
             >
               {cat.label}
@@ -402,14 +402,14 @@ export function TroubleshootingView({ capabilities }) {
           placeholder="Search symptoms or commands..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full sm:w-64 bg-[#0d0d0d] border border-[#262626] rounded px-3 py-1.5 text-xs text-white font-mono placeholder:text-neutral-600 focus:outline-none focus:border-neutral-400"
+          className="w-full sm:w-64 bg-[var(--surface-raised)] border border-[var(--border-subtle)] rounded px-3 py-1.5 text-xs text-[var(--text-primary)] font-mono placeholder:text-neutral-600 focus:outline-none focus:border-neutral-400"
         />
       </div>
 
       {/* Troubleshooting Cards */}
       <div className="space-y-4">
         {filteredGuides.map((guide, gIdx) => (
-          <Card key={guide.id} className="border-[#1f1f1f] bg-[#080808]">
+          <Card key={guide.id} className="border-[var(--border)] bg-[var(--surface)]">
             <CardHeader className="bg-[#0f0f0f] py-2.5 px-4">
               <div className="flex items-center gap-2.5">
                 <Badge variant={guide.badgeVariant} className="text-[10px]">
@@ -419,15 +419,15 @@ export function TroubleshootingView({ capabilities }) {
                   {guide.title}
                 </h4>
               </div>
-              <span className="font-mono text-[10px] text-neutral-500 uppercase">
+              <span className="font-mono text-[10px] text-[var(--text-muted)] uppercase">
                 {guide.category}
               </span>
             </CardHeader>
             <CardContent className="p-4 space-y-4">
               {/* Symptom & Cause */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                <div className="bg-[#050505] p-3 rounded border border-[#1a1a1a]">
-                  <div className="font-mono text-[10px] font-bold uppercase text-neutral-500 mb-1">
+                <div className="bg-[var(--surface-muted)] p-3 rounded border border-[var(--border)]">
+                  <div className="font-mono text-[10px] font-bold uppercase text-[var(--text-muted)] mb-1">
                     SYMPTOM
                   </div>
                   <div className="font-mono text-rose-400 text-[11px]">
@@ -435,11 +435,11 @@ export function TroubleshootingView({ capabilities }) {
                   </div>
                 </div>
 
-                <div className="bg-[#050505] p-3 rounded border border-[#1a1a1a]">
-                  <div className="font-mono text-[10px] font-bold uppercase text-neutral-500 mb-1">
+                <div className="bg-[var(--surface-muted)] p-3 rounded border border-[var(--border)]">
+                  <div className="font-mono text-[10px] font-bold uppercase text-[var(--text-muted)] mb-1">
                     ROOT CAUSES
                   </div>
-                  <ul className="list-disc list-inside text-neutral-400 text-[11px] space-y-0.5">
+                  <ul className="list-disc list-inside text-[var(--text-secondary)] text-[11px] space-y-0.5">
                     {guide.causes.map((cause, cIdx) => (
                       <li key={cIdx}>{cause}</li>
                     ))}
@@ -448,7 +448,7 @@ export function TroubleshootingView({ capabilities }) {
               </div>
 
               {/* Solution Overview */}
-              <div className="text-xs text-neutral-300">
+              <div className="text-xs text-[var(--text-secondary)]">
                 <span className="font-semibold text-neutral-200">Solution: </span>
                 {guide.solution}
               </div>
@@ -461,18 +461,18 @@ export function TroubleshootingView({ capabilities }) {
                   return (
                     <div
                       key={cIdx}
-                      className="border border-[#1f1f1f] bg-[#040404] rounded p-2.5 font-mono"
+                      className="border border-[var(--border)] bg-[var(--surface-muted)] rounded p-2.5 font-mono"
                     >
-                      <div className="flex items-center justify-between text-[10px] text-neutral-500 mb-1.5">
+                      <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)] mb-1.5">
                         <span>{cmdItem.label}</span>
                         <button
                           onClick={() => handleCopy(cmdItem.cmd, copyKey)}
-                          className="flex items-center gap-1 text-neutral-300 hover:text-white bg-[#141414] hover:bg-[#222] border border-[#2a2a2a] px-2 py-0.5 rounded cursor-pointer transition-colors"
+                          className="flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-raised)] hover:bg-[#222] border border-[#2a2a2a] px-2 py-0.5 rounded cursor-pointer transition-colors"
                         >
                           <span>{isCopied ? 'COPIED ✓' : 'COPY'}</span>
                         </button>
                       </div>
-                      <pre className="text-[11px] text-neutral-300 overflow-x-auto whitespace-pre-wrap selection:bg-neutral-800">
+                      <pre className="text-[11px] text-[var(--text-secondary)] overflow-x-auto whitespace-pre-wrap selection:bg-neutral-800">
                         {cmdItem.cmd}
                       </pre>
                     </div>
@@ -484,7 +484,7 @@ export function TroubleshootingView({ capabilities }) {
         ))}
 
         {filteredGuides.length === 0 && (
-          <div className="p-8 text-center border border-dashed border-[#262626] rounded text-neutral-500 font-mono text-xs">
+          <div className="p-8 text-center border border-dashed border-[var(--border-subtle)] rounded text-[var(--text-muted)] font-mono text-xs">
             No troubleshooting guides match your search query "{searchQuery}".
           </div>
         )}

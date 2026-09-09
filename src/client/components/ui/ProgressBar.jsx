@@ -5,11 +5,11 @@ export function ProgressBar({ value = 0, variant = 'default', className }) {
   const clamped = Math.min(Math.max(value, 0), 100);
 
   const variantColors = {
-    default: 'bg-white',
-    green: 'bg-emerald-500',
-    warn: 'bg-amber-500',
-    err: 'bg-rose-500',
-    blue: 'bg-blue-500',
+    default: 'bg-[var(--accent)]',
+    green: 'bg-[var(--success)]',
+    warn: 'bg-[var(--warning)]',
+    err: 'bg-[var(--danger)]',
+    blue: 'bg-[var(--accent)]',
   };
 
   const activeColor =
@@ -24,12 +24,12 @@ export function ProgressBar({ value = 0, variant = 'default', className }) {
   return (
     <div
       className={cn(
-        'h-1.5 w-full overflow-hidden rounded-full bg-[#1c1c1c]',
+        'h-2 w-full overflow-hidden rounded-full bg-[var(--surface-raised)]',
         className
       )}
     >
       <div
-        className={cn('h-full transition-all duration-500 ease-out', activeColor)}
+        className={cn('h-full rounded-full transition-all duration-500 ease-out', activeColor)}
         style={{ width: `${clamped}%` }}
       />
     </div>
