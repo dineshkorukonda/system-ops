@@ -6,6 +6,7 @@ const {
   getCurrentVersion,
   detectInstallType,
   parseLogOutcome,
+  extractLastUpdateSession,
 } = require('../src/services/updateService');
 
 test('isNewerVersion compares semver correctly', () => {
@@ -26,12 +27,27 @@ test('parseLogOutcome detects success and failure from deploy log', () => {
   assert.strictEqual(success.phase, 'success');
   assert.strictEqual(success.needsRefresh, true);
 
-  const failed = parseLogOutcome('ERROR: npm run build failed\nEACCES');
+  const failed = parseLogOutcome('ERROR: npm run build failed\nEACCES: permission denied');
   assert.strictEqual(failed.phase, 'failed');
   assert.strictEqual(failed.needsRefresh, false);
 
   const exitOk = parseLogOutcome('=== Update finished with exit code 0 ===');
   assert.strictEqual(exitOk.phase, 'success');
+});
+
+test('parseLogOutcome uses only the last update session in the log', () => {
+  const log = [
+    '=== Update started at old ===',
+    'EACCES: permission denied',
+    'ERROR: npm run build failed',
+    '=== Update finished with exit code 1 ===',
+    '=== Update started at new ===',
+    '  Deployment Complete!',
+    '=== Update finished with exit code 0 ===',
+  ].join('\n');
+  assert.strictEqual(parseLogOutcome(log).phase, 'success');
+  assert.ok(extractLastUpdateSession(log).includes('Deployment Complete!'));
+  assert.ok(!extractLastUpdateSession(log).includes('ERROR: npm run build failed'));
 });
 
 test('detectInstallType identifies local dev install', () => {

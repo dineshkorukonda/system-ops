@@ -254,8 +254,16 @@ function readFullLog() {
   return fs.readFileSync(UPDATE_LOG, 'utf8');
 }
 
-function parseLogOutcome(logContent) {
+function extractLastUpdateSession(logContent) {
   const log = logContent || '';
+  const marker = '=== Update started at ';
+  const lastIdx = log.lastIndexOf(marker);
+  if (lastIdx === -1) return log;
+  return log.slice(lastIdx);
+}
+
+function parseLogOutcome(logContent) {
+  const log = extractLastUpdateSession(logContent);
 
   if (log.includes('Deployment Complete!')) {
     return {
@@ -267,17 +275,21 @@ function parseLogOutcome(logContent) {
     };
   }
 
-  if (
-    log.includes('Deployment FAILED') ||
-    log.includes('ERROR: npm ci failed') ||
-    log.includes('ERROR: npm run build failed') ||
-    /EACCES|permission denied/i.test(log)
-  ) {
+  const buildFailed = log.includes('Deployment FAILED')
+    || log.includes('ERROR: npm ci failed')
+    || log.includes('ERROR: npm run build failed');
+
+  const permissionError = /EACCES: permission denied|errno -13|EPERM: operation not permitted/i.test(log);
+
+  if (buildFailed || permissionError) {
+    const hint = permissionError
+      ? 'Permission error during build. Click Update now again — deploy now auto-fixes ownership. If it persists, SSH in and run: sudo chown -R ops:ops /opt/system-ops && sudo bash scripts/deploy.sh'
+      : 'Build step failed. Check the update log below, then retry.';
     return {
       phase: 'failed',
       success: false,
       failed: true,
-      message: 'Update failed. Fix permissions with: sudo chown -R ops:ops /opt/system-ops — then retry.',
+      message: hint,
       needsRefresh: false,
     };
   }
@@ -422,10 +434,15 @@ function startUpdate() {
   fs.writeSync(logStream, header);
 
   const isWindows = process.platform === 'win32';
+  const opsUser = process.env.OPS_USER || 'ops';
   const cmd = isWindows ? 'bash' : 'sudo';
   const args = isWindows
     ? [DEPLOY_SCRIPT]
-    : ['bash', DEPLOY_SCRIPT];
+    : [
+      'bash',
+      '-c',
+      `chown -R ${opsUser}:${opsUser} "${INSTALL_DIR}" 2>/dev/null; exec bash "${DEPLOY_SCRIPT}"`,
+    ];
 
   const child = spawn(cmd, args, {
     cwd: INSTALL_DIR,
@@ -459,6 +476,7 @@ module.exports = {
   detectInstallType,
   fetchLatestFromMain,
   parseLogOutcome,
+  extractLastUpdateSession,
   LOCK_FILE,
   UPDATE_LOG,
   UPDATE_RESULT,
