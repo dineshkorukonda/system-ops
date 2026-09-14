@@ -24,21 +24,108 @@ function formatUptimeText(seconds) {
 }
 
 /**
- * Read Uptime & Load Average.
+ * Read the real CPU count from /proc/cpuinfo (counts "processor" entries).
+ * Falls back to os.cpus().length if /proc/cpuinfo is unavailable (non-Linux).
+ * os.cpus() is unreliable inside containers/VMs with cgroup CPU limits and
+ * can report a subset of the physical/virtual CPUs visible to the kernel.
+ */
+function getRealCpuCount() {
+  try {
+    if (fs.existsSync('/proc/cpuinfo')) {
+      const content = fs.readFileSync('/proc/cpuinfo', 'utf8');
+      const count = (content.match(/^processor\s*:/gm) || []).length;
+      if (count > 0) return count;
+    }
+  } catch (e) {}
+  return os.cpus().length || 1;
+}
+
+/**
+ * Parse the aggregate "cpu " line from /proc/stat into named tick buckets.
+ * Returns { total, idle, iowait, user, nice, system, irq, softirq, steal } or null.
+ */
+function parseProcStatCpuLine() {
+  try {
+    const stat = fs.readFileSync('/proc/stat', 'utf8');
+    const line = stat.split('\n')[0]; // first line is always aggregate "cpu  ..."
+    if (!line.startsWith('cpu ')) return null;
+    const parts = line.trim().split(/\s+/).slice(1).map(Number);
+    // Kernel field order: user nice system idle iowait irq softirq steal guest gnice
+    const [user = 0, nice = 0, system = 0, idle = 0, iowait = 0, irq = 0, softirq = 0, steal = 0] = parts;
+    const total = user + nice + system + idle + iowait + irq + softirq + steal;
+    return { total, idle, iowait, user, nice, system, irq, softirq, steal };
+  } catch (e) {
+    return null;
+  }
+}
+
+// Module-level snapshot from the previous getUptimeAndLoad() call, used for /proc/stat delta.
+let _prevCpuStat = null;
+
+/**
+ * Read Uptime & Load Average, augmented with real CPU utilization from /proc/stat.
+ *
+ * Returns both the traditional load-average fields AND accurate per-category CPU%:
+ *
+ *   cpuPercent    — actual compute busy % (user+sys+irq, excludes iowait)
+ *   iowaitPercent — % of time CPUs were stalled on I/O (inflates loadavg but is not compute)
+ *   userPercent   — % time in user-space
+ *   sysPercent    — % time in kernel-space (system+irq+softirq)
+ *
+ * These are computed as deltas between successive calls (inter-poll interval).
+ * On the very first call they are null — valid values appear from the second call onward.
+ *
+ * NOTE: loadPercent1m is NOT real CPU utilization. It reflects the kernel scheduler
+ * run-queue length expressed as a % of CPUs — it includes I/O-waiting tasks and can
+ * wildly exceed 100% on I/O-heavy servers. Use cpuPercent for an accurate indicator.
  */
 function getUptimeAndLoad() {
   const uptimeSec = os.uptime();
-  const cpus = os.cpus().length || 1;
-  const load = os.loadavg(); // [1m, 5m, 15m]
+  const cpus = getRealCpuCount();
+  const load = os.loadavg(); // [1m, 5m, 15m] — from /proc/loadavg, kept for reference
+
+  // Real CPU utilization from /proc/stat inter-call delta
+  let cpuPercent    = null;
+  let iowaitPercent = null;
+  let userPercent   = null;
+  let sysPercent    = null;
+
+  const cur = parseProcStatCpuLine();
+  if (cur) {
+    const prev = _prevCpuStat;
+    if (prev) {
+      const dTotal  = cur.total  - prev.total;
+      if (dTotal > 0) {
+        const dIdle   = cur.idle   - prev.idle;
+        const dIowait = cur.iowait - prev.iowait;
+        const dUser   = (cur.user + cur.nice) - (prev.user + prev.nice);
+        const dSys    = (cur.system + cur.irq + cur.softirq) - (prev.system + prev.irq + prev.softirq);
+        // "busy" = everything except idle and iowait (iowait is not actual CPU work)
+        const dBusy   = dTotal - dIdle - dIowait;
+
+        cpuPercent    = Math.min(100, Math.round((dBusy   / dTotal) * 1000) / 10);
+        iowaitPercent = Math.min(100, Math.round((dIowait / dTotal) * 1000) / 10);
+        userPercent   = Math.min(100, Math.round((dUser   / dTotal) * 1000) / 10);
+        sysPercent    = Math.min(100, Math.round((dSys    / dTotal) * 1000) / 10);
+      }
+    }
+    _prevCpuStat = cur; // always advance the snapshot for the next call
+  }
 
   return {
     uptimeSeconds: uptimeSec,
     uptimeText: formatUptimeText(uptimeSec),
     cpus,
-    load1m: load[0].toFixed(2),
-    load5m: load[1].toFixed(2),
+    load1m:  load[0].toFixed(2),
+    load5m:  load[1].toFixed(2),
     load15m: load[2].toFixed(2),
-    loadPercent1m: Math.min(100, Math.round((load[0] / cpus) * 100))
+    // Legacy field kept for UI backwards-compat — NOT real utilization (see note above).
+    loadPercent1m: Math.min(100, Math.round((load[0] / cpus) * 100)),
+    // Accurate CPU metrics derived from /proc/stat (null on first call, valid from 2nd onward)
+    cpuPercent,
+    iowaitPercent,
+    userPercent,
+    sysPercent
   };
 }
 

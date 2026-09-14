@@ -70,7 +70,37 @@ function getSystemCpuTotal() {
 }
 
 /**
- * Parse /proc/[pid]/stat safely (comm can contain spaces and parentheses)
+ * Read the real CPU count from /proc/cpuinfo (counts "processor" entries).
+ * os.cpus() is unreliable in containers/VMs — it can return a cgroup-limited
+ * subset rather than the number of CPUs visible to the kernel scheduler.
+ */
+function getHostCpuCount() {
+  try {
+    if (fs.existsSync('/proc/cpuinfo')) {
+      const content = fs.readFileSync('/proc/cpuinfo', 'utf8');
+      const count = (content.match(/^processor\s*:/gm) || []).length;
+      if (count > 0) return count;
+    }
+  } catch (e) {}
+  return os.cpus().length || 1;
+}
+
+/**
+ * Read system uptime in clock ticks from /proc/uptime (seconds × HZ).
+ * Used to compute per-process age for lifetime-average CPU fallback.
+ * Returns uptime in seconds (float) or 0 on failure.
+ */
+function getHostUptimeSec() {
+  try {
+    const content = fs.readFileSync('/proc/uptime', 'utf8');
+    return parseFloat(content.split(' ')[0]) || 0;
+  } catch (e) {
+    return os.uptime();
+  }
+}
+
+/**
+ * Parse /proc/[pid]/stat safely (comm can contain spaces and parentheses).
  */
 function parseProcStat(content) {
   const openParen = content.indexOf('(');
@@ -94,7 +124,7 @@ function parseProcStat(content) {
 }
 
 /**
- * Parse /proc/[pid]/status for Uid, VmRSS, VmSize
+ * Parse /proc/[pid]/status for Uid, VmRSS, VmSize.
  */
 function parseProcStatus(content) {
   const lines = content.split('\n');
@@ -130,7 +160,12 @@ async function sampleProcLinux(options = {}) {
   const systemCpuDelta = Math.max(1, currentSystemCpu - prevTotalSystemCpu);
   const timeDeltaSec = prevSampleTime > 0 ? (currentSampleTime - prevSampleTime) / 1000 : 1;
   const totalHostMem = os.totalmem() || 1;
-  const cpuCount = os.cpus().length || 1;
+  const cpuCount = getHostCpuCount();
+
+  // Clock ticks per second (CLK_TCK). On virtually all modern Linux systems this is 100.
+  // We use /proc/uptime (seconds) and /proc/[pid]/stat starttime (ticks) to compute process age.
+  const HZ = 100;
+  const hostUptimeSec = getHostUptimeSec();
 
   const currentPidMap = new Map();
   const processes = [];
@@ -169,10 +204,20 @@ async function sampleProcLinux(options = {}) {
         let cpuPercent = 0;
         const prev = prevPidCpuMap.get(pid);
         if (prev && systemCpuDelta > 0) {
+          // Normal delta path: accurate inter-poll measurement
           const procTicksDelta = totalProcTicks - prev.totalTicks;
           if (procTicksDelta > 0) {
-            // Percent relative to all cores
+            // Percent relative to all cores (can exceed 100% on multi-core; capped at cpuCount*100)
             cpuPercent = Math.min(100 * cpuCount, Math.round(((procTicksDelta / systemCpuDelta) * 100 * cpuCount) * 10) / 10);
+          }
+        } else if (!prev && totalProcTicks > 0 && hostUptimeSec > 0) {
+          // First-sample fallback: use process lifetime average instead of returning 0.
+          // procesAgeSec = time since boot minus the tick-offset at which the process started.
+          const processAgeSec = hostUptimeSec - (stat.starttime / HZ);
+          if (processAgeSec > 0.5) {
+            // lifetime avg = total cpu ticks / (age * HZ * cpuCount) expressed as percent
+            const lifetimeAvg = (totalProcTicks / (processAgeSec * HZ * cpuCount)) * 100;
+            cpuPercent = Math.min(100 * cpuCount, Math.round(lifetimeAvg * 10) / 10);
           }
         }
 
