@@ -529,13 +529,6 @@ app.get('/api/v2/system/update/status', (req, res) => {
 });
 
 app.post('/api/v2/system/update', (req, res) => {
-  const appPassword = process.env.APP_PASSWORD || 'admin-password-change-me';
-  const { password } = req.body || {};
-
-  if (!password || password !== appPassword) {
-    return res.status(401).json({ success: false, error: 'Invalid password' });
-  }
-
   const result = startUpdate();
   if (!result.success) {
     return res.status(409).json(result);
