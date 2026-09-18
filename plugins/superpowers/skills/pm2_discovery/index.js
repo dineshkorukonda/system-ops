@@ -25,6 +25,15 @@ function formatUptime(uptimeMs) {
 const pm2BinaryCache = {};
 const PM2_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
+function isValidPm2User(user) {
+  return /^[a-zA-Z0-9_-]+$/.test(user);
+}
+
+function addCandidateUser(users, candidate) {
+  const clean = (candidate || '').trim();
+  if (clean && isValidPm2User(clean)) users.add(clean);
+}
+
 /** Execute a PM2 command for a user with proper PATH and PM2_HOME. */
 async function runPm2Command(user, pm2Path, subCommand, extraArgs = [], timeoutMs = 10000) {
   if (!pm2Path || typeof pm2Path !== 'string') {
@@ -147,17 +156,16 @@ function getPm2Users() {
 
   if (process.env.PM2_USERS) {
     process.env.PM2_USERS.split(',').forEach((u) => {
-      const clean = u.trim();
-      if (clean) users.add(clean);
+      addCandidateUser(users, u);
     });
   }
 
   try {
-    if (fs.existsSync('/root/.pm2')) users.add('root');
+    if (fs.existsSync('/root/.pm2')) addCandidateUser(users, 'root');
     if (fs.existsSync('/home')) {
       const dirs = fs.readdirSync('/home');
       for (const d of dirs) {
-        if (fs.existsSync(`/home/${d}/.pm2`)) users.add(d);
+        if (fs.existsSync(`/home/${d}/.pm2`)) addCandidateUser(users, d);
       }
     }
   } catch (e) {}
@@ -165,9 +173,58 @@ function getPm2Users() {
   return Array.from(users);
 }
 
+async function discoverPm2UsersFromSystemd() {
+  const users = new Set();
+  const parseUnits = (raw) => {
+    const lines = (raw || '').split('\n');
+    for (const line of lines) {
+      const unitName = line.trim().split(/\s+/)[0];
+      if (!unitName) continue;
+      const match = unitName.match(/^pm2-([a-zA-Z0-9_-]+)\.service$/);
+      if (match && match[1]) addCandidateUser(users, match[1]);
+    }
+  };
+
+  try {
+    const unitFiles = await runCommand('sudo', [
+      '-n',
+      'systemctl',
+      'list-unit-files',
+      '--type=service',
+      '--no-legend',
+      '--no-pager',
+      'pm2-*.service'
+    ], 3500);
+    if (unitFiles.success && unitFiles.stdout) parseUnits(unitFiles.stdout);
+  } catch (e) {}
+
+  try {
+    const runningUnits = await runCommand('sudo', [
+      '-n',
+      'systemctl',
+      'list-units',
+      '--type=service',
+      '--all',
+      '--no-legend',
+      '--no-pager',
+      'pm2-*.service'
+    ], 3500);
+    if (runningUnits.success && runningUnits.stdout) parseUnits(runningUnits.stdout);
+  } catch (e) {}
+
+  return Array.from(users);
+}
+
+async function discoverPm2Users() {
+  const users = new Set(getPm2Users());
+  const systemdUsers = await discoverPm2UsersFromSystemd();
+  for (const user of systemdUsers) users.add(user);
+  return Array.from(users).sort((a, b) => a.localeCompare(b));
+}
+
 /** Fetch PM2 process list for a single user. */
 async function getPm2UserProcesses(user) {
-  if (!/^[a-zA-Z0-9_-]+$/.test(user)) {
+  if (!isValidPm2User(user)) {
     return { user, processes: [], error: 'Invalid user name format', pm2Path: null };
   }
   const pm2Path = await resolvePm2Binary(user);
@@ -212,7 +269,10 @@ function parsePm2Json(user, raw) {
         status: env.status || 'unknown',
         cpu: mon.cpu !== undefined ? mon.cpu : 0,
         memory: mem,
+        memoryBytes: mem,
         memoryFormatted: mem > 0 ? formatBytes(mem) : '0 B',
+        formattedMemory: mem > 0 ? formatBytes(mem) : '0 B',
+        restartCount: env.restart_time || 0,
         restart_time: env.restart_time || 0,
         unstable_restarts: env.unstable_restarts || 0,
         uptime,
@@ -228,13 +288,10 @@ function parsePm2Json(user, raw) {
 
 /** Aggregate snapshot across all discovered users. */
 async function collectPm2Snapshot() {
-  const users = getPm2Users();
+  const users = await discoverPm2Users();
   const results = await Promise.all(users.map(u => getPm2UserProcesses(u)));
-  const activeUsers = results.filter(
-    (r) => (r.processes && r.processes.length > 0) || (r.pm2Path && !r.error)
-  );
   let totalProcesses = 0, onlineCount = 0, errorCount = 0, totalMemory = 0;
-  for (const r of activeUsers) {
+  for (const r of results) {
     (r.processes || []).forEach(p => {
       totalProcesses++;
       if (p.status === 'online') onlineCount++;
@@ -248,7 +305,7 @@ async function collectPm2Snapshot() {
     errorCount,
     totalMemory,
     totalMemoryFormatted: formatBytes(totalMemory),
-    users: activeUsers
+    users: results
   };
 }
 

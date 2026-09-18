@@ -86,7 +86,10 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
               users.map((u, idx) => {
                 const online = (u.processes || []).filter((p) => p.status === 'online').length;
                 const total = (u.processes || []).length;
-                const memSum = (u.processes || []).reduce((s, p) => s + (p.memoryBytes || 0), 0);
+                const memSum = (u.processes || []).reduce(
+                  (s, p) => s + (p.memoryBytes ?? p.memory ?? 0),
+                  0
+                );
 
                 return (
                   <div
@@ -145,7 +148,7 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
                     <div>
                       <div className="font-semibold text-white">{p.name}</div>
                       <div className="text-[10px] text-neutral-500">
-                        USER: {u.user} | PID: {p.pid || '--'} | RESTARTS: {p.restartCount || 0}
+                        USER: {u.user} | PID: {p.pid || '--'} | RESTARTS: {p.restartCount ?? p.restart_time ?? 0}
                       </div>
                     </div>
                     <div className="text-right space-y-1">

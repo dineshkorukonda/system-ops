@@ -139,8 +139,7 @@ async function detectPm2() {
     for (const u of users) {
       const procs = u.processes || [];
       totalProcesses += procs.length;
-      if (procs.length > 0 && !u.error) workingUsers++;
-      if (!u.error && u.pm2Path) workingUsers++;
+      if (!u.error && (procs.length > 0 || u.pm2Path)) workingUsers++;
     }
 
     const available = totalProcesses > 0 || workingUsers > 0;
