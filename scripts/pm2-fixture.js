@@ -6,7 +6,8 @@ async function main() {
   const user = os.userInfo().username;
   process.env[`PM2_PATH_${user.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`] = process.env.PM2_FIXTURE_PATH;
   const snapshot = await collectPm2Snapshot();
-  assert.equal(snapshot.totalProcesses, 3);
+  const failures = JSON.stringify(snapshot.allUsers.map(entry => ({ user: entry.user, error: entry.error })));
+  assert.equal(snapshot.totalProcesses, 3, failures);
   assert.equal(snapshot.onlineCount, 3);
   assert.equal(snapshot.allUsers.length, 3);
   assert.equal(snapshot.failedUserCount, 1);

@@ -17,7 +17,7 @@ done < "$TASK_CONFIG"
 [[ "$TASK_HOME" == /* && "$TASK_BINARY" == /* && "$TASK_NODE_DIR" == /* ]] || { echo 'User is not configured in PM2 helper' >&2; exit 1; }
 case "$TASK_ACTION" in
   probe) [[ $# == 2 ]]; exec /usr/sbin/runuser -u "$TASK_USER" -- /usr/bin/test -S "$TASK_HOME/rpc.sock" ;;
-  binary) [[ $# == 2 ]]; printf '%s\n' "$TASK_BINARY" ;;
+  binary) [[ $# == 2 ]]; printf '%s\n' "$TASK_BINARY"; exit 0 ;;
   jlist) [[ $# == 2 ]]; set -- jlist ;;
   logs)
     [[ $# == 6 && "$3" =~ ^[0-9]+$ && "$4" == --nostream && "$5" == --lines && "$6" =~ ^[0-9]+$ && "$6" -ge 1 && "$6" -le 1000 ]] || exit 2

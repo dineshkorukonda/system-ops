@@ -20,6 +20,9 @@ sudo install -d -m 755 /usr/local/libexec/system-ops /etc/system-ops
 sudo install -o root -g root -m 755 scripts/pm2-read.sh /usr/local/libexec/system-ops/pm2-read
 printf 'root|%s/root|%s/node_modules/.bin/pm2|%s\n' "$TASK_DIR" "$TASK_DIR" "$TASK_NODE_DIR" | sudo tee /etc/system-ops/pm2-monitor.conf >/dev/null
 sudo chmod 644 /etc/system-ops/pm2-monitor.conf
+# A path lookup must exit after printing the path, without invoking the CLI.
+TASK_RESOLVED="$(sudo /usr/local/libexec/system-ops/pm2-read root binary)"
+[[ "$TASK_RESOLVED" == "$TASK_DIR/node_modules/.bin/pm2" ]]
 PM2_HOME="$TASK_DIR/own" PM2_USERS="$TASK_USER,root,missing-fixture-user" PM2_PATH="$TASK_DIR/node_modules/.bin/pm2" \
   PM2_HOME_ROOT="$TASK_DIR/root" PM2_FIXTURE_PATH="$TASK_DIR/node_modules/.bin/pm2" node scripts/pm2-fixture.js
 # The privileged helper must reject mutations and caller-selected paths.
