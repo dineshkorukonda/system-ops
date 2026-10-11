@@ -28,6 +28,17 @@ jobs:
       - name: Smoke-test production startup and authentication
         run: npm run test:smoke
 
+      - name: Record short Linux resource baseline
+        run: node scripts/resource-baseline.js
+        env:
+          BASELINE_SECONDS: '10'
+          BASELINE_WARMUP_SECONDS: '5'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: resource-baseline
+          path: artifacts/resource-baseline.json
+
   docker-smoke:
     runs-on: ubuntu-latest
     steps:
