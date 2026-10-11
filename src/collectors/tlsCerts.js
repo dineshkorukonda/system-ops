@@ -1,5 +1,6 @@
 const fs = require('fs');
 const tls = require('tls');
+const { bindCancellation } = require('../core/collectionContext');
 const path = require('path');
 const { runCommand } = require('../utils/exec');
 const { discoverNginxDomains, discoverNginxSslMap } = require('../utils/domainDiscovery');
@@ -113,6 +114,7 @@ function checkNetworkTlsCert(hostname, port = 443, timeoutMs = 5000) {
         socket.destroy();
         finish(null);
       });
+      bindCancellation(socket);
     } catch {
       finish(null);
     }

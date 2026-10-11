@@ -1,3 +1,4 @@
+const { bindCancellation } = require('../core/collectionContext');
 const net = require('net');
 const fs = require('fs');
 const { runCommand } = require('../utils/exec');
@@ -26,7 +27,7 @@ function probePort(port, host = '127.0.0.1', timeoutMs = 800) {
       resolve(false);
     });
 
-    socket.connect(port, host);
+    bindCancellation(socket); socket.connect(port, host);
   });
 }
 
