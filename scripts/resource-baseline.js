@@ -122,11 +122,13 @@ async function run(scenario, ticksPerSecond) {
       previous = current; previousTime = now;
     }
     const final = await (await request('/api/v2/ops/diagnostics', { headers: { cookie } })).json();
+    const finalTraffic = await (await request('/api/v2/traffic/analytics', { headers: { cookie } })).json();
     return { scenario, durationSeconds: (performance.now() - start) / 1000, generatedLogLines: lines, rotated,
       summary: { rssMedianBytes: quantile(samples.map(s => s.rssBytes), .5), rssPeakBytes: Math.max(...samples.map(s => s.rssBytes)),
         cpuAverageOneCorePercent: samples.reduce((sum, s) => sum + s.cpuOneCorePercent, 0) / samples.length,
         apiRequests: requests, apiErrors: errors, apiP95Ms: quantile(latencies, .95) },
-      initialDiagnostics: initial, finalDiagnostics: final, samples,
+      initialDiagnostics: initial, finalDiagnostics: final, traffic: { summary: finalTraffic.summary,
+        retention: finalTraffic.retention, processing: finalTraffic.processing }, samples,
       limitations: ['One-second process sampling misses short-lived children; command counts are instrumented separately.',
         'Fixtures exercise API viewers, not browser rendering. This is not an availability or SLO measurement.'] };
   } finally {
@@ -146,7 +148,8 @@ async function main() {
     commit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     machine: { platform: process.platform, release: os.release(), arch: os.arch(), cpus: os.cpus().map(cpu => cpu.model),
       totalMemoryBytes: os.totalmem(), node: process.version, osRelease: fs.readFileSync('/etc/os-release', 'utf8') },
-    configuration: { collector: 'node-only', seconds, warmup, viewers: 5, trafficLinesPerSecond: 1000 }, results: [] };
+    configuration: { collector: 'node-only', seconds, warmup, viewers: 5, trafficLinesPerSecond: 1000,
+      geoip: process.env.TRAFFIC_GEOIP === 'true', userAgent: process.env.TRAFFIC_PARSE_USER_AGENT === 'true' }, results: [] };
   const ticks = Number(execFileSync('getconf', ['CLK_TCK'], { encoding: 'utf8' }).trim());
   for (const scenario of scenarios) { console.log('Measuring ' + scenario); report.results.push(await run(scenario, ticks)); }
   report.completedAt = new Date().toISOString();

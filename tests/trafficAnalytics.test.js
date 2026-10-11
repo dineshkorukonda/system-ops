@@ -36,6 +36,8 @@ test('parseTrafficAnalytics handles non-existent file gracefully', async () => {
 });
 
 test('parseTrafficAnalytics correctly parses sample log lines and respects configured domains', async () => {
+  const previousEnrichment = process.env.TRAFFIC_PARSE_USER_AGENT;
+  process.env.TRAFFIC_PARSE_USER_AGENT = 'true';
   const tmpDir = os.tmpdir();
   const sampleLogPath = path.join(tmpDir, `test_access_${Date.now()}.log`);
 
@@ -81,6 +83,8 @@ test('parseTrafficAnalytics correctly parses sample log lines and respects confi
     assert.ok(result.browsers);
     assert.ok(Array.isArray(result.hourly_distribution));
   } finally {
+    if (previousEnrichment === undefined) delete process.env.TRAFFIC_PARSE_USER_AGENT;
+    else process.env.TRAFFIC_PARSE_USER_AGENT = previousEnrichment;
     if (prevTracked !== undefined) process.env.TRACKED_DOMAINS = prevTracked;
     else delete process.env.TRACKED_DOMAINS;
     try { fs.unlinkSync(sampleLogPath); } catch (e) {}

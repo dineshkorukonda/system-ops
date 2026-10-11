@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
@@ -48,3 +49,24 @@ jobs:
           node-version: '24'
       - name: Build and smoke-test the production image
         run: bash scripts/docker-smoke.sh
+
+  traffic-comparison:
+    if: github.head_ref == 'fix/traffic-bounds' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Compare reference and current defaults on the same machine
+        run: bash scripts/compare-resources.sh
+        env:
+          BASELINE_SECONDS: '20'
+          BASELINE_WARMUP_SECONDS: '5'
+          BASELINE_SCENARIOS: idle,traffic,rotation
+      - uses: actions/upload-artifact@v4
+        with:
+          name: traffic-comparison
+          path: artifacts/comparison/
