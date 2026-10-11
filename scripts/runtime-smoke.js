@@ -106,6 +106,15 @@ async function smoke() {
     assert.equal(snapshot.status, 200);
     const data = await snapshot.json();
     assert.ok(data.memory && data.uptime, 'System snapshot structure missing');
+    assert.equal(data.collection.status, 'healthy');
+    assert.ok(data.collection.lastSuccess && data.collection.source);
+    const healthResponse = await request('/api/v2/ops/health', { headers });
+    assert.equal(healthResponse.status, 200);
+    const health = await healthResponse.json();
+    assert.ok(health.collectors.system.lastSuccess);
+    const readiness = await request('/ready');
+    assert.ok([200, 503].includes(readiness.status));
+    assert.deepEqual(await readiness.json(), { ok: readiness.status === 200 });
     const diagnostics = await request('/api/v2/ops/diagnostics', { headers });
     assert.equal(diagnostics.status, 200);
     assert.ok((await diagnostics.json()).systemOpsMemory.rssBytes > 0);

@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { Sparkline } from './ui/Sparkline';
 import { ProgressBar } from './ui/ProgressBar';
+import { CollectionStatus } from './CollectionStatus';
 
 export function SystemHealthView({
   systemData,
@@ -19,12 +20,13 @@ export function SystemHealthView({
   const ports = systemData?.ports || [];
   const tls = systemData?.tls || [];
 
-  const load1 = parseFloat(upt.load1m) || 0;
-  const memPct = mem.usagePercent || 0;
-  const swapPct = swap.usagePercent || 0;
+  const cpuPct = Number.isFinite(upt.cpuPercent) ? upt.cpuPercent : null;
+  const memPct = Number.isFinite(mem.usagePercent) ? mem.usagePercent : null;
+  const swapPct = Number.isFinite(swap.usagePercent) ? swap.usagePercent : null;
 
   return (
     <div className="space-y-6">
+      <CollectionStatus collection={systemData?.collection} />
       {osUpdatesData?.available && osUpdatesData.pendingCount > 0 && (
         <Card>
           <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
@@ -45,23 +47,23 @@ export function SystemHealthView({
 
       {/* ─── Hero Telemetry Cards with Real-Time Sparklines ─── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* CPU Load Card */}
+        {/* CPU utilization is distinct from load average. */}
         <Card>
           <CardContent className="p-4 space-y-2">
             <div className="flex items-center justify-between">
               <span className="font-mono text-[11px] uppercase tracking-wider text-neutral-400">
-                CPU Load (1m)
+                CPU Utilization
               </span>
-              <Badge variant={load1 > (upt.cpus || 4) ? 'warn' : 'ok'}>
-                {load1 > (upt.cpus || 4) ? 'HIGH LOAD' : 'NORMAL'}
+              <Badge variant={cpuPct === null ? 'neutral' : cpuPct > 85 ? 'warn' : 'ok'}>
+                {cpuPct === null ? 'NOT SAMPLED' : cpuPct > 85 ? 'HIGH' : 'NORMAL'}
               </Badge>
             </div>
             <div className="flex items-baseline justify-between">
               <div className="font-mono text-2xl font-bold tracking-tight text-white">
-                {load1.toFixed(2)}
+                {cpuPct === null ? '--' : `${cpuPct}%`}
               </div>
               <span className="font-mono text-xs text-neutral-500">
-                {upt.cpus ? `${upt.cpus} Cores` : '--'}
+                {upt.cpus ? `${upt.cpus} Cores · load ${upt.load1m ?? '--'}` : '--'}
               </span>
             </div>
             <div className="pt-2">
@@ -77,16 +79,16 @@ export function SystemHealthView({
               <span className="font-mono text-[11px] uppercase tracking-wider text-neutral-400">
                 RAM Utilization
               </span>
-              <Badge variant={memPct > 85 ? 'err' : memPct > 65 ? 'warn' : 'ok'}>
-                {memPct}%
+              <Badge variant={memPct === null ? 'neutral' : memPct > 85 ? 'err' : memPct > 65 ? 'warn' : 'ok'}>
+                {memPct === null ? '--' : `${memPct}%`}
               </Badge>
             </div>
             <div className="flex items-baseline justify-between">
               <div className="font-mono text-2xl font-bold tracking-tight text-white">
-                {mem.formattedUsed || '0 B'}
+                {mem.formattedUsed || '--'}
               </div>
               <span className="font-mono text-xs text-neutral-500">
-                of {mem.formattedTotal || '0 B'}
+                of {mem.formattedTotal || '--'}
               </span>
             </div>
             <div className="pt-2">
@@ -103,15 +105,15 @@ export function SystemHealthView({
                 Swap Utilization
               </span>
               <Badge variant={swapPct > 50 ? 'err' : swapPct > 20 ? 'warn' : 'neutral'}>
-                {swapPct}%
+                {swapPct === null ? '--' : `${swapPct}%`}
               </Badge>
             </div>
             <div className="flex items-baseline justify-between">
               <div className="font-mono text-2xl font-bold tracking-tight text-white">
-                {swap.formattedUsed || '0 B'}
+                {swap.formattedUsed || '--'}
               </div>
               <span className="font-mono text-xs text-neutral-500">
-                of {swap.formattedTotal || '0 B'}
+                of {swap.formattedTotal || '--'}
               </span>
             </div>
             <div className="pt-2">
