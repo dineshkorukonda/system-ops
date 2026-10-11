@@ -614,4 +614,17 @@ server.on('error', (err) => {
   process.exit(1);
 });
 
+if (process.env.NODE_ENV !== 'test') {
+  let shuttingDown = false;
+  const shutdown = () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    collectorManager.stopAll();
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(1), 10000).unref();
+  };
+  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
+}
+
 module.exports = { app, server };

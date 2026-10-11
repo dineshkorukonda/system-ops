@@ -1,4 +1,5 @@
 const { stateStore } = require('./stateStore');
+const { context } = require('./collectionContext');
 
 /**
  * CollectorManager owns the scheduled execution of all background telemetry collectors.
@@ -11,11 +12,14 @@ const { stateStore } = require('./stateStore');
  * 5. Manual rescan triggering for discovery.
  */
 class CollectorManager {
-  constructor(store = stateStore) {
+  constructor(store = stateStore, { maxConcurrent = 2 } = {}) {
     this.store = store;
     this.collectors = new Map();
     this.timers = new Map();
     this.isRunning = false;
+    this.maxConcurrent = maxConcurrent;
+    this.active = 0;
+    this.optionalActive = 0;
   }
 
   /**
@@ -38,7 +42,8 @@ class CollectorManager {
     enabled = true,
     critical = false,
     staleAfterMs = null,
-    transform = null
+    transform = null,
+    timeoutMs = 15000
   }) {
     if (typeof collect !== 'function') {
       throw new Error(`Collector [${name}] must provide a collect function`);
@@ -54,6 +59,7 @@ class CollectorManager {
       enabled,
       critical,
       transform,
+      timeoutMs: Math.max(10, timeoutMs),
       running: false,
       consecutiveErrors: 0,
       totalRuns: 0,
@@ -77,12 +83,27 @@ class CollectorManager {
       if (stats) stats.skipped = col.skippedRuns;
       return { skipped: true, reason: 'Already running' };
     }
+    if (this.active >= this.maxConcurrent || (!col.critical && this.optionalActive >= Math.max(1, this.maxConcurrent - 1))) {
+      col.skippedRuns++;
+      return { skipped: true, reason: 'Concurrency budget' };
+    }
 
     col.running = true;
+    this.active++;
+    if (!col.critical) this.optionalActive++;
+    const controller = new AbortController();
+    col.controller = controller;
+    let deadline;
+    let work;
     const startTime = Date.now();
 
     try {
-      const data = await col.collect();
+      work = context.run({ signal: controller.signal }, () => Promise.resolve(col.collect({ signal: controller.signal })));
+      const timeout = new Promise((resolve, reject) => {
+        deadline = setTimeout(() => { controller.abort(); reject(new Error(`Collection deadline exceeded (${col.timeoutMs}ms)`)); }, col.timeoutMs);
+      });
+      const data = await Promise.race([work, timeout]);
+      if (controller.signal.aborted || !col.enabled) throw new Error('Collection cancelled');
       const durationMs = Date.now() - startTime;
       const finalData = col.transform ? col.transform(data) : data;
 
@@ -131,7 +152,11 @@ class CollectorManager {
 
       return { success: false, durationMs, error: err.message };
     } finally {
-      col.running = false;
+      clearTimeout(deadline);
+      // Retain the slot until cancelled I/O really settles. A timeout must not
+      // permit another overlapping copy of an uncooperative collector.
+      const release = () => { col.running = false; col.controller = null; this.active--; if (!col.critical) this.optionalActive--; };
+      if (work) work.then(release, release); else release();
     }
   }
 
@@ -158,6 +183,7 @@ class CollectorManager {
       lastAttempt: stats?.lastUpdated || null,
       lastError: stats?.lastError || null,
       ageMs, staleAfterMs,
+      skippedRuns: col.skippedRuns, consecutiveErrors: col.consecutiveErrors,
     };
   }
 
@@ -168,6 +194,7 @@ class CollectorManager {
       ok: critical.length > 0 && critical.every(col => col.fresh),
       timestamp: new Date(now).toISOString(),
       collectors,
+      concurrency: { active: this.active, optionalActive: this.optionalActive, limit: this.maxConcurrent },
     };
   }
 
@@ -178,34 +205,23 @@ class CollectorManager {
     if (this.isRunning) return;
     this.isRunning = true;
 
-    // Run initial cycle for all collectors sequentially / in parallel
-    const initialPromises = [];
-    for (const [name, col] of this.collectors.entries()) {
-      if (col.enabled) {
-        initialPromises.push(
-          this.runCollector(name).catch(e => {
-            console.error(`[CollectorManager] Initial run error for ${name}:`, e.message);
-          })
-        );
-      }
+    let stagger = 0;
+    for (const [name, col] of [...this.collectors].sort((a, b) => Number(b[1].critical) - Number(a[1].critical))) {
+      if (col.enabled) { this.schedule(name, stagger); stagger += 200; }
     }
+  }
 
-    // Await initial collection before starting intervals
-    await Promise.allSettled(initialPromises);
-
-    // Schedule intervals
-    for (const [name, col] of this.collectors.entries()) {
-      if (col.enabled) {
-        const timer = setInterval(() => {
-          this.runCollector(name);
-        }, col.intervalMs);
-
-        // Allow Node process to exit gracefully if only collectors are active
-        if (timer.unref) timer.unref();
-
-        this.timers.set(name, timer);
-      }
-    }
+  schedule(name, delay) {
+    const col = this.collectors.get(name);
+    if (!this.isRunning || !col.enabled) return;
+    clearTimeout(this.timers.get(name));
+    const timer = setTimeout(async () => {
+      await this.runCollector(name);
+      const backoff = Math.min(8, 2 ** Math.min(3, col.consecutiveErrors));
+      this.schedule(name, col.intervalMs * backoff);
+    }, delay);
+    timer.unref?.();
+    this.timers.set(name, timer);
   }
 
   /**
@@ -213,24 +229,23 @@ class CollectorManager {
    */
   stopAll() {
     for (const [name, timer] of this.timers.entries()) {
-      clearInterval(timer);
+      clearTimeout(timer);
     }
     this.timers.clear();
     this.isRunning = false;
+    for (const col of this.collectors.values()) col.controller?.abort();
   }
 
   setEnabled(name, enabled) {
     const col = this.collectors.get(name);
     if (!col || col.enabled === enabled) return;
     col.enabled = enabled;
-    clearInterval(this.timers.get(name));
+    clearTimeout(this.timers.get(name));
     this.timers.delete(name);
     if (enabled && this.isRunning) {
-      this.runCollector(name);
-      const timer = setInterval(() => this.runCollector(name), col.intervalMs);
-      timer.unref?.();
-      this.timers.set(name, timer);
+      this.runCollector(name).finally(() => this.schedule(name, col.intervalMs));
     }
+    if (!enabled) col.controller?.abort();
   }
 
   /**
@@ -257,12 +272,7 @@ class CollectorManager {
     col.intervalMs = Math.max(1000, intervalMs);
 
     if (this.timers.has(name)) {
-      clearInterval(this.timers.get(name));
-      const timer = setInterval(() => {
-        this.runCollector(name);
-      }, col.intervalMs);
-      if (timer.unref) timer.unref();
-      this.timers.set(name, timer);
+      this.schedule(name, col.intervalMs);
     }
   }
 }

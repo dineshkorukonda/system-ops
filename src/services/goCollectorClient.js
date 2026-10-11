@@ -5,6 +5,7 @@
  */
 
 const GO_COLLECTOR_URL = (process.env.GO_COLLECTOR_URL || 'http://127.0.0.1:9081').replace(/\/$/, '');
+const { combinedSignal } = require('../core/collectionContext');
 const HEALTH_CACHE_MS = parseInt(process.env.GO_COLLECTOR_HEALTH_CACHE_MS, 10) || 30000;
 const REQUEST_TIMEOUT_MS = parseInt(process.env.GO_COLLECTOR_TIMEOUT_MS, 10) || 2000;
 
@@ -24,7 +25,7 @@ async function fetchJson(path, timeoutMs = REQUEST_TIMEOUT_MS) {
 
   try {
     const res = await fetch(`${GO_COLLECTOR_URL}${path}`, {
-      signal: controller.signal,
+      signal: combinedSignal(controller.signal),
       headers: { Accept: 'application/json' }
     });
 
