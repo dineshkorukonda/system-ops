@@ -24,6 +24,8 @@ jobs:
         run: npm test
       - name: Check collector boundary types
         run: npm run typecheck
+      - name: Audit dependency advisories
+        run: npm audit --audit-level=moderate
 
       - name: Build frontend
         run: npm run build
