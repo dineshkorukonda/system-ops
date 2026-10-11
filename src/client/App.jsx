@@ -15,6 +15,7 @@ import { IntegrationsView } from './components/IntegrationsView';
 import { DatabasesView } from './components/DatabasesView';
 import { SecurityView } from './components/SecurityView';
 import { LoginView } from './components/LoginView';
+import { CollectionStatus } from './components/CollectionStatus';
 
 const MAX_HISTORY = 30;
 
@@ -52,6 +53,9 @@ export function App() {
   const [osUpdatesData, setOsUpdatesData] = useState(null);
   const [branding, setBranding] = useState(null);
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [viewErrors, setViewErrors] = useState({});
+  const [collections, setCollections] = useState({});
+  const syncControllerRef = useRef(null);
 
   const activeTabRef = useRef(activeTab);
   const lastMetricSuccessRef = useRef(null);
@@ -144,198 +148,111 @@ export function App() {
     });
   };
 
-  const fetchCapabilities = async () => {
-    try {
-      const res = await fetch('/api/v2/system/capabilities');
-      if (res.ok) {
-        const data = await res.json();
-        setCapabilities(data);
-        const tab = activeTabRef.current;
-        const capMap = {
-          docker: data.docker?.available,
-          pm2: data.pm2?.available,
-          ollama: data.ollama?.available,
-          traffic: data.traffic?.available,
-        };
-        if (capMap[tab] === false) setActiveTab('integrations');
-      }
-    } catch (e) {}
+  const api = async (route) => {
+    const signal = syncControllerRef.current?.signal;
+    const res = await fetch(route, { signal });
+    if (res.status === 401) { setIsAuthenticated(false); throw new Error('Session expired. Please log in.'); }
+    const data = await res.json();
+    if (signal?.aborted) throw new DOMException('View changed', 'AbortError');
+    if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+    return data;
   };
 
-  const fetchSystemSnapshot = async () => {
+  const load = async (key, route, setter, transform = data => data) => {
     try {
-      const res = await fetch('/api/v2/system/snapshot');
-      if (res.status === 401) { setIsAuthenticated(false); return; }
-      if (res.ok) {
-        const data = await res.json();
-        setSystemData(data);
-        setMonitoringHealth(data.monitoringHealth);
-        setLastUpdated(data.collection?.lastSuccess ? new Date(data.collection.lastSuccess) : null);
-        if (data.collection?.fresh && data.collection.lastSuccess !== lastMetricSuccessRef.current) {
-          lastMetricSuccessRef.current = data.collection.lastSuccess;
-          if (Number.isFinite(data.uptime?.cpuPercent)) pushMetric(setCpuHistory, data.uptime.cpuPercent);
-          if (Number.isFinite(data.memory?.usagePercent)) pushMetric(setRamHistory, data.memory.usagePercent);
-          if (Number.isFinite(data.swap?.usagePercent)) pushMetric(setSwapHistory, data.swap.usagePercent);
-        }
-      } else {
-        const failure = await res.json();
-        setMonitoringHealth({ ok: false });
-        setSystemData(previous => ({ ...previous, collection: failure.collection || {
-          status: 'error', fresh: false, lastError: failure.error || 'Collection request failed',
-        } }));
+      const data = await api(route);
+      setter(transform(data));
+      if (data.collection) {
+        setCollections(previous => ({ ...previous, [key]: data.collection }));
+        setLastUpdated(data.collection.lastSuccess ? new Date(data.collection.lastSuccess) : null);
       }
-    } catch (e) {
-      setMonitoringHealth({ ok: false });
-      setSystemData(previous => ({ ...previous, collection: {
-        ...previous?.collection, status: 'unavailable', fresh: false,
-        lastError: 'Unable to refresh monitoring data',
-      } }));
+      setViewErrors(previous => ({ ...previous, [key]: null }));
+      return data;
+    } catch (error) {
+      if (error.name === 'AbortError') return;
+      setViewErrors(previous => ({ ...previous, [key]: error.message }));
+      setCollections(previous => ({ ...previous, [key]: { ...previous[key], status: 'error', fresh: false, lastError: error.message } }));
     }
   };
 
-  const fetchProcesses = async () => {
-    try {
-      const res = await fetch(`/api/v2/system/processes?sort=${processSortRef.current}&limit=50`);
-      if (res.ok) setProcesses((await res.json()).processes || []);
-    } catch (e) {}
+  const fetchCapabilities = () => load('capabilities', '/api/v2/system/capabilities', setCapabilities);
+  const fetchSystemSnapshot = async () => {
+    const data = await load('system', '/api/v2/system/snapshot', setSystemData);
+    if (!data) return;
+    setMonitoringHealth(data.monitoringHealth);
+    if (data.collection?.fresh && data.collection.lastSuccess !== lastMetricSuccessRef.current) {
+      lastMetricSuccessRef.current = data.collection.lastSuccess;
+      if (Number.isFinite(data.uptime?.cpuPercent)) pushMetric(setCpuHistory, data.uptime.cpuPercent);
+      if (Number.isFinite(data.memory?.usagePercent)) pushMetric(setRamHistory, data.memory.usagePercent);
+      if (Number.isFinite(data.swap?.usagePercent)) pushMetric(setSwapHistory, data.swap.usagePercent);
+    }
   };
-
-  const fetchDockerData = async () => {
-    try {
-      const res = await fetch('/api/v2/docker/snapshot');
-      if (res.ok) setDockerData(await res.json());
-    } catch (e) {}
+  const fetchProcesses = () => load('processes', `/api/v2/system/processes?sort=${processSortRef.current}&limit=50`, setProcesses, data => data.processes || []);
+  const fetchDockerData = () => load('docker', '/api/v2/docker/snapshot', setDockerData);
+  const fetchPm2Data = () => load('pm2', '/api/v2/pm2/snapshot', setPm2Data);
+  const fetchServices = () => load('services', '/api/v2/services/snapshot', setServicesData);
+  const fetchTrafficData = () => load('traffic', '/api/v2/traffic/analytics', setTrafficData);
+  const fetchDatabaseData = () => load('databases', '/api/v2/databases/snapshot', setDatabaseData);
+  const fetchOsUpdates = () => load('osUpdates', '/api/v2/system/updates', setOsUpdatesData);
+  const fetchOllamaData = () => Promise.allSettled([
+    load('ollama', '/api/status', setOllamaStatus),
+    load('ollama', '/api/models', setOllamaModels, data => data.models || []),
+  ]);
+  const fetchOllamaLogs = async () => {
+    if (syncControllerRef.current) return;
+    const controller = new AbortController(); syncControllerRef.current = controller;
+    try { await load('logs', `/api/logs?lines=${ollamaLogLinesRef.current}`, setOllamaLogs, data => data.logs || ''); }
+    finally { if (syncControllerRef.current === controller) syncControllerRef.current = null; }
   };
-
-  const fetchPm2Data = async () => {
-    try {
-      const res = await fetch('/api/v2/pm2/snapshot');
-      if (res.ok) setPm2Data(await res.json());
-    } catch (e) {}
-  };
-
-  const fetchServices = async () => {
-    try {
-      const res = await fetch('/api/v2/services/snapshot');
-      if (res.ok) setServicesData(await res.json());
-    } catch (e) {}
-  };
-
-  const fetchOllamaData = async () => {
-    try {
-      const [statusRes, modelsRes, logsRes] = await Promise.all([
-        fetch('/api/status'),
-        fetch('/api/models'),
-        fetch(`/api/logs?lines=${ollamaLogLinesRef.current}`),
-      ]);
-      if (statusRes.ok) setOllamaStatus(await statusRes.json());
-      if (modelsRes.ok) setOllamaModels((await modelsRes.json()).models || []);
-      if (logsRes.ok) setOllamaLogs((await logsRes.json()).logs || '');
-    } catch (e) {}
-  };
-
-  const fetchBackupData = async () => {
-    try {
-      const [sourcesRes, filesRes] = await Promise.all([
-        fetch('/api/v2/logs/sources'),
-        fetch('/api/v2/backups/files'),
-      ]);
-      if (sourcesRes.ok) setBackupSources((await sourcesRes.json()).sources || []);
-      if (filesRes.ok) setBackupFiles((await filesRes.json()).files || []);
-    } catch (e) {}
-  };
-
-  const fetchTrafficData = async () => {
-    try {
-      const res = await fetch('/api/v2/traffic/analytics');
-      if (res.ok) setTrafficData(await res.json());
-    } catch (e) {}
-  };
-
-  const fetchDatabaseData = async () => {
-    try {
-      const res = await fetch('/api/v2/databases/snapshot');
-      if (res.ok) setDatabaseData(await res.json());
-    } catch (e) {}
-  };
-
-  const fetchSecurityData = async () => {
-    try {
-      const [secRes, certRes] = await Promise.all([
-        fetch('/api/v2/security/snapshot'),
-        fetch('/api/v2/certbot/snapshot'),
-      ]);
-      if (secRes.ok) setSecurityData(await secRes.json());
-      if (certRes.ok) setCertbotData(await certRes.json());
-    } catch (e) {}
-  };
-
-  const fetchOsUpdates = async () => {
-    try {
-      const res = await fetch('/api/v2/system/updates');
-      if (res.ok) setOsUpdatesData(await res.json());
-    } catch (e) {}
-  };
+  const fetchBackupData = () => Promise.allSettled([
+    load('backups', '/api/v2/logs/sources', setBackupSources, data => data.sources || []),
+    load('backups', '/api/v2/backups/files', setBackupFiles, data => data.files || []),
+  ]);
+  const fetchSecurityData = () => Promise.allSettled([
+    load('security', '/api/v2/security/snapshot', setSecurityData),
+    load('certbot', '/api/v2/certbot/snapshot', setCertbotData),
+  ]);
 
   const syncCurrentView = async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || document.hidden || syncControllerRef.current) return;
+    const controller = new AbortController();
+    syncControllerRef.current = controller;
     setIsSyncing(true);
     const tab = activeTabRef.current;
-    const promises = [fetchSystemSnapshot()];
-
-    if (tab === 'system') promises.push(fetchProcesses(), fetchServices(), fetchOsUpdates());
-    else if (tab === 'processes') promises.push(fetchProcesses());
-    else if (tab === 'docker') promises.push(fetchDockerData());
-    else if (tab === 'pm2') promises.push(fetchPm2Data());
-    else if (tab === 'services') promises.push(fetchServices());
-    else if (tab === 'ollama') promises.push(fetchOllamaData());
-    else if (tab === 'backups') promises.push(fetchBackupData());
-    else if (tab === 'traffic') promises.push(fetchTrafficData());
-    else if (tab === 'databases') promises.push(fetchDatabaseData());
-    else if (tab === 'security') promises.push(fetchSecurityData());
-
-    await Promise.allSettled(promises);
-    setIsSyncing(false);
+    const fetchers = { system: fetchSystemSnapshot, processes: fetchProcesses, docker: fetchDockerData,
+      pm2: fetchPm2Data, services: fetchServices, ollama: fetchOllamaData, backups: fetchBackupData,
+      traffic: fetchTrafficData, databases: fetchDatabaseData, security: fetchSecurityData,
+      integrations: fetchCapabilities };
+    try {
+      await Promise.allSettled([
+        load('monitoring', '/api/v2/ops/health', setMonitoringHealth),
+        fetchers[tab]?.(),
+      ]);
+    } finally {
+      if (syncControllerRef.current === controller) { syncControllerRef.current = null; setIsSyncing(false); }
+    }
   };
 
   useEffect(() => {
-    if (isAuthenticated === true) {
-      Promise.allSettled([
-        fetchCapabilities(),
-        fetchSystemSnapshot(),
-        fetchProcesses(),
-        fetchDockerData(),
-        fetchPm2Data(),
-        fetchServices(),
-        fetchOllamaData(),
-        fetchBackupData(),
-        fetchTrafficData(),
-        fetchDatabaseData(),
-        fetchSecurityData(),
-        fetchOsUpdates(),
-        fetchBranding(),
-        fetchVersionCheck(),
-      ]);
-    }
+    if (isAuthenticated === true) { fetchCapabilities(); fetchBranding(); fetchVersionCheck(); }
   }, [isAuthenticated]);
 
   useEffect(() => {
+    setLastUpdated(null);
     if (isAuthenticated === true) syncCurrentView();
-  }, [activeTab, isAuthenticated]);
+    return () => { syncControllerRef.current?.abort(); syncControllerRef.current = null; };
+  }, [activeTab, isAuthenticated, processSort]);
 
   useEffect(() => {
     if (!isAuthenticated || refreshInterval === 0) return;
-    const timerId = setInterval(() => {
-      if (!document.hidden) syncCurrentView();
-    }, refreshInterval * 1000);
-    const onVisible = () => { if (!document.hidden) syncCurrentView(); };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      clearInterval(timerId);
-      document.removeEventListener('visibilitychange', onVisible);
+    const timerId = setInterval(() => { if (!document.hidden) syncCurrentView(); }, refreshInterval * 1000);
+    const onVisible = () => {
+      if (document.hidden) { syncControllerRef.current?.abort(); syncControllerRef.current = null; setIsSyncing(false); }
+      else syncCurrentView();
     };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(timerId); document.removeEventListener('visibilitychange', onVisible); };
   }, [isAuthenticated, refreshInterval]);
-
   if (isAuthenticated === null) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black font-mono text-xs text-neutral-500 theme-bg">
@@ -409,9 +326,11 @@ export function App() {
         />
 
         <main className="flex-1 p-4 md:p-6 max-w-[1600px] w-full mx-auto">
+          {viewErrors[activeTab] && <p role="alert" className="mb-4 text-sm text-amber-400">{viewErrors[activeTab]}</p>}
+          {activeTab !== 'system' && collections[activeTab] && <div className="mb-4"><CollectionStatus collection={collections[activeTab]} /></div>}
           {activeTab === 'system' && (
             <SystemHealthView
-              systemData={systemData}
+              systemData={systemData ? { ...systemData, collection: collections.system || systemData.collection } : null}
               osUpdatesData={osUpdatesData}
               cpuHistory={cpuHistory}
               ramHistory={ramHistory}
@@ -423,12 +342,12 @@ export function App() {
               processes={processes}
               sort={processSort}
               setSort={setProcessSort}
-              onRefresh={fetchProcesses}
+              onRefresh={syncCurrentView}
             />
           )}
-          {activeTab === 'docker' && <DockerView dockerData={dockerData} onRefresh={fetchDockerData} />}
-          {activeTab === 'pm2' && <Pm2FleetView pm2Data={pm2Data} onRefresh={fetchPm2Data} />}
-          {activeTab === 'services' && <ServicesView servicesData={servicesData} onRefresh={fetchServices} />}
+          {activeTab === 'docker' && <DockerView dockerData={dockerData} onRefresh={syncCurrentView} />}
+          {activeTab === 'pm2' && <Pm2FleetView pm2Data={pm2Data} onRefresh={syncCurrentView} />}
+          {activeTab === 'services' && <ServicesView servicesData={servicesData} onRefresh={syncCurrentView} />}
           {activeTab === 'ollama' && (
             <OllamaView
               statusData={ollamaStatus}
@@ -436,11 +355,11 @@ export function App() {
               logs={ollamaLogs}
               logLines={ollamaLogLines}
               setLogLines={setOllamaLogLines}
-              onRefreshLogs={fetchOllamaData}
+              onRefreshLogs={fetchOllamaLogs}
             />
           )}
           {activeTab === 'backups' && (
-            <BackupsView sources={backupSources} files={backupFiles} onRefreshFiles={fetchBackupData} />
+            <BackupsView sources={backupSources} files={backupFiles} onRefreshFiles={syncCurrentView} />
           )}
           {activeTab === 'traffic' && <TrafficAnalyticsView trafficData={trafficData} />}
           {activeTab === 'databases' && <DatabasesView databaseData={databaseData} />}

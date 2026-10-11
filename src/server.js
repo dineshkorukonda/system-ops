@@ -132,6 +132,12 @@ for (const [route, name] of Object.entries(cachedRoutes)) app.get(route, (req, r
     disabled: collection?.enabled === false, collection,
     error: collection?.enabled ? 'Waiting for collection' : 'Integration is disabled' });
 });
+for (const [route, key] of [['/api/status', 'status'], ['/api/models', 'models']]) app.get(route, (req, res) => {
+  const collection = collectorManager.getCollectorHealth('ollama');
+  res.setHeader('Cache-Control', 'no-store');
+  return res.json({ ...(stateStore.get(`ollama.${key}`) || {}), collection,
+    disabled: !collection?.enabled });
+});
 
 /**
  * Internal Ops Diagnostics (Self-Monitoring for System-Ops itself)
