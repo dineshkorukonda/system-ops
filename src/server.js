@@ -17,7 +17,7 @@ const { getVersionInfo, getUpdateStatus, startUpdate } = require('./services/upd
 // Core Architecture Modules
 const { stateStore } = require('./core/stateStore');
 const { collectorManager } = require('./core/collectorManager');
-const { registerAllCollectors } = require('./core/scheduler');
+const { registerAllCollectors, applyIntegrationSettings } = require('./core/scheduler');
 
 // On-demand collectors & tail handlers (interactive operations)
 const { getServiceLogs } = require('./collectors/services');
@@ -113,6 +113,25 @@ app.get('/login.html', (req, res) => {
  * All endpoints read shared cached stateStore by default (Zero direct system discovery overhead).
  */
 app.use('/api', apiLimiter, requireAuth);
+
+// Optional snapshot routes never launch discovery or collection from a viewer.
+const cachedRoutes = {
+  '/api/v2/services/snapshot': 'services', '/api/v2/pm2/snapshot': 'pm2',
+  '/api/v2/docker/snapshot': 'docker', '/api/v2/backups/files': 'backups',
+  '/api/v2/traffic/analytics': 'traffic', '/api/traffic-analytics': 'traffic',
+  '/api/v2/databases/snapshot': 'databases', '/api/v2/security/snapshot': 'security',
+  '/api/v2/certbot/snapshot': 'certbot', '/api/v2/system/updates': 'osUpdates',
+  '/api/v2/system/capabilities': 'capabilities',
+};
+for (const [route, name] of Object.entries(cachedRoutes)) app.get(route, (req, res) => {
+  const collection = collectorManager.getCollectorHealth(name);
+  const cached = stateStore.get(name);
+  res.setHeader('Cache-Control', 'no-store');
+  if (cached != null) return res.json({ ...cached, collection });
+  return res.status(collection?.enabled ? 503 : 200).json({ available: false,
+    disabled: collection?.enabled === false, collection,
+    error: collection?.enabled ? 'Waiting for collection' : 'Integration is disabled' });
+});
 
 /**
  * Internal Ops Diagnostics (Self-Monitoring for System-Ops itself)
@@ -502,6 +521,10 @@ app.put('/api/v2/settings', async (req, res) => {
   const result = updateSettings(req.body || {});
   if (!result.success) {
     return res.status(400).json(result);
+  }
+  if (req.body?.integrations !== undefined) {
+    applyIntegrationSettings();
+    stateStore.set('capabilities', await getCapabilities());
   }
 
   // Toggle auto-update timer when setting changes

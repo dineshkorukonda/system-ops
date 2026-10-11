@@ -69,6 +69,7 @@ class CollectorManager {
     if (!col) {
       throw new Error(`Collector [${name}] not found`);
     }
+    if (!col.enabled) return { skipped: true, reason: 'Disabled' };
 
     if (col.running) {
       col.skippedRuns++;
@@ -216,6 +217,20 @@ class CollectorManager {
     }
     this.timers.clear();
     this.isRunning = false;
+  }
+
+  setEnabled(name, enabled) {
+    const col = this.collectors.get(name);
+    if (!col || col.enabled === enabled) return;
+    col.enabled = enabled;
+    clearInterval(this.timers.get(name));
+    this.timers.delete(name);
+    if (enabled && this.isRunning) {
+      this.runCollector(name);
+      const timer = setInterval(() => this.runCollector(name), col.intervalMs);
+      timer.unref?.();
+      this.timers.set(name, timer);
+    }
   }
 
   /**

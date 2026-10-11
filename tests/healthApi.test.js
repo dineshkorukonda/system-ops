@@ -10,6 +10,20 @@ let base;
 const headers = { Authorization: 'Bearer fixture-health-api-password' };
 const request = (route, options = {}) => fetch(`${base}${route}`, { ...options, signal: AbortSignal.timeout(5000) });
 
+test('optional snapshot viewers cannot start a disabled collector', async () => {
+  let calls = 0;
+  collectorManager.register({ name: 'docker', enabled: false, collect: async () => ({ count: ++calls }) });
+  stateStore.state.docker = null;
+  for (let i = 0; i < 5; i++) {
+    const response = await request('/api/v2/docker/snapshot', { headers });
+    assert.equal(response.status, 200);
+    const data = await response.json();
+    assert.equal(data.disabled, true);
+    assert.equal(data.collection.status, 'disabled');
+  }
+  assert.equal(calls, 0);
+});
+
 before(async () => {
   const reservation = net.createServer();
   await new Promise(resolve => reservation.listen(0, '127.0.0.1', resolve));

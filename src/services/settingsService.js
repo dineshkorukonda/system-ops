@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { integrationDefaults, validateIntegrations } = require('../core/integrationConfig');
 
 const DATA_DIR = process.env.SYSTEM_OPS_DATA_DIR
   ? path.resolve(process.env.SYSTEM_OPS_DATA_DIR)
@@ -13,6 +14,7 @@ const DEFAULTS = {
   syncNameWithHostname: false,
   pageTitleTemplate: '{siteName} | {hostname}',
   autoUpdateEnabled: false,
+  integrations: {},
 };
 
 const ALLOWED_KEYS = new Set(Object.keys(DEFAULTS));
@@ -26,7 +28,7 @@ function ensureDataDir() {
 }
 
 function getEnvDefaults() {
-  const defaults = { ...DEFAULTS };
+  const defaults = { ...DEFAULTS, integrations: integrationDefaults() };
   if (process.env.SITE_NAME) {
     defaults.siteName = process.env.SITE_NAME.trim();
   }
@@ -69,7 +71,9 @@ function buildPageTitle(settings, extras = {}) {
 }
 
 function getSettings() {
-  const merged = { ...getEnvDefaults(), ...readRawSettings() };
+  const raw = readRawSettings();
+  const merged = { ...getEnvDefaults(), ...raw,
+    integrations: { ...integrationDefaults(), ...(raw.integrations || {}) } };
 
   return {
     ...merged,
@@ -91,6 +95,9 @@ function getPublicBranding() {
 
 function validateSettings(input) {
   const errors = [];
+  if (input.integrations !== undefined && !validateIntegrations(input.integrations)) {
+    errors.push('integrations must contain known integration names with boolean values');
+  }
 
   if (input.siteName !== undefined) {
     const name = String(input.siteName).trim();
@@ -128,7 +135,9 @@ function updateSettings(partial) {
   for (const [key, value] of Object.entries(partial)) {
     if (!ALLOWED_KEYS.has(key)) continue;
 
-    if (key === 'syncNameWithHostname' || key === 'autoUpdateEnabled') {
+    if (key === 'integrations') {
+      next.integrations = { ...integrationDefaults(), ...current.integrations, ...value };
+    } else if (key === 'syncNameWithHostname' || key === 'autoUpdateEnabled') {
       next[key] = Boolean(value);
     } else if (typeof value === 'string') {
       next[key] = value.trim();
