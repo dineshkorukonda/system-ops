@@ -183,7 +183,7 @@ NODE_ENV=production
 PORT=9080
 HOST=127.0.0.1
 ENABLE_SYSTEM_COLLECTOR=true
-ENABLE_GO_COLLECTOR=true
+ENABLE_GO_COLLECTOR=false
 GO_COLLECTOR_URL=http://127.0.0.1:9081
 GO_COLLECTOR_PORT=9081
 GO_COLLECTOR_HOST=127.0.0.1
@@ -217,6 +217,7 @@ npm ci --silent
 echo "  -> Building React SPA production bundle..."
 npm run build --silent
 
+if grep -q '^ENABLE_GO_COLLECTOR=true' "$INSTALL_DIR/.env"; then
 if ! command -v go &>/dev/null; then
   echo "  -> Installing Go toolchain for collector sidecar..."
   apt-get install -y -qq golang-go || true
@@ -227,6 +228,7 @@ if command -v go &>/dev/null; then
   bash "$INSTALL_DIR/scripts/build-go-collector.sh" || echo "  Notice: Go collector build skipped."
 else
   echo "  Notice: Go not available; Node collectors will be used."
+fi
 fi
 
 chown -R "$OPS_USER:$OPS_USER" "$INSTALL_DIR"
@@ -239,7 +241,7 @@ chmod 0440 /etc/sudoers.d/system-ops
 
 # Install and start systemd units
 cp "$INSTALL_DIR/systemd/system-ops.service" /etc/systemd/system/system-ops.service
-if [ -x "$INSTALL_DIR/go-collector/bin/system-ops-collector" ]; then
+if grep -q '^ENABLE_GO_COLLECTOR=true' "$INSTALL_DIR/.env" && [ -x "$INSTALL_DIR/go-collector/bin/system-ops-collector" ]; then
   cp "$INSTALL_DIR/systemd/system-ops-collector.service" /etc/systemd/system/system-ops-collector.service
   systemctl daemon-reload
   systemctl enable system-ops-collector.service

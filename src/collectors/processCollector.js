@@ -309,7 +309,8 @@ async function sampleProcesses(options = {}) {
             return {
               pid: p.Id || 0,
               user: os.userInfo().username || 'system',
-              cpuPercent: Math.round((p.CPU || 0) * 10) / 10,
+              cpuPercent: null,
+              cpuTotalSeconds: p.CPU ?? null,
               memPercent: 0,
               vszBytes: rss,
               rssBytes: rss,

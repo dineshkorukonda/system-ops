@@ -76,7 +76,7 @@ async function smoke() {
 
     const loginPage = await request('/login.html');
     assert.equal(loginPage.status, 200, 'Legacy login page missing');
-    assert.match(await loginPage.text(), /password/i);
+    assert.match(await loginPage.text(), /\/assets\/.*\.js/);
     const branding = await request('/api/v2/settings/branding');
     assert.equal(branding.status, 200, 'Branding requires a writable data directory');
     const currentBranding = await branding.json();

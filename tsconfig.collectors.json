@@ -1,0 +1,5 @@
+{
+  "compilerOptions": { "allowJs": true, "checkJs": true, "strict": true, "noEmit": true,
+    "target": "ES2022", "module": "commonjs", "skipLibCheck": true, "types": [] },
+  "files": ["src/core/collectorSchemas.js"]
+}
