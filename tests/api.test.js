@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
 
-const { requireAuth, generateSessionToken } = require('../src/middleware/auth');
+const { requireAuth, handleLogin } = require('../src/middleware/auth');
 const { getBackupFilePath } = require('../src/collectors/backupFiles');
 const { getLogSourceTail } = require('../src/collectors/logSources');
 
@@ -39,8 +39,10 @@ test('Auth Middleware - rejects unauthorized request when no session cookie or h
 
 test('Auth Middleware - accepts valid session token cookie', (t) => {
   const appPassword = process.env.APP_PASSWORD || 'admin-password-change-me';
-  const sessionSecret = process.env.SESSION_SECRET || 'dev-secret-session-key-12345';
-  const token = generateSessionToken(appPassword, sessionSecret);
+  let token;
+  handleLogin({ body: { password: appPassword } }, {
+    setHeader() {}, cookie(name, value) { token = value; }, json() {},
+  });
 
   const req = {
     cookies: { system_ops_session: token },

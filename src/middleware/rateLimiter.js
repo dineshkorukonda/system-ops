@@ -1,4 +1,8 @@
 const rateLimit = require('express-rate-limit');
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, max: 15, standardHeaders: true, legacyHeaders: false,
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
+});
 
 // Standard API Rate Limiter (Generous limit for single-admin real-time dashboard)
 const apiLimiter = rateLimit({
@@ -37,6 +41,7 @@ const logTailLimiter = rateLimit({
 });
 
 module.exports = {
+  loginLimiter,
   apiLimiter,
   chatTestLimiter,
   logTailLimiter
