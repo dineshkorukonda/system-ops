@@ -7,8 +7,8 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
 
-const { requireAuth, handleLogin, handleLogout, generateSessionToken } = require('./middleware/auth');
-const { apiLimiter, chatTestLimiter, logTailLimiter } = require('./middleware/rateLimiter');
+const { requireAuth, handleLogin, handleLogout, isAuthenticated } = require('./middleware/auth');
+const { apiLimiter, loginLimiter, chatTestLimiter, logTailLimiter } = require('./middleware/rateLimiter');
 const { getJournalLogs } = require('./services/systemService');
 const { runQuickChatTest } = require('./services/ollamaService');
 const { getSettings, getPublicBranding, updateSettings } = require('./services/settingsService');
@@ -36,6 +36,8 @@ const {
 } = require('./services/goCollectorClient');
 
 const app = express();
+// Trust only explicitly configured proxy addresses/subnets, never every caller.
+if (process.env.TRUST_PROXY) app.set('trust proxy', process.env.TRUST_PROXY.split(',').map(value => value.trim()));
 
 const PORT = parseInt(process.env.PORT, 10) || 9080;
 const HOST = process.env.HOST || '127.0.0.1';
@@ -88,7 +90,7 @@ app.get('/ready', (req, res) => {
 /**
  * Authentication Endpoints
  */
-app.post('/api/login', handleLogin);
+app.post('/api/login', loginLimiter, handleLogin);
 app.post('/api/logout', handleLogout);
 
 // Public branding (no auth — used on login page)
@@ -97,21 +99,8 @@ app.get('/api/v2/settings/branding', (req, res) => {
 });
 
 app.get('/api/auth/status', (req, res) => {
-  const appPassword = process.env.APP_PASSWORD || 'admin-password-change-me';
-  const sessionSecret = process.env.SESSION_SECRET || 'dev-secret-session-key-12345';
-  const expectedToken = generateSessionToken(appPassword, sessionSecret);
-  const sessionCookie = req.cookies ? req.cookies.system_ops_session : null;
-
-  if (sessionCookie && sessionCookie === expectedToken) {
-    return res.json({ authenticated: true });
-  }
-
-  const authHeader = req.headers.authorization;
-  if (authHeader && (authHeader.includes(appPassword) || authHeader.includes(expectedToken))) {
-    return res.json({ authenticated: true });
-  }
-
-  return res.json({ authenticated: false });
+  res.setHeader('Cache-Control', 'no-store');
+  return res.json({ authenticated: isAuthenticated(req) });
 });
 
 // Login Page Route
