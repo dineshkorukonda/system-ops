@@ -23,12 +23,9 @@ const { registerAllCollectors, applyIntegrationSettings } = require('./core/sche
 const { getServiceLogs } = require('./collectors/services');
 const { getPm2Logs } = require('./collectors/pm2');
 const { getLogSourcesList, getLogSourceTail } = require('./collectors/logSources');
-const { getBackupFilePath, listBackupFiles } = require('./collectors/backupFiles');
-const { getServicesSnapshot } = require('./collectors/services');
-const { getPm2Snapshot } = require('./collectors/pm2');
+const { getBackupFilePath } = require('./collectors/backupFiles');
 const { getCapabilities } = require('./collectors/capabilities');
-const { getDockerSnapshot, getDockerLogs } = require('./collectors/docker');
-const { parseTrafficAnalytics } = require('./collectors/trafficAnalytics');
+const { getDockerLogs } = require('./collectors/docker');
 const {
   getStatus: getGoCollectorStatus,
   getDiagnostics: getGoCollectorDiagnostics,
@@ -46,8 +43,10 @@ const OLLAMA_SERVICE = process.env.OLLAMA_SERVICE_NAME || 'ollama';
 
 // Determine static assets directory (dist for React SPA, fallback to public)
 const distDir = path.join(__dirname, '../dist');
-const publicDir = path.join(__dirname, '../public');
-const staticDir = fs.existsSync(distDir) ? distDir : publicDir;
+const staticDir = distDir;
+if (process.env.NODE_ENV === 'production' && !fs.existsSync(path.join(distDir, 'index.html'))) {
+  throw new Error('Built frontend missing. Run npm run build before starting production.');
+}
 
 // Global Middleware
 app.use(express.json());
@@ -105,7 +104,7 @@ app.get('/api/auth/status', (req, res) => {
 
 // Login Page Route
 app.get('/login.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/login.html'));
+  res.sendFile(path.join(distDir, 'index.html'));
 });
 
 /**
@@ -178,27 +177,7 @@ app.post('/api/v2/discovery/rescan', async (req, res) => {
 /**
  * Ollama Legacy & v2 Endpoints (Served from Cached StateStore)
  */
-app.get('/api/status', async (req, res) => {
-  const cached = stateStore.get('ollama.status');
-  if (cached) {
-    return res.json(cached);
-  }
-  // Fallback if background collector hasn't completed initial tick
-  try {
-    const data = await collectorManager.runCollector('ollama');
-    return res.json(data?.data?.status || {});
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to fetch status', details: error.message });
-  }
-});
 
-app.get('/api/models', async (req, res) => {
-  const cached = stateStore.get('ollama.models');
-  if (cached) {
-    return res.json(cached);
-  }
-  return res.json({ apiOk: false, latencyMs: 0, models: [], cliOutput: '' });
-});
 
 app.get('/api/logs', async (req, res) => {
   try {
@@ -240,18 +219,6 @@ app.post('/api/test-chat', chatTestLimiter, async (req, res) => {
 /**
  * Services API Endpoints (Native Systemd Supervision)
  */
-app.get('/api/v2/services/snapshot', async (req, res) => {
-  const cached = stateStore.get('services');
-  if (cached) {
-    return res.json(cached);
-  }
-  try {
-    const data = await getServicesSnapshot();
-    return res.json(data);
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to fetch services snapshot', details: error.message });
-  }
-});
 
 app.get('/api/v2/services/logs', logTailLimiter, async (req, res) => {
   try {
@@ -266,18 +233,6 @@ app.get('/api/v2/services/logs', logTailLimiter, async (req, res) => {
 /**
  * PM2 Fleet Endpoints
  */
-app.get('/api/v2/pm2/snapshot', async (req, res) => {
-  const cached = stateStore.get('pm2');
-  if (cached) {
-    return res.json(cached);
-  }
-  try {
-    const data = await getPm2Snapshot();
-    return res.json(data);
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to fetch PM2 snapshot', details: error.message });
-  }
-});
 
 app.get('/api/v2/pm2/logs', logTailLimiter, async (req, res) => {
   try {
@@ -292,18 +247,6 @@ app.get('/api/v2/pm2/logs', logTailLimiter, async (req, res) => {
 /**
  * Docker Containers Endpoints
  */
-app.get('/api/v2/docker/snapshot', async (req, res) => {
-  const cached = stateStore.get('docker');
-  if (cached) {
-    return res.json(cached);
-  }
-  try {
-    const data = await getDockerSnapshot();
-    return res.json(data);
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to fetch Docker snapshot', details: error.message });
-  }
-});
 
 app.get('/api/v2/docker/logs', logTailLimiter, async (req, res) => {
   try {
@@ -321,19 +264,6 @@ app.get('/api/v2/docker/logs', logTailLimiter, async (req, res) => {
 /**
  * System Telemetry & Process Monitoring Endpoints
  */
-app.get('/api/v2/system/capabilities', async (req, res) => {
-  const cached = stateStore.get('capabilities');
-  if (cached) {
-    return res.json(cached);
-  }
-  try {
-    const caps = await getCapabilities();
-    stateStore.set('capabilities', caps);
-    return res.json(caps);
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to detect system capabilities', details: error.message });
-  }
-});
 
 app.get('/api/v2/system/snapshot', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -404,18 +334,6 @@ app.get('/api/v2/logs/tail', logTailLimiter, async (req, res) => {
 /**
  * Backups Endpoints
  */
-app.get('/api/v2/backups/files', async (req, res) => {
-  const cached = stateStore.get('backups');
-  if (cached) {
-    return res.json(cached);
-  }
-  try {
-    const data = await listBackupFiles();
-    return res.json(data);
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to list backup files', details: error.message });
-  }
-});
 
 app.get('/api/v2/backups/download/:filename', (req, res) => {
   try {
@@ -442,79 +360,11 @@ app.get('/api/v2/backups/download', (req, res) => {
 /**
  * Traffic & Geographic Analytics Endpoints (v2 & legacy)
  */
-app.get('/api/v2/traffic/analytics', async (req, res) => {
-  const cached = stateStore.get('traffic');
-  if (cached) {
-    return res.json(cached);
-  }
-  try {
-    const data = await parseTrafficAnalytics();
-    return res.json(data);
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to parse traffic analytics', details: error.message });
-  }
-});
 
-app.get('/api/v2/databases/snapshot', async (req, res) => {
-  const cached = stateStore.get('databases');
-  if (cached) return res.json(cached);
-  try {
-    const { getDatabaseSnapshot } = require('./collectors/databases');
-    const data = await getDatabaseSnapshot();
-    return res.json(data);
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to fetch database snapshot', details: error.message });
-  }
-});
 
-app.get('/api/v2/security/snapshot', async (req, res) => {
-  const cached = stateStore.get('security');
-  if (cached) return res.json(cached);
-  try {
-    const { getSecuritySnapshot } = require('./collectors/security');
-    const data = await getSecuritySnapshot();
-    return res.json(data);
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to fetch security snapshot', details: error.message });
-  }
-});
 
-app.get('/api/v2/system/updates', async (req, res) => {
-  const cached = stateStore.get('osUpdates');
-  if (cached) return res.json(cached);
-  try {
-    const { getOsUpdatesSnapshot } = require('./collectors/osUpdates');
-    const data = await getOsUpdatesSnapshot();
-    return res.json(data);
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to fetch OS updates', details: error.message });
-  }
-});
 
-app.get('/api/v2/certbot/snapshot', async (req, res) => {
-  const cached = stateStore.get('certbot');
-  if (cached) return res.json(cached);
-  try {
-    const { getCertbotSnapshot } = require('./collectors/certbot');
-    const data = await getCertbotSnapshot();
-    return res.json(data);
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to fetch certbot snapshot', details: error.message });
-  }
-});
 
-app.get('/api/traffic-analytics', async (req, res) => {
-  const cached = stateStore.get('traffic');
-  if (cached) {
-    return res.json(cached);
-  }
-  try {
-    const data = await parseTrafficAnalytics();
-    return res.json(data);
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to parse traffic analytics', details: error.message });
-  }
-});
 
 /**
  * Settings & Branding

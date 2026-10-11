@@ -1,6 +1,6 @@
 # system-ops
 
-Lightweight self-hosted operations console for a single Ubuntu VPS. Under 35 MB RAM on a native systemd install.
+Self-hosted operations console for a single Ubuntu VPS. Resource use depends on enabled integrations and enrichment; reproduce measurements using [the Linux workload runner](docs/RESOURCE-BASELINE.md).
 
 **Full docs and feature tour:** [system-ops.dineshkorukonda.online](https://system-ops.dineshkorukonda.online/)
 

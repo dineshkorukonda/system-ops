@@ -34,6 +34,7 @@ function registerAllCollectors() {
     critical: true,
     collect: async () => {
       const snap = await getSystemSnapshot();
+      require('./collectorSchemas').assertSystemSnapshot(snap);
       stateStore.recordSystemHistory(snap);
       return snap;
     }
@@ -47,7 +48,9 @@ function registerAllCollectors() {
     intervalMs: processInterval,
     critical: true,
     collect: async () => {
-      return await sampleProcesses({ limit: 50, sortBy: 'cpu' });
+      const snapshot = await sampleProcesses({ limit: 50, sortBy: 'cpu' });
+      require('./collectorSchemas').assertProcessSnapshot(snapshot);
+      return snapshot;
     }
   });
 

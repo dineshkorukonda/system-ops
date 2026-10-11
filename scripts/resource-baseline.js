@@ -52,15 +52,22 @@ async function run(scenario, ticksPerSecond) {
   fs.writeFileSync(log, '');
   const port = await freePort();
   const password = crypto.randomBytes(24).toString('hex');
+  const goMode = process.env.BASELINE_COLLECTOR === 'go';
+  const goPort = goMode ? await freePort() : null;
   const env = { ...process.env, NODE_ENV: 'production', HOST: '127.0.0.1', PORT: String(port),
     APP_PASSWORD: password, SESSION_SECRET: crypto.randomBytes(32).toString('hex'),
-    SYSTEM_OPS_DATA_DIR: directory, ENABLE_GO_COLLECTOR: 'false',
+    SYSTEM_OPS_DATA_DIR: directory, ENABLE_GO_COLLECTOR: String(goMode),
+    GO_COLLECTOR_URL: `http://127.0.0.1:${goPort || 9081}`,
+    GO_COLLECTOR_HEALTH_CACHE_MS: '1000',
     NGINX_LOG_PATH: log, TRACKED_DOMAINS: 'baseline.local',
     OLLAMA_URL: 'http://127.0.0.1:1', SYSTEM_OPS_TRAFFIC_INTERVAL: '1000', ENABLE_TRAFFIC: 'true',
     ENABLE_OLLAMA: scenario === 'failing-integrations' ? 'true' : 'false' };
   const child = spawn(process.execPath, ['src/start.js'], { cwd: path.join(__dirname, '..'), env,
     stdio: ['ignore', 'pipe', 'pipe'] });
   let output = '';
+  const goChild = goMode ? spawn(path.resolve('go-collector/bin/system-ops-collector'), [], {
+    env: { ...env, GO_COLLECTOR_HOST: '127.0.0.1', GO_COLLECTOR_PORT: String(goPort) }, stdio: 'ignore' }) : null;
+  goChild?.on('error', error => { output += error.message; });
   for (const stream of [child.stdout, child.stderr]) stream.on('data', bytes => { output = (output + bytes).slice(-16000); });
   const base = `http://127.0.0.1:${port}`;
   const request = (route, opts = {}) => fetch(base + route, { ...opts, signal: AbortSignal.timeout(10000) });
@@ -108,13 +115,17 @@ async function run(scenario, ticksPerSecond) {
     await sleep(warmup * 1000);
     const initial = await (await request('/api/v2/ops/diagnostics', { headers: { cookie } })).json();
     const samples = [];
-    let previous = procSnapshot(child.pid);
+    if (goMode) {
+      const res = await request('/api/v2/ops/diagnostics', { headers: { cookie } });
+      if (!(await res.json()).goCollector.available) throw new Error('Go comparison would silently measure fallback; sidecar must be available');
+    }
+    let previous = procSnapshot(child.pid, goChild ? [goChild.pid] : []);
     let previousTime = performance.now();
     const start = previousTime;
     while (performance.now() - start < seconds * 1000) {
       await sleep(1000);
       const now = performance.now();
-      const current = procSnapshot(child.pid);
+      const current = procSnapshot(child.pid, goChild ? [goChild.pid] : []);
       const old = new Map(previous.map(proc => [proc.pid, proc]));
       const deltaTicks = current.reduce((sum, proc) => sum + Math.max(0, proc.ticks - (old.get(proc.pid)?.ticks ?? proc.ticks)), 0);
       samples.push({ time: new Date().toISOString(), rssBytes: current.reduce((sum, proc) => sum + proc.rssBytes, 0),
@@ -133,6 +144,7 @@ async function run(scenario, ticksPerSecond) {
         'Fixtures exercise API viewers, not browser rendering. This is not an availability or SLO measurement.'] };
   } finally {
     clearInterval(traffic); clearInterval(viewers);
+    if (goChild && goChild.exitCode === null) { const done = once(goChild, 'exit'); goChild.kill('SIGKILL'); await done; }
     if (child.exitCode === null) { const done = once(child, 'exit'); child.kill('SIGTERM');
       const timer = setTimeout(() => child.kill('SIGKILL'), 10000); await done; clearTimeout(timer); }
     fs.rmSync(directory, { recursive: true, force: true });
@@ -148,7 +160,7 @@ async function main() {
     commit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     machine: { platform: process.platform, release: os.release(), arch: os.arch(), cpus: os.cpus().map(cpu => cpu.model),
       totalMemoryBytes: os.totalmem(), node: process.version, osRelease: fs.readFileSync('/etc/os-release', 'utf8') },
-    configuration: { collector: 'node-only', seconds, warmup, viewers: 5, trafficLinesPerSecond: 1000,
+    configuration: { collector: process.env.BASELINE_COLLECTOR === 'go' ? 'node-and-go' : 'node-only', seconds, warmup, viewers: 5, trafficLinesPerSecond: 1000,
       geoip: process.env.TRAFFIC_GEOIP === 'true', userAgent: process.env.TRAFFIC_PARSE_USER_AGENT === 'true' }, results: [] };
   const ticks = Number(execFileSync('getconf', ['CLK_TCK'], { encoding: 'utf8' }).trim());
   for (const scenario of scenarios) { console.log('Measuring ' + scenario); report.results.push(await run(scenario, ticks)); }

@@ -87,7 +87,7 @@ export function ProcessMonitorView({
                           : 'text-neutral-300'
                       }
                     >
-                      {p.cpuPercent}%
+                      {Number.isFinite(p.cpuPercent) ? `${p.cpuPercent}%` : '—'}
                     </span>
                   </td>
                   <td className="px-4 py-2 text-neutral-400">{p.memPercent ? `${p.memPercent}%` : '--'}</td>
