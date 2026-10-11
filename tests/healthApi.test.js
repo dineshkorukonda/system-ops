@@ -78,6 +78,7 @@ test('cached system snapshot returns failure provenance with last good zero metr
   stateStore.set('system', stateStore.get('system'), { status: 'error', error: 'fixture failure' });
   const response = await request('/api/v2/system/snapshot', { headers });
   assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
   const data = await response.json();
   assert.equal(data.uptime.cpuPercent, 0);
   assert.equal(data.collection.lastSuccess, success);
@@ -97,4 +98,18 @@ test('a failed initial system collection returns 503 with no manufactured snapsh
   assert.equal(data.collection.lastSuccess, null);
   assert.equal(data.collection.status, 'error');
   assert.equal(data.memory, undefined);
+});
+
+test('a failed initial process collection returns 503 rather than a successful empty list', async t => {
+  const col = collectorManager.collectors.get('processes');
+  const previous = col.collect;
+  t.after(() => { col.collect = previous; });
+  col.collect = async () => ({ available: false, error: 'fixture process backend unavailable', processes: [] });
+  const response = await request('/api/v2/system/processes', { headers });
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  const data = await response.json();
+  assert.equal(data.collection.lastSuccess, null);
+  assert.equal(data.collection.status, 'unavailable');
+  assert.equal(data.processes, undefined);
 });

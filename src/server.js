@@ -321,6 +321,7 @@ app.get('/api/v2/system/capabilities', async (req, res) => {
 });
 
 app.get('/api/v2/system/snapshot', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   try {
     if (!stateStore.get('system')) await collectorManager.runCollector('system');
     const data = stateStore.get('system');
@@ -333,6 +334,7 @@ app.get('/api/v2/system/snapshot', async (req, res) => {
 });
 
 app.get('/api/v2/system/processes', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   const { limit, sort } = req.query;
   const limitNum = parseInt(limit, 10) || 50;
   const sortBy = sort === 'mem' ? 'mem' : 'cpu';
