@@ -278,14 +278,14 @@ async function sampleProcesses(options = {}) {
 
   const goResult = await goCollectorClient.getProcesses({ limit, sortBy });
   if (goResult && Array.isArray(goResult.processes)) {
-    return goResult;
+    return { ...goResult, source: 'go' };
   }
 
   // 1. Linux fast path: /proc inspection (Zero subprocesses)
   if (fs.existsSync('/proc/stat') && fs.existsSync('/proc/1')) {
     const procResult = await sampleProcLinux(options);
     if (procResult && procResult.processes.length > 0) {
-      return procResult;
+      return { ...procResult, source: 'node:/proc' };
     }
   }
 
@@ -321,6 +321,7 @@ async function sampleProcesses(options = {}) {
           });
 
           return {
+            source: 'node:powershell',
             sortBy,
             limit,
             total: processes.length,
@@ -370,6 +371,7 @@ async function sampleProcesses(options = {}) {
     }
 
     return {
+      source: 'node:ps',
       sortBy,
       limit,
       total: processes.length,
@@ -378,6 +380,8 @@ async function sampleProcesses(options = {}) {
   }
 
   return {
+    available: false,
+    error: 'No process sampling backend is available',
     sortBy,
     limit,
     total: 0,

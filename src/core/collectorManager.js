@@ -27,6 +27,7 @@ class CollectorManager {
    * @param {string} options.stateKey - Key in StateStore to populate
    * @param {boolean} [options.enabled=true] - Whether to start automatically
    * @param {boolean} [options.critical=false] - Critical collector for backpressure
+   * @param {number} [options.staleAfterMs] - Override automatic freshness limit
    * @param {Function} [options.transform] - Optional transform for state
    */
   register({
@@ -36,16 +37,19 @@ class CollectorManager {
     stateKey,
     enabled = true,
     critical = false,
+    staleAfterMs = null,
     transform = null
   }) {
     if (typeof collect !== 'function') {
       throw new Error(`Collector [${name}] must provide a collect function`);
     }
 
+    const interval = Math.max(1000, intervalMs || 5000);
     this.collectors.set(name, {
       name,
       collect,
-      intervalMs: Math.max(1000, intervalMs || 5000),
+      intervalMs: interval,
+      staleAfterMs: Number.isFinite(staleAfterMs) && staleAfterMs > 0 ? staleAfterMs : null,
       stateKey: stateKey || name,
       enabled,
       critical,
@@ -81,12 +85,25 @@ class CollectorManager {
       const durationMs = Date.now() - startTime;
       const finalData = col.transform ? col.transform(data) : data;
 
+      // Some adapters report failure in their payload rather than throwing.
+      // Such a result must never advance lastSuccess or replace a good snapshot.
+      const unsupported = finalData?.unsupported === true;
+      const unavailable = finalData?.available === false;
+      if (finalData == null || unsupported || unavailable || finalData.error ||
+          finalData.ok === false || finalData.success === false) {
+        const failure = new Error(finalData?.error || finalData?.reason || 'Collector returned no usable data');
+        failure.collectionStatus = unsupported ? 'unsupported' : unavailable ? 'unavailable' : 'error';
+        if (this.store.get(col.stateKey) == null && finalData != null) failure.initialData = finalData;
+        throw failure;
+      }
+
       col.consecutiveErrors = 0;
       col.totalRuns++;
 
       this.store.set(col.stateKey, finalData, {
         durationMs,
-        status: 'healthy'
+        status: 'healthy',
+        source: finalData.source || `collector:${name}`,
       });
 
       return { success: true, durationMs, data: finalData };
@@ -101,10 +118,10 @@ class CollectorManager {
         err.message.includes('ECONNREFUSED')
       ));
 
-      this.store.set(col.stateKey, this.store.get(col.stateKey), {
+      this.store.set(col.stateKey, this.store.get(col.stateKey) ?? err.initialData ?? null, {
         durationMs,
         error: err.message,
-        status: isUnavailable ? 'unavailable' : 'error'
+        status: err.collectionStatus || (isUnavailable ? 'unavailable' : 'error')
       });
 
       if (process.env.SYSTEM_OPS_LOG_LEVEL === 'debug' || col.consecutiveErrors <= 3) {
@@ -115,6 +132,42 @@ class CollectorManager {
     } finally {
       col.running = false;
     }
+  }
+
+  /** Collection readiness; this does not assert that monitored services are up. */
+  getCollectorHealth(name, now = Date.now()) {
+    const col = this.collectors.get(name);
+    if (!col) return null;
+    const stats = this.store.get(`metadata.collectorStats.${col.stateKey}`);
+    const successAt = stats?.lastSuccess ? Date.parse(stats.lastSuccess) : NaN;
+    const ageMs = Number.isFinite(successAt) ? Math.max(0, now - successAt) : null;
+    const staleAfterMs = col.staleAfterMs ?? Math.max(15000, col.intervalMs * 3);
+    const fresh = col.enabled && ageMs !== null && ageMs <= staleAfterMs && stats?.status === 'healthy';
+    let status;
+    if (!col.enabled) status = 'disabled';
+    else if (stats?.status && stats.status !== 'healthy') status = stats.status;
+    else if (ageMs === null) status = col.running ? 'collecting' : 'initializing';
+    else status = fresh ? 'healthy' : 'stale';
+
+    return {
+      name, stateKey: col.stateKey, enabled: col.enabled, critical: col.critical,
+      status, fresh, collecting: col.running,
+      source: stats?.source || `collector:${name}`,
+      lastSuccess: stats?.lastSuccess || null,
+      lastAttempt: stats?.lastUpdated || null,
+      lastError: stats?.lastError || null,
+      ageMs, staleAfterMs,
+    };
+  }
+
+  getHealth(now = Date.now()) {
+    const collectors = Object.fromEntries([...this.collectors.keys()].map(name => [name, this.getCollectorHealth(name, now)]));
+    const critical = Object.values(collectors).filter(col => col.enabled && col.critical);
+    return {
+      ok: critical.length > 0 && critical.every(col => col.fresh),
+      timestamp: new Date(now).toISOString(),
+      collectors,
+    };
   }
 
   /**
