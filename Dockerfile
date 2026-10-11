@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # --- Build frontend assets ---
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -10,7 +10,7 @@ COPY src/client ./src/client
 RUN npm run build
 
 # --- Production runtime ---
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 
 RUN apk add --no-cache tini procps curl
 
@@ -24,7 +24,13 @@ COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY src/ ./src/
+COPY plugins/superpowers/skills/pm2_discovery/ ./plugins/superpowers/skills/pm2_discovery/
+COPY public/ ./public/
+COPY docker-compose.yml ./
 COPY --from=builder /app/dist ./dist/
+
+# Branding/settings must be writable by the unprivileged runtime user.
+RUN mkdir -p /app/data && chown node:node /app/data
 
 USER node
 
@@ -34,4 +40,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://127.0.0.1:9080/api/health || exit 1
 
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "src/server.js"]
+CMD ["node", "src/start.js"]

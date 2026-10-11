@@ -48,20 +48,20 @@ if ! command -v curl &>/dev/null; then
   apt-get install -y -qq curl
 fi
 
-# Ensure Node.js 18+ is installed
+# Use the same Node.js major as Docker, CI and package.json.
 NODE_NEED_INSTALL=false
 if ! command -v node &>/dev/null; then
   NODE_NEED_INSTALL=true
 else
   NODE_VER=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-  if [ "$NODE_VER" -lt 18 ]; then
+  if [ "$NODE_VER" -ne 24 ]; then
     NODE_NEED_INSTALL=true
   fi
 fi
 
 if [ "$NODE_NEED_INSTALL" = true ]; then
-  echo "  -> Installing Node.js 20 LTS..."
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+  echo "  -> Installing Node.js 24..."
+  curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
   apt-get install -y -qq nodejs
 fi
 
@@ -75,7 +75,8 @@ echo "[2/6] Security & Authentication Setup"
 APP_PASSWORD=""
 if [ -f "$INSTALL_DIR/.env" ]; then
   EXISTING_PASS=$(grep '^APP_PASSWORD=' "$INSTALL_DIR/.env" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
-  if [ -n "$EXISTING_PASS" ] && [ "$EXISTING_PASS" != "ChangeThisToYourSecurePassword123!" ]; then
+  if [ -n "$EXISTING_PASS" ] && [ "$EXISTING_PASS" != "ChangeThisToYourSecurePassword123!" ] && \
+     [ "$EXISTING_PASS" != "admin-password-change-me" ] && [ "$EXISTING_PASS" != "change_me_in_production" ]; then
     echo "  -> Existing password detected in .env."
     read -p "  Do you want to keep the existing password? [Y/n]: " KEEP_PASS < "$TTY_INPUT"
     if [[ ! "$KEEP_PASS" =~ ^[Nn] ]]; then
@@ -91,6 +92,11 @@ while [ -z "$APP_PASSWORD" ]; do
   
   if [ ${#PASS1} -lt 4 ]; then
     echo "  Error: Password must be at least 4 characters."
+    continue
+  fi
+
+  if [[ "$PASS1" == "admin-password-change-me" || "$PASS1" == "change_me_in_production" || "$PASS1" == "ChangeThisToYourSecurePassword123!" ]]; then
+    echo "  Error: Choose your own password rather than an example password."
     continue
   fi
 
@@ -166,12 +172,13 @@ fi
 
 echo "  -> Tracked services: $DETECTED_UNITS_STR"
 
-RAND_SECRET=$(openssl rand -hex 16 2>/dev/null || date +%s | md5sum | head -c 32)
+RAND_SECRET=$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')
 
 cat > "$INSTALL_DIR/.env" << EOF
 # System-Ops Auto-Generated Configuration
 APP_PASSWORD=$APP_PASSWORD
 SESSION_SECRET=$RAND_SECRET
+NODE_ENV=production
 
 PORT=9080
 HOST=127.0.0.1
@@ -206,9 +213,9 @@ EOF
 echo ""
 echo "[5/6] Building production artifacts & securing permissions..."
 
-npm ci --silent 2>/dev/null || npm install --silent
+npm ci --silent
 echo "  -> Building React SPA production bundle..."
-npm run build --silent || true
+npm run build --silent
 
 if ! command -v go &>/dev/null; then
   echo "  -> Installing Go toolchain for collector sidecar..."

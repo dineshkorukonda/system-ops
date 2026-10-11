@@ -2,12 +2,16 @@
   "name": "system-ops",
   "version": "2.1.0",
   "description": "Fast, lightweight (<35MB RAM) operations console for single Ubuntu VPS - Ollama, PM2, system health, Postgres backups, and GeoIP traffic analytics",
-  "main": "src/server.js",
+  "main": "src/start.js",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
   "scripts": {
     "build": "vite build",
-    "start": "node src/server.js",
+    "start": "node src/start.js",
     "dev": "node --watch src/server.js",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "test:smoke": "node scripts/runtime-smoke.js"
   },
   "keywords": [
     "nodejs",
