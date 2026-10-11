@@ -88,11 +88,13 @@ class StateStore {
     stat.lastUpdated = new Date().toISOString();
     if (meta.durationMs !== undefined) stat.lastDurationMs = meta.durationMs;
     if (meta.status) stat.status = meta.status;
-    if (meta.error) {
+    if (meta.error !== undefined && meta.error !== null) {
       stat.lastError = meta.error;
       stat.failures++;
     } else {
       stat.lastSuccess = new Date().toISOString();
+      stat.lastError = null;
+      if (meta.source) stat.source = meta.source;
       stat.executions++;
     }
   }
@@ -112,6 +114,17 @@ class StateStore {
 
   getSnapshot() {
     return this.state;
+  }
+
+  recordSystemHistory(snapshot, time = Date.now()) {
+    const values = {
+      cpu: snapshot.uptime?.cpuPercent,
+      ram: snapshot.memory?.usagePercent,
+      swap: snapshot.swap?.usagePercent,
+    };
+    for (const [key, value] of Object.entries(values)) {
+      if (Number.isFinite(value)) this.history[key].push({ time, value });
+    }
   }
 
   getDiagnostics() {

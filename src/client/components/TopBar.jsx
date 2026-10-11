@@ -1,11 +1,12 @@
 import React from 'react';
 import { Button } from './ui/Button';
-import { Badge } from './ui/Badge';
+import { MonitoringStatus } from './CollectionStatus';
 
 export function TopBar({
   activeTabTitle,
   siteSubtitle = 'Operations Console',
   lastUpdated,
+  monitoringHealth,
   isSyncing,
   onSync,
   refreshInterval,
@@ -39,13 +40,10 @@ export function TopBar({
       <div className="flex items-center gap-2.5">
         {/* Sync status */}
         <div className="hidden sm:flex items-center gap-2 font-mono text-[11px] text-neutral-400 bg-[#0d0d0d] px-2.5 py-1 rounded border border-[#1f1f1f] theme-header">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
           <span>{lastUpdated ? lastUpdated.toLocaleTimeString() : '--:--:--'}</span>
         </div>
 
-        <Badge variant="ok" className="hidden lg:inline-flex">
-          HEALTHY
-        </Badge>
+        <MonitoringStatus health={monitoringHealth} />
 
         {/* Auto-refresh interval */}
         <select

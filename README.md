@@ -112,6 +112,20 @@ npm run dev & npx vite
 
 Configuration reference: [`.env.example`](.env.example)
 
+Monitoring health: `/health` and `/api/health` report HTTP liveness only. `/ready`
+returns 200 only while enabled critical collectors have recent successful
+samples, otherwise 503. It exposes only `{ "ok": true/false }`. Readiness means
+collection is working, not that every monitored service is available.
+
+Authenticated `/api/v2/ops/health` and diagnostics expose per-collector status,
+source, last successful sample, age, freshness limit, and last error. By default,
+samples expire after three collection intervals, with a minimum of 15 seconds.
+System/process snapshots carry collection metadata alongside their existing
+fields. A failed refresh keeps the last good snapshot with its original success
+time and an error/stale status; a failed initial collection returns 503. Optional
+missing integrations do not fail global readiness. The dashboard distinguishes
+CPU utilization from load average and displays missing samples as unknown.
+
 Troubleshooting: [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)
 
 Changelog: [`CHANGELOG.md`](CHANGELOG.md)
