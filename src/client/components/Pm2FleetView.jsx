@@ -1,53 +1,63 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
 import { formatBytes } from '../lib/utils';
+function selectedFromUrl() {
+  const match = /^#pm2\/([a-zA-Z0-9_-]+)\/(\d+)$/.exec(window.location.hash);
+  return match ? { user: match[1], app: match[2] } : null;
+}
 
 export function Pm2FleetView({ pm2Data, onRefresh }) {
-  const users = pm2Data?.users || [];
-  const [selectedApp, setSelectedApp] = useState(null); // { user: string, app: string }
+  // Use `allUsers` so errored/pending users are visible (with error banners)
+  // Fall back to `users` for backward compatibility with older server versions
+  const users = pm2Data?.allUsers || pm2Data?.users || [];
+  const [selectedApp, setSelectedApp] = useState(selectedFromUrl);
+  const logController = useRef(null);
   const [logLines, setLogLines] = useState('100');
   const [appLogs, setAppLogs] = useState('');
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [logFilter, setLogFilter] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
-
-  // Auto select first app if available
+  const selectedProcess = users.find(user => user.user === selectedApp?.user)?.processes?.find(proc => String(proc.pm_id) === selectedApp?.app);
+  const openApp = (user, proc) => {
+    const app = String(proc.pm_id);
+    history.pushState(null, '', `#pm2/${user}/${app}`);
+    setSelectedApp({ user, app });
+  };
   useEffect(() => {
-    if (!selectedApp && users.length > 0) {
-      for (const u of users) {
-        if (u.processes && u.processes.length > 0) {
-          setSelectedApp({ user: u.user, app: u.processes[0].name });
-          break;
-        }
-      }
-    }
-  }, [users, selectedApp]);
+    const update = () => setSelectedApp(selectedFromUrl());
+    window.addEventListener('popstate', update);
+    return () => { window.removeEventListener('popstate', update); logController.current?.abort(); };
+  }, []);
 
   // Fetch app logs when selected
   useEffect(() => {
+    setAppLogs('');
     if (!selectedApp) return;
     fetchAppLogs();
+    return () => logController.current?.abort();
   }, [selectedApp, logLines]);
 
   const fetchAppLogs = async () => {
     if (!selectedApp) return;
+    logController.current?.abort();
+    const controller = new AbortController(); logController.current = controller;
     setIsLoadingLogs(true);
     try {
       const res = await fetch(
-        `/api/v2/pm2/logs?user=${encodeURIComponent(selectedApp.user)}&app=${encodeURIComponent(selectedApp.app)}&lines=${logLines}`
+        `/api/v2/pm2/logs?user=${encodeURIComponent(selectedApp.user)}&app=${encodeURIComponent(selectedApp.app)}&lines=${logLines}`, { signal: controller.signal }
       );
       if (res.ok) {
         const data = await res.json();
-        setAppLogs(data.output || data.logs || data.error || 'No log lines found for this app.');
+        if (!controller.signal.aborted) setAppLogs(data.output || data.logs || data.error || 'No log lines found for this app.');
       } else {
         setAppLogs(`Failed to fetch PM2 logs (HTTP ${res.status})`);
       }
     } catch (err) {
-      setAppLogs(`Error loading logs: ${err.message}`);
+      if (err.name !== 'AbortError') setAppLogs(`Error loading logs: ${err.message}`);
     } finally {
-      setIsLoadingLogs(false);
+      if (logController.current === controller) setIsLoadingLogs(false);
     }
   };
 
@@ -86,7 +96,7 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
               users.map((u, idx) => {
                 const online = (u.processes || []).filter((p) => p.status === 'online').length;
                 const total = (u.processes || []).length;
-                const memSum = (u.processes || []).reduce((s, p) => s + (p.memoryBytes || 0), 0);
+                const memSum = (u.processes || []).reduce((s, p) => s + (p.memory || 0), 0);
 
                 return (
                   <div
@@ -131,11 +141,11 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
             {users.flatMap((u) =>
               (u.processes || []).map((p) => {
                 const isSelected =
-                  selectedApp?.user === u.user && selectedApp?.app === p.name;
+                  selectedApp?.user === u.user && selectedApp?.app === String(p.pm_id);
                 return (
                   <button
-                    key={`${u.user}-${p.name}`}
-                    onClick={() => setSelectedApp({ user: u.user, app: p.name })}
+                    key={`${u.user}-${p.pm_id}`}
+                    onClick={() => openApp(u.user, p)}
                     className={`w-full flex items-center justify-between p-3 text-left transition-colors cursor-pointer ${
                       isSelected
                         ? 'bg-[#171717] border-l-2 border-white font-medium'
@@ -145,7 +155,7 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
                     <div>
                       <div className="font-semibold text-white">{p.name}</div>
                       <div className="text-[10px] text-neutral-500">
-                        USER: {u.user} | PID: {p.pid || '--'} | RESTARTS: {p.restartCount || 0}
+                        USER: {u.user} | ID: {p.pm_id} | PID: {p.pid || '--'} | RESTARTS: {p.restart_time ?? '—'}
                       </div>
                     </div>
                     <div className="text-right space-y-1">
@@ -166,11 +176,18 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
 
       {/* Right Column: Live App Logs Terminal (7 cols) */}
       <div className="lg:col-span-7">
+        {selectedApp && <Card className="mb-4"><CardHeader><CardTitle>{selectedProcess?.name || 'Selected app'} · {selectedApp.user}/{selectedApp.app}</CardTitle></CardHeader>
+          <CardContent className="text-sm space-y-2">
+            {selectedProcess ? <><p>Status: {selectedProcess.status} · PID: {selectedProcess.pid ?? '—'}</p>
+              <p>CPU: {Number.isFinite(selectedProcess.cpu) ? `${selectedProcess.cpu}%` : '—'} · Memory: {selectedProcess.memoryFormatted}</p>
+              <p>Restarts: {selectedProcess.restart_time} · Uptime: {selectedProcess.uptimeText}</p></>
+              : <p>This app is absent from the latest inventory. Check user collection errors.</p>}
+          </CardContent></Card>}
         <Card className="h-full flex flex-col min-h-[500px]">
           <CardHeader className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <CardTitle>
-                LOGS: {selectedApp ? `${selectedApp.user} / ${selectedApp.app}` : 'SELECT APP'}
+                LOGS: {selectedApp ? `${selectedApp.user} / ${selectedProcess?.name || selectedApp.app}` : 'SELECT APP'}
               </CardTitle>
               {selectedApp && (
                 <Badge variant="blue" className="text-[9px]">

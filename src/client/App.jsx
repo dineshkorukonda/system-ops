@@ -21,7 +21,7 @@ const MAX_HISTORY = 30;
 
 export function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
-  const [activeTab, setActiveTab] = useState('system');
+  const [activeTab, setActiveTab] = useState(() => window.location.hash.startsWith('#pm2') ? 'pm2' : 'system');
   const [theme, setTheme] = useState(() => localStorage.getItem('ops_theme') || 'dark');
   const [refreshInterval, setRefreshInterval] = useState(10);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -102,6 +102,9 @@ export function App() {
   useEffect(() => {
     fetchBranding();
     checkAuth();
+    const onHash = () => { if (window.location.hash.startsWith('#pm2')) setActiveTab('pm2'); };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
   useEffect(() => {

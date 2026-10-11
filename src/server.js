@@ -167,6 +167,7 @@ app.get('/api/v2/ops/health', (req, res) => {
 app.post('/api/v2/discovery/rescan', async (req, res) => {
   try {
     const { target } = req.body || {};
+    if (!target || target === 'pm2') require('../plugins/superpowers/skills/pm2_discovery').clearPm2Cache();
     const result = await collectorManager.rescan(target || null);
     return res.json({ success: true, result });
   } catch (err) {

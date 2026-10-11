@@ -55,7 +55,7 @@ jobs:
         run: bash scripts/docker-smoke.sh
 
   traffic-comparison:
-    if: github.head_ref == 'fix/traffic-bounds' || github.event_name == 'workflow_dispatch'
+    if: github.head_ref == 'fix/traffic-bounds' || github.head_ref == 'fix/consolidated-main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -76,7 +76,7 @@ jobs:
           path: artifacts/comparison/
 
   collector-comparison:
-    if: github.head_ref == 'fix/collector-ownership' || github.event_name == 'workflow_dispatch'
+    if: github.head_ref == 'fix/collector-ownership' || github.head_ref == 'fix/consolidated-main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -108,3 +108,19 @@ jobs:
         with:
           name: collector-comparison
           path: artifacts/collectors/
+
+  pm2-fixture:
+    if: github.head_ref == 'fix/pm2-discovery' || github.head_ref == 'fix/consolidated-main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+      - name: Validate real multi-user PM2 monitoring
+        run: bash scripts/pm2-fixture.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pm2-fixture
+          path: artifacts/pm2-fixture.json

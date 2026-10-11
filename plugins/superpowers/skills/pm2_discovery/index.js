@@ -25,170 +25,99 @@ function formatUptime(uptimeMs) {
 const pm2BinaryCache = {};
 const PM2_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
-/** Execute a PM2 command for a user with proper PATH and PM2_HOME. */
-async function runPm2Command(user, pm2Path, subCommand, extraArgs = [], timeoutMs = 10000) {
-  if (!pm2Path || typeof pm2Path !== 'string') {
-    return { success: false, stdout: '', stderr: 'Invalid PM2 path' };
-  }
-  // Prevent non‑root users from running root binaries
-  if (user !== 'root' && pm2Path.startsWith('/root')) {
-    return { success: false, stdout: '', stderr: `User '${user}' cannot execute binary in /root` };
-  }
-
-  let binDir = path.dirname(pm2Path);
-  if (pm2Path.includes('/lib/node_modules/')) {
-    const nodeRoot = pm2Path.split('/lib/node_modules/')[0];
-    binDir = `${nodeRoot}/bin:${binDir}`;
-  }
-
-  const homeDir = user === 'root' ? '/root' : `/home/${user}`;
-  const allArgs = [subCommand, ...extraArgs].map(a => `"${a}"`).join(' ');
-  const bashScript = `export PATH=\"${binDir}:$PATH\"; export PM2_HOME=\"${homeDir}/.pm2\"; \"${pm2Path}\" ${allArgs}`;
-  return await runCommand('sudo', ['-n', '-H', '-u', user, 'bash', '--noprofile', '--norc', '-c', bashScript], timeoutMs);
+const os = require('node:os');
+const { collectionSignal } = require('../../../../src/core/collectionContext');
+const userHome = user => process.env['PM2_HOME_' + user.toUpperCase().replace(/[^A-Z0-9]/g, '_')] ||
+  (user === os.userInfo().username && process.env.PM2_HOME) ||
+  path.join(accountHome(user), '.pm2');
+function accountHome(user) {
+  try {
+    const entry = fs.readFileSync('/etc/passwd', 'utf8').split('\n').find(line => line.split(':')[0] === user);
+    if (entry) return entry.split(':')[5];
+  } catch {}
+  return user === 'root' ? '/root' : `/home/${user}`;
 }
-
-/** Find the PM2 binary for a given user, using cache and discovery steps. */
+function validUser(user) { return typeof user === 'string' && /^[a-zA-Z0-9_-]{1,64}$/.test(user); }
+const helper = (user, action, args = [], timeout = 5000) => runCommand('sudo', ['-n', '/usr/local/libexec/system-ops/pm2-read', user, action, ...args], timeout);
+const probeDaemon = user => user === os.userInfo().username
+  ? asUser(user, 'test', ['-S', path.join(userHome(user), 'rpc.sock')], 1000) : helper(user, 'probe', [], 1000);
+async function asUser(user, file, args, timeoutMs) {
+  collectionSignal()?.throwIfAborted();
+  if (user === os.userInfo().username) return runCommand(file, args, timeoutMs);
+  return runCommand('sudo', ['-n', '-H', '-u', user, file, ...args], timeoutMs);
+}
+async function runPm2Command(user, pm2Path, subCommand, extraArgs = [], timeoutMs = 10000) {
+  if (!validUser(user) || typeof pm2Path !== 'string' || !path.isAbsolute(pm2Path) || pm2Path.includes('\0') || !['jlist', 'logs'].includes(subCommand)) {
+    return { success: false, stdout: '', stderr: 'Invalid PM2 command configuration' };
+  }
+  if (user !== os.userInfo().username) return helper(user, subCommand, extraArgs.map(String), timeoutMs);
+  const binDir = path.dirname(pm2Path);
+  const prefix = pm2Path.includes('/lib/node_modules/') ? pm2Path.split('/lib/node_modules/')[0] + '/bin:' : '';
+  return asUser(user, 'env', [`PATH=${prefix}${binDir}:${process.env.PATH || '/usr/bin:/bin'}`,
+    `PM2_HOME=${userHome(user)}`, pm2Path, subCommand, ...extraArgs.map(String)], timeoutMs);
+}
 async function resolvePm2Binary(user) {
   const cached = pm2BinaryCache[user];
-  if (cached && (Date.now() - cached.ts) < PM2_CACHE_TTL_MS) {
-    const test = await runPm2Command(user, cached.path, 'jlist', [], 3000);
-    if (test.success && test.stdout && test.stdout.trim().startsWith('[')) {
-      return cached.path;
-    }
-    delete pm2BinaryCache[user];
+  if (cached && Date.now() - cached.ts < (cached.path ? PM2_CACHE_TTL_MS : 60000)) return cached.path;
+  if (user !== os.userInfo().username) {
+    const result = await helper(user, 'binary', [], 1000);
+    if (!result.success) throw new Error(result.stderr || 'Cross-user PM2 helper is not configured');
+    const binary = result.stdout.trim();
+    if (!path.isAbsolute(binary)) throw new Error('Invalid PM2 helper binary path');
+    pm2BinaryCache[user] = { path: binary, ts: Date.now() }; return binary;
   }
-
-  const homeDir = user === 'root' ? '/root' : `/home/${user}`;
-  const envVarName = 'PM2_PATH_' + user.toUpperCase().replace(/[^A-Z0-9]/g, '_');
-  const envCandidate = process.env[envVarName] || (user === 'root' ? process.env.PM2_PATH : null);
-  if (envCandidate) {
-    const test = await runPm2Command(user, envCandidate, 'jlist', [], 4000);
-    if (test.success && test.stdout && test.stdout.trim().startsWith('[')) {
-      pm2BinaryCache[user] = { path: envCandidate, ts: Date.now() };
-      return envCandidate;
-    }
+  const variable = 'PM2_PATH_' + user.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+  const explicit = process.env[variable] || (user === 'root' ? process.env.PM2_PATH : null);
+  if (explicit) {
+    if (!path.isAbsolute(explicit) || explicit.includes('\0')) throw new Error(`${variable} must be an absolute binary path`);
+    pm2BinaryCache[user] = { path: explicit, ts: Date.now() }; return explicit;
   }
-
-  // Systemd unit inspection
-  for (const svc of [`pm2-${user}.service`, `pm2-${user}`, 'pm2.service', 'pm2']) {
-    try {
-      const show = await runCommand('sudo', ['-n', 'systemctl', 'show', svc, '--property=ExecStart'], 3000);
-      if (show.success && show.stdout) {
-        const m = show.stdout.match(/path=([^\s;]+pm2)/i) || show.stdout.match(/argv\[\]=([^\s;]+pm2)/i);
-        if (m && m[1]) {
-          const cand = m[1].trim();
-          if (user === 'root' || !cand.startsWith('/root')) {
-            const test = await runPm2Command(user, cand, 'jlist', [], 4000);
-            if (test.success && test.stdout && test.stdout.trim().startsWith('[')) {
-              pm2BinaryCache[user] = { path: cand, ts: Date.now() };
-              return cand;
-            }
-          }
-        }
-      }
-    } catch (e) {}
-  }
-
-  // Home directory find & NVM fast path (detect NVM/fnm/Volta etc.)
+  // One cached login-shell lookup handles NVM/Volta/custom account homes without
+  // invoking PM2 (which would otherwise start a daemon during discovery).
+  const which = await asUser(user, 'bash', ['--noprofile', '-lc', 'command -v pm2'], 2000);
+  const candidate = which.success ? which.stdout.trim().split('\n').at(-1) : null;
+  if (candidate && path.isAbsolute(candidate)) { pm2BinaryCache[user] = { path: candidate, ts: Date.now() }; return candidate; }
+  const home = accountHome(user);
+  const candidates = ['/usr/local/bin/pm2', '/usr/bin/pm2', '/opt/node/bin/pm2', path.join(home, '.volta/bin/pm2'), path.join(home, '.npm-global/bin/pm2')];
   try {
-    const find = await runCommand('sudo', ['-n', 'find', `${homeDir}/.nvm`, homeDir, '-maxdepth', '6', '-name', 'pm2', '-type', 'f'], 4000);
-    if (find.success && find.stdout) {
-      const paths = find.stdout.split('\n').map(l => l.trim()).filter(Boolean);
-      for (const p of paths) {
-        if (!p.includes('bin/pm2')) continue;
-        if (user !== 'root' && p.startsWith('/root')) continue;
-        const test = await runPm2Command(user, p, 'jlist', [], 4000);
-        if (test.success && test.stdout && test.stdout.trim().startsWith('[')) {
-          pm2BinaryCache[user] = { path: p, ts: Date.now() };
-          return p;
-        }
-      }
-    }
-  } catch (e) {}
-
-  // Standard system locations
-  const std = [
-    '/usr/local/bin/pm2',
-    '/usr/bin/pm2',
-    '/opt/node/bin/pm2',
-    '/snap/bin/pm2',
-    `${homeDir}/.npm-global/bin/pm2`,
-    `${homeDir}/.yarn/bin/pm2`,
-    `${homeDir}/.nvm/current/bin/pm2`
-  ];
-  for (const c of std) {
-    const r = await runPm2Command(user, c, 'jlist', [], 3000);
-    if (r.success && r.stdout && r.stdout.trim().startsWith('[')) {
-      pm2BinaryCache[user] = { path: c, ts: Date.now() };
-      return c;
-    }
+    for (const version of fs.readdirSync(path.join(home, '.nvm/versions/node')).slice(-10).reverse()) candidates.push(path.join(home, '.nvm/versions/node', version, 'bin/pm2'));
+  } catch {}
+  for (const binary of candidates) {
+    const exists = await asUser(user, 'test', ['-x', binary], 1000);
+    if (exists.success) { pm2BinaryCache[user] = { path: binary, ts: Date.now() }; return binary; }
   }
-
-  // Fallback to 'which pm2' in a login shell
-  try {
-    const which = await runCommand('sudo', ['-n', '-H', '-u', user, 'bash', '--noprofile', '-lc', 'which pm2'], 3000);
-    if (which.success && which.stdout && which.stdout.trim().startsWith('/')) {
-      const resolved = which.stdout.trim();
-      const test = await runPm2Command(user, resolved, 'jlist', [], 4000);
-      if (test.success && test.stdout && test.stdout.trim().startsWith('[')) {
-        pm2BinaryCache[user] = { path: resolved, ts: Date.now() };
-        return resolved;
-      }
-    }
-  } catch (e) {}
-
-  console.warn(`[pm2] No binary found for '${user}'. Set ${envVarName} in .env`);
-  return null;
+  pm2BinaryCache[user] = { path: null, ts: Date.now() }; return null;
 }
-
-/** Discover PM2 users from PM2_USERS env or ~/.pm2 directories only. */
 function getPm2Users() {
-  const users = new Set();
-
-  if (process.env.PM2_USERS) {
-    process.env.PM2_USERS.split(',').forEach((u) => {
-      const clean = u.trim();
-      if (clean) users.add(clean);
-    });
-  }
-
+  const users = new Set((process.env.PM2_USERS || '').split(',').map(user => user.trim()).filter(validUser));
   try {
-    if (fs.existsSync('/root/.pm2')) users.add('root');
-    if (fs.existsSync('/home')) {
-      const dirs = fs.readdirSync('/home');
-      for (const d of dirs) {
-        if (fs.existsSync(`/home/${d}/.pm2`)) users.add(d);
-      }
+    for (const entry of fs.readFileSync('/etc/passwd', 'utf8').split('\n')) {
+      const [user, , uid, , , home] = entry.split(':');
+      if (validUser(user) && (user === 'root' || Number(uid) >= 1000) && home && fs.existsSync(path.join(home, '.pm2'))) users.add(user);
     }
-  } catch (e) {}
-
-  return Array.from(users);
+  } catch {}
+  if (process.env.PM2_HOME) users.add(os.userInfo().username);
+  try {
+    for (const entry of fs.readFileSync('/etc/system-ops/pm2-monitor.conf', 'utf8').split('\n')) {
+      const user = entry.split('|')[0]; if (validUser(user)) users.add(user);
+    }
+  } catch {}
+  return [...users].slice(0, 16);
 }
-
-/** Fetch PM2 process list for a single user. */
 async function getPm2UserProcesses(user) {
-  if (!/^[a-zA-Z0-9_-]+$/.test(user)) {
-    return { user, processes: [], error: 'Invalid user name format', pm2Path: null };
-  }
-  const pm2Path = await resolvePm2Binary(user);
-  if (!pm2Path) {
-    const envVarName = 'PM2_PATH_' + user.toUpperCase().replace(/[^A-Z0-9]/g, '_');
-    return { user, processes: [], error: `PM2 binary not found for '${user}'. Set ${envVarName} in .env.`, pm2Path: null };
-  }
-  const res = await runPm2Command(user, pm2Path, 'jlist', [], 10000);
-  if (!res.success && !res.stdout) {
-    delete pm2BinaryCache[user];
-    const err = res.stderr || '';
-    const msg = err.includes('password is required') || err.includes('terminal is required')
-      ? `Sudo password required for user '${user}'. Check /etc/sudoers.d/system-ops.`
-      : (err.trim() || `Failed to execute PM2 for user '${user}'`);
-    return { user, processes: [], error: msg, pm2Path };
-  }
-  const parsed = parsePm2Json(user, res.stdout);
-  if (parsed.error) delete pm2BinaryCache[user];
-  return { ...parsed, pm2Path };
+  if (!validUser(user)) return { user, processes: [], error: 'Invalid user name', pm2Path: null };
+  try {
+    const home = userHome(user);
+    const socket = await probeDaemon(user);
+    if (!socket.success) return { user, pm2Home: home, processes: [], pm2Path: null,
+      error: socket.stderr || 'PM2 daemon socket is absent or inaccessible; monitoring will not start a daemon.' };
+    const pm2Path = await resolvePm2Binary(user);
+    if (!pm2Path) return { user, pm2Home: home, processes: [], pm2Path: null, error: 'PM2 binary not found; configure PM2_PATH_' + user.toUpperCase() };
+    const res = await runPm2Command(user, pm2Path, 'jlist', [], 5000);
+    if (!res.success) return { user, processes: [], pm2Path, pm2Home: home, error: res.stderr || 'PM2 collection failed' };
+    return { ...parsePm2Json(user, res.stdout), pm2Path, pm2Home: home };
+  } catch (error) { return { user, processes: [], pm2Path: null, error: error.message }; }
 }
-
 /** Parse JSON output from `pm2 jlist`. */
 function parsePm2Json(user, raw) {
   try {
@@ -200,6 +129,7 @@ function parsePm2Json(user, raw) {
     const json = trimmed.slice(first, last + 1);
     const arr = JSON.parse(json);
     if (!Array.isArray(arr)) return { user, processes: [], error: 'PM2 output is not an array' };
+    if (arr.length > 500 || arr.some(p => !p || typeof p !== 'object')) throw new Error('PM2 process list exceeds the supported schema');
     const processes = arr.map(p => {
       const mon = p.monit || {};
       const env = p.pm2_env || {};
@@ -213,6 +143,7 @@ function parsePm2Json(user, raw) {
         cpu: mon.cpu !== undefined ? mon.cpu : 0,
         memory: mem,
         memoryFormatted: mem > 0 ? formatBytes(mem) : '0 B',
+        formattedMemory: mem > 0 ? formatBytes(mem) : '0 B',
         restart_time: env.restart_time || 0,
         unstable_restarts: env.unstable_restarts || 0,
         uptime,
@@ -227,14 +158,17 @@ function parsePm2Json(user, raw) {
 }
 
 /** Aggregate snapshot across all discovered users. */
-async function collectPm2Snapshot() {
-  const users = getPm2Users();
-  const results = await Promise.all(users.map(u => getPm2UserProcesses(u)));
+async function collectPm2Snapshot({ userNames = getPm2Users(), collectUser = getPm2UserProcesses } = {}) {
+  const results = [];
+  for (const user of userNames) { collectionSignal()?.throwIfAborted(); results.push(await collectUser(user)); }
+
+  // activeUsers: those with processes running OR binary confirmed (no error)
   const activeUsers = results.filter(
     (r) => (r.processes && r.processes.length > 0) || (r.pm2Path && !r.error)
   );
+
   let totalProcesses = 0, onlineCount = 0, errorCount = 0, totalMemory = 0;
-  for (const r of activeUsers) {
+  for (const r of results) {
     (r.processes || []).forEach(p => {
       totalProcesses++;
       if (p.status === 'online') onlineCount++;
@@ -242,13 +176,22 @@ async function collectPm2Snapshot() {
       totalMemory += p.memory || 0;
     });
   }
+
   return {
     totalProcesses,
     onlineCount,
     errorCount,
     totalMemory,
     totalMemoryFormatted: formatBytes(totalMemory),
-    users: activeUsers
+    // `users` keeps backward-compat: only users with active processes/binary
+    users: activeUsers,
+    // `allUsers` exposes every discovered user including those with errors
+    allUsers: results,
+    // raw count of PM2 home dirs/env users found (even if binary resolution failed)
+    detectedUserCount: userNames.length,
+    incomplete: results.some(result => result.error),
+    failedUserCount: results.filter(result => result.error).length,
+    source: 'pm2:per-user-cli',
   };
 }
 
@@ -261,6 +204,8 @@ async function getPm2Logs(user, appName, lines = 100) {
     return { user, app: appName, lines, output: '', error: 'Invalid application name' };
   }
   const sanitized = Math.min(Math.max(parseInt(lines, 10) || 100, 1), 1000);
+  const socket = await probeDaemon(user);
+  if (!socket.success) return { user, app: appName, output: '', error: 'PM2 daemon is absent or inaccessible' };
   const pm2Path = await resolvePm2Binary(user);
   if (!pm2Path) {
     const envVarName = 'PM2_PATH_' + user.toUpperCase().replace(/[^A-Z0-9]/g, '_');
@@ -287,5 +232,7 @@ module.exports = {
   getPm2Logs,
   getPm2Users,
   clearPm2Cache,
-  runPm2Command
+  runPm2Command,
+  parsePm2Json,
+  getPm2UserProcesses,
 };

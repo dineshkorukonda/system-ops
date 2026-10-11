@@ -53,7 +53,7 @@ async function getCapabilities() {
     fs.existsSync(path.join(directory, process.platform === 'win32' ? `${name}.exe` : name)));
   const installed = {
     docker: socketExists() || binary('docker'),
-    pm2: binary('pm2') || !!process.env.PM2_USERS,
+    pm2: binary('pm2') || require('../../plugins/superpowers/skills/pm2_discovery').getPm2Users().length > 0,
     ollama: binary('ollama') || !!process.env.OLLAMA_URL,
     systemd: fs.existsSync('/run/systemd/system'),
     backups: !!(process.env.BACKUPS_DIR || process.env.BACKUP_DIR || process.env.LOG_SOURCES),
