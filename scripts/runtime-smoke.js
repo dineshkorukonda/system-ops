@@ -79,7 +79,12 @@ async function smoke() {
     assert.match(await loginPage.text(), /password/i);
     const branding = await request('/api/v2/settings/branding');
     assert.equal(branding.status, 200, 'Branding requires a writable data directory');
-    assert.ok((await branding.json()).siteName);
+    const currentBranding = await branding.json();
+    assert.ok(currentBranding.siteName);
+    if (process.env.SMOKE_EXPECTED_SITE_NAME) {
+      assert.equal(currentBranding.siteName, process.env.SMOKE_EXPECTED_SITE_NAME,
+        'Settings did not survive container recreation');
+    }
 
     assert.equal((await request('/api/v2/system/snapshot')).status, 401);
     const badLogin = await request('/api/login', {

@@ -45,8 +45,7 @@ docker run -d --name "$CONTAINER" -p 127.0.0.1::9080 \
   -e APP_PASSWORD -e SESSION_SECRET -e ENABLE_GO_COLLECTOR=false \
   -v "$DATA_VOLUME:/app/data" "$IMAGE" >/dev/null
 PORT="$(docker port "$CONTAINER" 9080/tcp | head -1 | awk -F: '{print $NF}')"
-curl --fail --silent --retry 20 --retry-connrefused --retry-delay 1 \
-  "http://127.0.0.1:$PORT/api/v2/settings/branding" > /tmp/"$CONTAINER-branding.json"
-node -e 'const fs = require("fs"); const assert = require("assert/strict"); assert.equal(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).siteName, "system-ops-smoke")' /tmp/"$CONTAINER-branding.json"
-rm /tmp/"$CONTAINER-branding.json"
+export SMOKE_BASE_URL="http://127.0.0.1:$PORT"
+export SMOKE_EXPECTED_SITE_NAME="system-ops-smoke"
+node scripts/runtime-smoke.js
 echo "PASS: settings persist after container recreation"
