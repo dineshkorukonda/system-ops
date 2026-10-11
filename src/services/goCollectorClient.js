@@ -5,6 +5,8 @@
  */
 
 const GO_COLLECTOR_URL = (process.env.GO_COLLECTOR_URL || 'http://127.0.0.1:9081').replace(/\/$/, '');
+const { combinedSignal } = require('../core/collectionContext');
+const { assertSystemSnapshot, assertProcessSnapshot } = require('../core/collectorSchemas');
 const HEALTH_CACHE_MS = parseInt(process.env.GO_COLLECTOR_HEALTH_CACHE_MS, 10) || 30000;
 const REQUEST_TIMEOUT_MS = parseInt(process.env.GO_COLLECTOR_TIMEOUT_MS, 10) || 2000;
 
@@ -15,7 +17,7 @@ let healthCache = {
 };
 
 function isExplicitlyDisabled() {
-  return process.env.ENABLE_GO_COLLECTOR === 'false';
+  return process.env.ENABLE_GO_COLLECTOR !== 'true';
 }
 
 async function fetchJson(path, timeoutMs = REQUEST_TIMEOUT_MS) {
@@ -24,7 +26,7 @@ async function fetchJson(path, timeoutMs = REQUEST_TIMEOUT_MS) {
 
   try {
     const res = await fetch(`${GO_COLLECTOR_URL}${path}`, {
-      signal: controller.signal,
+      signal: combinedSignal(controller.signal),
       headers: { Accept: 'application/json' }
     });
 
@@ -32,7 +34,15 @@ async function fetchJson(path, timeoutMs = REQUEST_TIMEOUT_MS) {
       throw new Error(`Go collector ${path} returned ${res.status}`);
     }
 
-    return await res.json();
+    const reader = res.body.getReader();
+    const chunks = []; let bytes = 0;
+    while (true) {
+      const part = await reader.read(); if (part.done) break;
+      bytes += part.value.length;
+      if (bytes > 1024 * 1024) { await reader.cancel(); throw new Error('Go collector response exceeds 1 MiB'); }
+      chunks.push(Buffer.from(part.value));
+    }
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
   } finally {
     clearTimeout(timer);
   }
@@ -70,7 +80,9 @@ async function getSystemSnapshot() {
   }
 
   try {
-    return await fetchJson('/v1/system/snapshot');
+    const snapshot = await fetchJson('/v1/system/snapshot');
+    assertSystemSnapshot(snapshot);
+    return snapshot;
   } catch (err) {
     healthCache.available = false;
     healthCache.lastError = err.message || String(err);
@@ -91,7 +103,9 @@ async function getProcesses({ limit = 50, sortBy = 'cpu' } = {}) {
   });
 
   try {
-    return await fetchJson(`/v1/processes?${query.toString()}`);
+    const snapshot = await fetchJson(`/v1/processes?${query.toString()}`);
+    assertProcessSnapshot(snapshot);
+    return snapshot;
   } catch (err) {
     healthCache.available = false;
     healthCache.lastError = err.message || String(err);
@@ -118,7 +132,9 @@ function getStatus() {
     url: GO_COLLECTOR_URL,
     available: healthCache.available,
     lastCheckedAt: healthCache.checkedAt || null,
-    lastError: healthCache.lastError
+    lastError: healthCache.lastError,
+    selectedBackend: healthCache.available && !isExplicitlyDisabled() ? 'go' : 'node',
+    fallbackActive: !isExplicitlyDisabled() && !healthCache.available,
   };
 }
 
@@ -127,8 +143,8 @@ function buildMemoryBreakdown(nodeDiagnostics, goDiagnostics, goStatus) {
   const goMem = goDiagnostics?.memory || {};
 
   const nodeRss = nodeMem.rssBytes || 0;
-  const goRss = goMem.rssBytes || goMem.allocBytes || 0;
-  const combinedRss = nodeRss + (goStatus?.available ? goRss : 0);
+  const goRss = Number.isFinite(goMem.rssBytes) ? goMem.rssBytes : null;
+  const combinedRss = goStatus?.available && goRss === null ? null : nodeRss + (goStatus?.available ? goRss : 0);
 
   let activeCollector = 'node';
   if (goStatus?.available) {
@@ -158,7 +174,7 @@ function buildMemoryBreakdown(nodeDiagnostics, goDiagnostics, goStatus) {
       lastError: goStatus?.lastError || null,
       uptimeSeconds: goDiagnostics?.uptimeSeconds || 0,
       rssBytes: goRss,
-      rssFormatted: goMem.rssFormatted || goMem.allocFormatted || 'N/A',
+      rssFormatted: goMem.rssFormatted || 'Unknown',
       allocBytes: goMem.allocBytes || 0,
       allocFormatted: goMem.allocFormatted || 'N/A',
       sysBytes: goMem.sysBytes || 0,
@@ -167,7 +183,7 @@ function buildMemoryBreakdown(nodeDiagnostics, goDiagnostics, goStatus) {
       heapInuseFormatted: goMem.heapInuseFormatted || 'N/A'
     },
     combinedRssBytes: combinedRss,
-    combinedRssFormatted: formatMb(combinedRss)
+    combinedRssFormatted: combinedRss === null ? 'Unknown' : formatMb(combinedRss)
   };
 }
 

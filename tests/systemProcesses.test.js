@@ -12,7 +12,10 @@ test('getSystemProcesses returns non-empty processes list', async () => {
     const proc = result.processes[0];
     assert.ok(typeof proc.pid === 'number');
     assert.ok(typeof proc.user === 'string');
-    assert.ok(typeof proc.cpuPercent === 'number');
+    if (result.source === 'node:powershell') {
+      assert.strictEqual(proc.cpuPercent, null);
+      assert.ok(Object.hasOwn(proc, 'cpuTotalSeconds'));
+    } else assert.ok(Number.isFinite(proc.cpuPercent));
     assert.ok(typeof proc.memPercent === 'number');
     assert.ok(typeof proc.formattedRss === 'string');
     assert.ok(typeof proc.command === 'string');

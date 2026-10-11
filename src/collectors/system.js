@@ -1,3 +1,4 @@
+const { bindCancellation } = require('../core/collectionContext');
 const os = require('os');
 const fs = require('fs');
 const net = require('net');
@@ -375,7 +376,7 @@ function checkPortListener(port, host = '127.0.0.1', timeoutMs = 1500) {
       resolve({ port, host, listening: false, statusText: `Not listening (${err.code || err.message})` });
     });
 
-    socket.connect(port, host);
+    bindCancellation(socket); socket.connect(port, host);
   });
 }
 

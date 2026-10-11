@@ -24,6 +24,9 @@ ops ALL=(ALL:ALL) NOPASSWD: /usr/bin/docker *
 # Ollama model list as the ollama service user
 ops ALL=(ollama:ollama) NOPASSWD: /usr/bin/ollama list
 
+# Root-owned helper permits only configured accounts and read-only PM2 actions.
+ops ALL=(root:root) NOPASSWD: /usr/local/libexec/system-ops/pm2-read *
+
 # In-dashboard self-update and recovery scripts
 ops ALL=(ALL:ALL) NOPASSWD: /usr/bin/bash /opt/system-ops/scripts/deploy.sh
 ops ALL=(ALL:ALL) NOPASSWD: /usr/bin/bash /opt/system-ops/scripts/recover.sh

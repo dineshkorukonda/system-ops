@@ -1,0 +1,9 @@
+<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+body{margin:0;color:var(--foreground);font-family:var(--font-sans)}.row{display:grid;grid-template-columns:34px 1fr 1fr;gap:16px;padding:18px 0;border-bottom:1px solid var(--border)}.n{color:var(--muted-foreground)}strong{font-weight:500}.gate{color:var(--muted-foreground)}@media(max-width:500px){.row{grid-template-columns:24px 1fr;gap:10px}.gate{grid-column:2}}
+</style></head><body><main aria-label="Proposed improvement priorities and completion evidence">
+<div class="row"><span class="n">1</span><div><strong>Make status trustworthy</strong><br>Startup, auth configuration, readiness, fresh data</div><div class="gate">Evidence: injected failures show stale or unhealthy; repeatable Ubuntu and Docker startup</div></div>
+<div class="row"><span class="n">2</span><div><strong>Reduce background costs</strong><br>Profile collectors, enable only configured integrations, bound concurrency</div><div class="gate">Evidence: comparable CPU/RAM traces and a stable 24-hour soak</div></div>
+<div class="row"><span class="n">3</span><div><strong>Simplify the interface</strong><br>Overview · Services · Host · Activity · Settings</div><div class="gate">Evidence: operators find a failure and its logs without guidance</div></div>
+<div class="row"><span class="n">4</span><div><strong>Add durable monitoring</strong><br>History, incidents, notifications, optional monitoring integrations</div><div class="gate">Evidence: outage → delivered alert → recovery; history survives restart</div></div>
+<div class="row"><span class="n">5</span><div><strong>Make releases dependable</strong><br>CI, staged artifacts, readiness checks, rollback</div><div class="gate">Evidence: clean install, failed upgrade, and rollback demonstrations</div></div>
+</main></body></html>

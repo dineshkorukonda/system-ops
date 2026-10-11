@@ -1,3 +1,4 @@
+const { bindCancellation } = require('../core/collectionContext');
 const net = require('net');
 const os = require('os');
 const fs = require('fs');
@@ -102,7 +103,7 @@ function checkPortListener(port = 11434, host = '127.0.0.1', timeoutMs = 1500) {
       });
     });
 
-    socket.connect(port, host);
+    bindCancellation(socket); socket.connect(port, host);
   });
 }
 

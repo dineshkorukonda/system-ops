@@ -1,7 +1,7 @@
 const fs = require('fs');
 const readline = require('readline');
 const path = require('path');
-const UAParser = require('ua-parser-js');
+const crypto = require('node:crypto');
 const { discoverNginxDomains, discoverDockerDomains, discoverNginxLogFiles } = require('../utils/domainDiscovery');
 
 let geoipModule = null;
@@ -90,7 +90,7 @@ async function getResolvedDomains() {
 
   // 3. Auto-discover from Docker containers
   try {
-    const dockerDomains = await discoverDockerDomains();
+    const dockerDomains = process.env.TRAFFIC_DISCOVER_DOCKER === 'true' ? await discoverDockerDomains() : [];
     dockerDomains.forEach(dom => {
       if (!map[dom] && !dom.includes('example.com')) {
         map[dom] = formatDomainLabel(dom);
@@ -98,7 +98,7 @@ async function getResolvedDomains() {
     });
   } catch (e) {}
 
-  return map;
+  return Object.fromEntries(Object.entries(map).slice(0, 50));
 }
 
 /**
@@ -107,7 +107,15 @@ async function getResolvedDomains() {
  * Never re-reads the entire file. Detects log rotation (inode change / size shrink).
  */
 class IncrementalTrafficEngine {
-  constructor() {
+  constructor(options = {}) {
+    this.options = options;
+    this.now = options.now || Date.now;
+    this.maxBytes = options.maxBytes || 1024 * 1024;
+    this.maxLines = options.maxLines || 10000;
+    this.windowMs = options.windowMs || 3600000;
+    this.windowStartedAt = this.now();
+    this.uaCache = new Map();
+    this.counters = { parsedLines: 0, malformedLines: 0, droppedLines: 0, droppedBytes: 0, rotations: 0, domainLimitHits: 0, cardinalityLimitHits: 0 };
     this.fileStates = new Map(); // filepath -> { inode, offset, size }
     this.cachedResult = null;
     this.aggregatedState = this._createFreshState();
@@ -121,16 +129,16 @@ class IncrementalTrafficEngine {
         total_web_hits: 0,
         total_bytes: 0,
         unique_devices: 0,
-        domains: {}
+        domains: Object.create(null)
       },
       status_codes: { '2xx': 0, '3xx': 0, '4xx': 0, '5xx': 0 },
-      browsers: {},
+      browsers: Object.create(null),
       endpointMap: new Map(), // key -> { path, host, hits }
       ipMap: new Map(),       // ip -> { ip, hits, city, country }
       hourlyMap: new Map(),
       os_stats: { Android: 0, iOS: 0, Windows: 0, Mac: 0, Linux: 0, Other: 0 },
       uniqueDevicesGlobal: new Set(),
-      domainUniqueDevices: {}, // dom -> Set
+      domainUniqueDevices: Object.create(null), // dom -> Set
       locationMap: new Map(),
       recentVisitors: []
     };
@@ -140,6 +148,8 @@ class IncrementalTrafficEngine {
     this.fileStates.clear();
     this.aggregatedState = this._createFreshState();
     this.cachedResult = null;
+    this.uaCache.clear();
+    this.windowStartedAt = this.now();
   }
 
   /**
@@ -147,8 +157,15 @@ class IncrementalTrafficEngine {
    * If customLogPath is supplied (e.g. in automated tests), parses from start of that file.
    */
   async processLogs(customLogPath = null) {
-    const TARGET_DOMAINS = await getResolvedDomains();
-    const logFiles = customLogPath ? [customLogPath] : discoverNginxLogFiles();
+    if (this.now() - this.windowStartedAt >= this.windowMs) {
+      this.aggregatedState = this._createFreshState(); this.windowStartedAt = this.now(); this.uaCache.clear();
+    }
+    const configuration = process.env.TRACKED_DOMAINS || '';
+    if (!this.domainCache || this.domainCache.configuration !== configuration || this.now() - this.domainCache.at > 300000) {
+      this.domainCache = { configuration, at: this.now(), domains: await (this.options.resolveDomains || getResolvedDomains)() };
+    }
+    const TARGET_DOMAINS = this.domainCache.domains;
+    const logFiles = customLogPath ? [customLogPath] : this.options.logPaths || discoverNginxLogFiles();
     const existingLogs = logFiles.filter(f => fs.existsSync(f));
 
     if (customLogPath && existingLogs.length === 0) {
@@ -202,6 +219,7 @@ class IncrementalTrafficEngine {
 
     // Initialize domain summary keys
     Object.entries(TARGET_DOMAINS).forEach(([dom, label]) => {
+      if (Object.keys(this.aggregatedState.summary.domains).length >= 50) return;
       if (!this.aggregatedState.summary.domains[dom]) {
         this.aggregatedState.summary.domains[dom] = {
           name: label,
@@ -218,75 +236,61 @@ class IncrementalTrafficEngine {
     const hostLogRegex = /^(\S+)\s+(\S+)\s+-\s+(\S+)\s+\[([^\]]+)\]\s+"([^"]*)"\s+(\d+)\s+(\d+|-)\s+"([^"]*)"\s+"([^"]*)"/;
     const standardLogRegex = /^(\S+)\s+-\s+(\S+)\s+\[([^\]]+)\]\s+"([^"]*)"\s+(\d+)\s+(\d+|-)\s+"([^"]*)"\s+"([^"]*)"/;
 
-    for (const logPath of existingLogs) {
-      try {
-        const stats = fs.statSync(logPath);
-        const currentSize = stats.size;
-        const currentInode = stats.ino || 0;
-
-        let state = this.fileStates.get(logPath);
-        let startOffset = 0;
-
-        if (state) {
-          if (state.inode !== currentInode || currentSize < state.offset) {
-            // Log rotated or truncated: reset offset to 0
-            startOffset = 0;
-          } else if (currentSize === state.offset) {
-            // No new data in this file
-            continue;
-          } else {
-            // Read new delta from previous offset
-            startOffset = state.offset;
-          }
-        } else {
-          // First time reading this log: read up to the last 2MB to keep startup instant
-          const INITIAL_MAX_BYTES = 2 * 1024 * 1024; // 2 MB initial tail
-          startOffset = Math.max(0, currentSize - INITIAL_MAX_BYTES);
-        }
-
-        const readStream = fs.createReadStream(logPath, {
-          start: startOffset,
-          encoding: 'utf8'
-        });
-
-        const rl = readline.createInterface({
-          input: readStream,
-          crlfDelay: Infinity
-        });
-
-        const defaultHost = Object.keys(TARGET_DOMAINS).find(d => !d.includes('example.com')) ||
-          Object.keys(TARGET_DOMAINS)[0] ||
-          path.basename(logPath).replace(/\.access\.log|\.log/, '') ||
-          'primary';
-
-        let isFirstLineOfChunk = startOffset > 0;
-
-        for await (const line of rl) {
-          // If we jumped into the middle of a file, skip the partial first line
-          if (isFirstLineOfChunk) {
-            isFirstLineOfChunk = false;
-            continue;
-          }
-
-          if (!line || !line.trim()) continue;
-
-          this._parseLine(line, hostLogRegex, standardLogRegex, defaultHost, TARGET_DOMAINS);
-        }
-
-        // Record updated offset
-        this.fileStates.set(logPath, {
-          inode: currentInode,
-          offset: currentSize,
-          size: currentSize
-        });
-      } catch (err) {}
+    const budget = { bytes: this.maxBytes, lines: this.maxLines };
+    const paths = existingLogs.slice(0, 8);
+    for (const name of this.fileStates.keys()) if (!paths.includes(name)) this.fileStates.delete(name);
+    for (const logPath of paths) {
+      require('../core/collectionContext').collectionSignal()?.throwIfAborted();
+      if (budget.bytes <= 0) break;
+      await this._readIncrement(logPath, TARGET_DOMAINS, budget);
     }
-
     // Build finalized snapshot
     return this._formatResult();
   }
 
+  async _readIncrement(logPath, domains, budget, full = false) {
+    let handle;
+    try {
+      handle = await fs.promises.open(logPath, 'r');
+      const stats = await handle.stat();
+      let state = this.fileStates.get(logPath);
+      if (!state || state.inode !== stats.ino || stats.size < state.offset) {
+        if (state) { this.counters.rotations++; this.counters.droppedBytes += state.pending.length; }
+        const offset = full ? 0 : Math.max(0, stats.size - this.maxBytes);
+        this.counters.droppedBytes += offset;
+        state = { inode: stats.ino, offset, pending: Buffer.alloc(0), discard: offset > 0 };
+      }
+      if (stats.size - state.offset > this.maxBytes * 4) {
+        const next = stats.size - this.maxBytes;
+        this.counters.droppedBytes += next - state.offset + state.pending.length;
+        state.offset = next; state.pending = Buffer.alloc(0); state.discard = true;
+      }
+      const length = Math.min(budget.bytes, Math.max(0, stats.size - state.offset));
+      if (length) {
+        const buffer = Buffer.allocUnsafe(length);
+        const { bytesRead } = await handle.read(buffer, 0, length, state.offset);
+        state.offset += bytesRead; budget.bytes -= bytesRead;
+        const data = Buffer.concat([state.pending, buffer.subarray(0, bytesRead)]);
+        let start = 0;
+        const hostRegex = /^(\S+)\s+(\S+)\s+-\s+(\S+)\s+\[([^\]]+)\]\s+"([^"]*)"\s+(\d+)\s+(\d+|-)\s+"([^"]*)"\s+"([^"]*)"/;
+        const standardRegex = /^(\S+)\s+-\s+(\S+)\s+\[([^\]]+)\]\s+"([^"]*)"\s+(\d+)\s+(\d+|-)\s+"([^"]*)"\s+"([^"]*)"/;
+        const host = Object.keys(domains)[0] || path.basename(logPath).replace(/\.access\.log|\.log/, '') || 'primary';
+        const parse = line => {
+          if (state.discard) { state.discard = false; this.counters.droppedLines++; return; }
+          if (line.length > 8192 || budget.lines <= 0) { this.counters.droppedLines++; return; }
+          budget.lines--; this._parseLine(line.toString('utf8'), hostRegex, standardRegex, host, domains);
+        };
+        for (let i = 0; i < data.length; i++) if (data[i] === 10) { parse(data.subarray(start, i)); start = i + 1; }
+        state.pending = Buffer.from(data.subarray(start));
+        if (full && state.offset === stats.size && state.pending.length) { parse(state.pending); state.pending = Buffer.alloc(0); }
+        if (state.pending.length > 8192) { this.counters.droppedBytes += state.pending.length; state.pending = Buffer.alloc(0); state.discard = true; }
+      }
+      this.fileStates.set(logPath, state);
+    } finally { await handle?.close(); }
+  }
+
   _parseLine(line, hostLogRegex, standardLogRegex, defaultHost, TARGET_DOMAINS) {
+    if (line.length > 8192) { this.counters.droppedLines++; return; }
     let host = defaultHost;
     let clientIp = null;
     let timeLocal = '';
@@ -324,6 +328,7 @@ class IncrementalTrafficEngine {
         userAgent = stdMatch[8] || '';
         host = defaultHost;
       } else {
+        this.counters.malformedLines++;
         return;
       }
     }
@@ -331,8 +336,10 @@ class IncrementalTrafficEngine {
     if (process.env.TRACKED_DOMAINS && !TARGET_DOMAINS[host]) return;
 
     const s = this.aggregatedState;
+    host = host.slice(0, 253); userAgent = userAgent.slice(0, 512); clientIp = clientIp?.slice(0, 64);
 
     if (!s.summary.domains[host]) {
+      if (Object.keys(s.summary.domains).length >= 50) { this.counters.domainLimitHits++; this.counters.droppedLines++; return; }
       s.summary.domains[host] = {
         name: TARGET_DOMAINS[host] || formatDomainLabel(host),
         hits: 0,
@@ -345,6 +352,7 @@ class IncrementalTrafficEngine {
     }
 
     s.summary.total_hits += 1;
+    this.counters.parsedLines++;
     s.summary.domains[host].hits += 1;
     s.summary.total_bytes += bodyBytes;
     s.summary.domains[host].bytes += bodyBytes;
@@ -356,23 +364,31 @@ class IncrementalTrafficEngine {
     else if (statusCode >= 500) s.status_codes['5xx'] += 1;
 
     // Bounded device sets (cap at 100,000 to prevent runaway memory on huge multi-gig traffic)
-    const deviceKey = `${clientIp || 'no-ip'}|${userAgent}|${host}`;
-    const globalDeviceKey = `${clientIp || 'no-ip'}|${userAgent}`;
+    const globalDeviceKey = crypto.createHash('sha256').update(`${clientIp || 'no-ip'}|${userAgent}`).digest('hex').slice(0, 16);
+    const deviceKey = `${globalDeviceKey}|${host}`;
 
-    if (s.domainUniqueDevices[host].size < 100000) {
-      s.domainUniqueDevices[host].add(deviceKey);
-    }
-    if (s.uniqueDevicesGlobal.size < 100000) {
+    if (s.domainUniqueDevices[host].size < 1000) {
+      s.domainUniqueDevices[host].add(globalDeviceKey);
+    } else if (!s.domainUniqueDevices[host].has(globalDeviceKey)) this.counters.cardinalityLimitHits++;
+    if (s.uniqueDevicesGlobal.size < 5000) {
       s.uniqueDevicesGlobal.add(globalDeviceKey);
-    }
+    } else if (!s.uniqueDevicesGlobal.has(globalDeviceKey)) this.counters.cardinalityLimitHits++;
 
     // Parse User-Agent
-    const uaParser = new UAParser(userAgent);
-    const uaResult = uaParser.getResult();
+    let uaResult = { os: {}, browser: {}, device: {} };
+    if (process.env.TRAFFIC_PARSE_USER_AGENT === 'true') {
+      uaResult = this.uaCache.get(userAgent);
+      if (!uaResult) {
+        uaResult = new (require('ua-parser-js'))(userAgent).getResult();
+        if (this.uaCache.size >= 500) this.uaCache.delete(this.uaCache.keys().next().value);
+        this.uaCache.set(userAgent, uaResult);
+      }
+    }
     const rawOs = uaResult.os.name || '';
     const osCategory = normalizeOS(rawOs);
     const browserName = uaResult.browser.name || 'Other';
-    const deviceType = uaResult.device.type || (osCategory === 'Android' || osCategory === 'iOS' ? 'mobile' : 'desktop');
+    const deviceType = process.env.TRAFFIC_PARSE_USER_AGENT === 'true'
+      ? uaResult.device.type || (osCategory === 'Android' || osCategory === 'iOS' ? 'mobile' : 'desktop') : 'unknown';
 
     s.browsers[browserName] = (s.browsers[browserName] || 0) + 1;
 
@@ -380,7 +396,7 @@ class IncrementalTrafficEngine {
     if (isMobileDevice) {
       s.summary.domains[host].mobile_hits += 1;
       s.summary.total_mobile_hits += 1;
-    } else {
+    } else if (deviceType !== 'unknown') {
       s.summary.domains[host].web_hits += 1;
       s.summary.total_web_hits += 1;
     }
@@ -389,7 +405,7 @@ class IncrementalTrafficEngine {
 
     // Request path aggregation
     const reqParts = requestStr.split(/\s+/);
-    const requestPath = reqParts.length >= 2 ? reqParts[1].split('?')[0] : '/';
+    const requestPath = reqParts.length >= 2 ? reqParts[1].split('?')[0].slice(0, 512) : '/';
     const epKey = `${host}|${requestPath}`;
     if (s.endpointMap.has(epKey)) {
       s.endpointMap.get(epKey).hits += 1;
@@ -399,7 +415,7 @@ class IncrementalTrafficEngine {
 
     // GeoIP Lookup
     let geoData = null;
-    if (clientIp && !clientIp.startsWith('127.') && !clientIp.startsWith('10.') && !clientIp.startsWith('192.168.')) {
+    if (process.env.TRAFFIC_GEOIP === 'true' && clientIp && !clientIp.startsWith('127.') && !clientIp.startsWith('10.') && !clientIp.startsWith('192.168.')) {
       geoData = lookupGeo(clientIp);
     }
 
@@ -490,7 +506,12 @@ class IncrementalTrafficEngine {
       hourly_distribution: Array.from(s.hourlyMap.entries()).map(([hour, hits]) => ({ hour, hits })),
       os_stats: s.os_stats,
       locations,
-      recent_visitors: [...s.recentVisitors].reverse()
+      recent_visitors: [...s.recentVisitors].reverse(),
+      retention: { windowStartedAt: new Date(this.windowStartedAt).toISOString(), windowMs: this.windowMs,
+        uniqueCountsAreLowerBounds: this.counters.cardinalityLimitHits > 0,
+        geoipEnabled: process.env.TRAFFIC_GEOIP === 'true', userAgentEnabled: process.env.TRAFFIC_PARSE_USER_AGENT === 'true' },
+      processing: { ...this.counters, maxBytesPerCycle: this.maxBytes, maxLinesPerCycle: this.maxLines,
+        trackedFiles: this.fileStates.size, trackedDomains: Object.keys(s.summary.domains).length }
     };
   }
 
@@ -498,40 +519,12 @@ class IncrementalTrafficEngine {
    * One-shot parse helper for tests & custom log paths
    */
   async _parseFullLogs(existingLogs, TARGET_DOMAINS) {
-    const freshEngine = new IncrementalTrafficEngine();
-    freshEngine.aggregatedState = freshEngine._createFreshState();
-
-    Object.entries(TARGET_DOMAINS).forEach(([dom, label]) => {
-      freshEngine.aggregatedState.summary.domains[dom] = {
-        name: label,
-        hits: 0,
-        unique: 0,
-        mobile_hits: 0,
-        web_hits: 0,
-        bytes: 0
-      };
-      freshEngine.aggregatedState.domainUniqueDevices[dom] = new Set();
-    });
-
-    const hostLogRegex = /^(\S+)\s+(\S+)\s+-\s+(\S+)\s+\[([^\]]+)\]\s+"([^"]*)"\s+(\d+)\s+(\d+|-)\s+"([^"]*)"\s+"([^"]*)"/;
-    const standardLogRegex = /^(\S+)\s+-\s+(\S+)\s+\[([^\]]+)\]\s+"([^"]*)"\s+(\d+)\s+(\d+|-)\s+"([^"]*)"\s+"([^"]*)"/;
-
-    for (const logPath of existingLogs) {
-      try {
-        const fileStream = fs.createReadStream(logPath, { encoding: 'utf8' });
-        const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
-        const defaultHost = Object.keys(TARGET_DOMAINS).find(d => !d.includes('example.com')) ||
-          Object.keys(TARGET_DOMAINS)[0] ||
-          path.basename(logPath).replace(/\.access\.log|\.log/, '') ||
-          'primary';
-
-        for await (const line of rl) {
-          if (!line || !line.trim()) continue;
-          freshEngine._parseLine(line, hostLogRegex, standardLogRegex, defaultHost, TARGET_DOMAINS);
-        }
-      } catch (e) {}
+    const freshEngine = new IncrementalTrafficEngine(this.options);
+    const budget = { bytes: this.maxBytes, lines: this.maxLines };
+    for (const logPath of existingLogs.slice(0, 8)) {
+      if (budget.bytes <= 0) break;
+      await freshEngine._readIncrement(logPath, TARGET_DOMAINS, budget, true);
     }
-
     return freshEngine._formatResult();
   }
 }

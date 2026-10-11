@@ -67,6 +67,12 @@ export function TrafficAnalyticsView({ trafficData }) {
 
   return (
     <div className="space-y-6">
+      {trafficData?.retention && <p className="text-sm text-neutral-400">
+        Window since {new Date(trafficData.retention.windowStartedAt).toLocaleTimeString()} (resets hourly).
+        {' '}GeoIP {trafficData.retention.geoipEnabled ? 'enabled' : 'off'}; device enrichment {trafficData.retention.userAgentEnabled ? 'enabled' : 'off'}.
+        {' '}Dropped lines: {trafficData.processing?.droppedLines || 0}; skipped bytes: {trafficData.processing?.droppedBytes || 0}.
+        {trafficData.retention.uniqueCountsAreLowerBounds && ' Unique counts reached their cap and are lower bounds.'}
+      </p>}
       {/* ─── Top Domain Metrics Grid ─── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {domainKeys.map((key, idx) => {

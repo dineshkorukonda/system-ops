@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
@@ -21,12 +22,27 @@ jobs:
 
       - name: Run tests
         run: npm test
+      - name: Check collector boundary types
+        run: npm run typecheck
+      - name: Audit dependency advisories
+        run: npm audit --audit-level=moderate
 
       - name: Build frontend
         run: npm run build
 
       - name: Smoke-test production startup and authentication
         run: npm run test:smoke
+
+      - name: Record short Linux resource baseline
+        run: node scripts/resource-baseline.js
+        env:
+          BASELINE_SECONDS: '10'
+          BASELINE_WARMUP_SECONDS: '5'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: resource-baseline
+          path: artifacts/resource-baseline.json
 
   docker-smoke:
     runs-on: ubuntu-latest
@@ -37,3 +53,74 @@ jobs:
           node-version: '24'
       - name: Build and smoke-test the production image
         run: bash scripts/docker-smoke.sh
+
+  traffic-comparison:
+    if: github.head_ref == 'fix/traffic-bounds' || github.head_ref == 'fix/consolidated-main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Compare reference and current defaults on the same machine
+        run: bash scripts/compare-resources.sh
+        env:
+          BASELINE_SECONDS: '20'
+          BASELINE_WARMUP_SECONDS: '5'
+          BASELINE_SCENARIOS: idle,traffic,rotation
+      - uses: actions/upload-artifact@v4
+        with:
+          name: traffic-comparison
+          path: artifacts/comparison/
+
+  collector-comparison:
+    if: github.head_ref == 'fix/collector-ownership' || github.head_ref == 'fix/consolidated-main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go-collector/go.mod
+      - run: npm ci && npm run build
+      - run: mkdir -p bin && go build -o bin/system-ops-collector .
+        working-directory: go-collector
+      - name: Measure Node-only collection
+        run: node scripts/resource-baseline.js
+        env:
+          BASELINE_SCENARIOS: idle,viewers
+          BASELINE_SECONDS: '20'
+          BASELINE_WARMUP_SECONDS: '10'
+          BASELINE_OUTPUT: artifacts/collectors/node.json
+      - name: Measure Node plus Go collection
+        run: node scripts/resource-baseline.js
+        env:
+          BASELINE_COLLECTOR: go
+          BASELINE_SCENARIOS: idle,viewers
+          BASELINE_SECONDS: '20'
+          BASELINE_WARMUP_SECONDS: '10'
+          BASELINE_OUTPUT: artifacts/collectors/go.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: collector-comparison
+          path: artifacts/collectors/
+
+  pm2-fixture:
+    if: github.head_ref == 'fix/pm2-discovery' || github.head_ref == 'fix/consolidated-main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+      - name: Validate real multi-user PM2 monitoring
+        run: bash scripts/pm2-fixture.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pm2-fixture
+          path: artifacts/pm2-fixture.json

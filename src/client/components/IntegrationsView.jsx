@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
@@ -111,6 +111,27 @@ const GUIDES = [
 
 export function IntegrationsView({ capabilities, onNavigate }) {
   const [copiedIdx, setCopiedIdx] = useState(null);
+  const [enabled, setEnabled] = useState({});
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch('/api/v2/settings', { signal: controller.signal }).then(async res => {
+      if (!res.ok) throw new Error('Unable to load integration settings');
+      setEnabled((await res.json()).integrations || {});
+    }).catch(err => { if (err.name !== 'AbortError') setError(err.message); });
+    return () => controller.abort();
+  }, []);
+  const toggle = async name => {
+    setSaving(true); setError(null);
+    try {
+      const res = await fetch('/api/v2/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ integrations: { [name]: !enabled[name] } }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.errors?.join(', ') || 'Unable to save integration');
+      setEnabled(data.settings.integrations);
+    } catch (err) { setError(err.message); } finally { setSaving(false); }
+  };
 
   const handleCopy = (text, idx) => {
     navigator.clipboard.writeText(text);
@@ -123,6 +144,16 @@ export function IntegrationsView({ capabilities, onNavigate }) {
 
   return (
     <div className="space-y-6 max-w-4xl">
+      <Card><CardHeader><CardTitle>Background monitoring</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-neutral-400">Enable the integrations you use. Monitoring continues when the dashboard is closed.</p>
+          {error && <p role="alert" className="text-red-400">{error}</p>}
+          {Object.entries(enabled).map(([name, checked]) => <label key={name} className="flex items-center gap-3 text-sm">
+            <input type="checkbox" checked={checked} disabled={saving} onChange={() => toggle(name)} />
+            <span>{name === 'osUpdates' ? 'OS updates' : name}</span>
+          </label>)}
+        </CardContent>
+      </Card>
       <div className="font-mono text-xs text-neutral-400 leading-relaxed">
         Features are auto-detected on this VPS. Only installed integrations appear in the sidebar.
         Use the guides below to set up anything missing.

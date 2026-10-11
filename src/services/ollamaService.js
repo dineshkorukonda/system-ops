@@ -1,5 +1,6 @@
 const { performance } = require('perf_hooks');
-const { execFile } = require('child_process');
+const { runCommand } = require('../utils/exec');
+const { combinedSignal } = require('../core/collectionContext');
 const { formatBytes } = require('../utils/formatters');
 
 /**
@@ -10,16 +11,14 @@ async function checkApiHealth(ollamaUrl = 'http://127.0.0.1:11434', timeoutMs = 
   const endpoint = `${ollamaUrl.replace(/\/$/, '')}/api/tags`;
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const signal = combinedSignal(AbortSignal.timeout(timeoutMs));
 
     const response = await fetch(endpoint, {
       method: 'GET',
-      signal: controller.signal,
+      signal,
       headers: { 'Accept': 'application/json' }
     });
 
-    clearTimeout(timeoutId);
     const latencyMs = Math.round(performance.now() - startTime);
 
     if (!response.ok) {
@@ -88,8 +87,7 @@ async function runQuickChatTest(ollamaUrl = 'http://127.0.0.1:11434', modelName 
   }
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const signal = combinedSignal(AbortSignal.timeout(timeoutMs));
 
     const payload = {
       model: targetModel,
@@ -106,10 +104,9 @@ async function runQuickChatTest(ollamaUrl = 'http://127.0.0.1:11434', modelName 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: controller.signal
+      signal
     });
 
-    clearTimeout(timeoutId);
     const latencyMs = Math.round(performance.now() - startTime);
 
     if (!response.ok) {
@@ -151,28 +148,11 @@ async function runQuickChatTest(ollamaUrl = 'http://127.0.0.1:11434', modelName 
 /**
  * Fetches CLI model list output via 'sudo -u ollama -H ollama list' or 'ollama list'
  */
-function getCliModelList() {
-  return new Promise((resolve) => {
-    // Try sudo -n -u ollama -H ollama list
-    execFile('sudo', ['-n', '-u', 'ollama', '-H', 'ollama', 'list'], { timeout: 4000 }, (err1, stdout1) => {
-      if (!err1 && stdout1) {
-        return resolve({ success: true, command: 'sudo -n -u ollama -H ollama list', output: stdout1.trim() });
-      }
-
-      // Try plain ollama list
-      execFile('ollama', ['list'], { timeout: 4000 }, (err2, stdout2) => {
-        if (!err2 && stdout2) {
-          return resolve({ success: true, command: 'ollama list', output: stdout2.trim() });
-        }
-
-        resolve({
-          success: false,
-          command: 'sudo -n -u ollama -H ollama list',
-          output: 'CLI command returned no output or requires sudoers rule.'
-        });
-      });
-    });
-  });
+async function getCliModelList() {
+  const sudo = await runCommand('sudo', ['-n', '-u', 'ollama', '-H', 'ollama', 'list'], 4000);
+  if (sudo.success) return { success: true, output: sudo.stdout.trim() };
+  const direct = await runCommand('ollama', ['list'], 4000);
+  return { success: direct.success, output: direct.success ? direct.stdout.trim() : direct.stderr };
 }
 
 module.exports = {

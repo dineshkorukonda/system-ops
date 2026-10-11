@@ -1,0 +1,9 @@
+# Traffic resource limits
+
+Traffic monitoring is optional. When enabled, its default mode counts requests, response classes, bytes, paths and IPs without loading GeoIP data or parsing every user agent. Set TRAFFIC_GEOIP=true or TRAFFIC_PARSE_USER_AGENT=true for enrichment; benchmark that mode separately. TRAFFIC_DISCOVER_DOCKER=true opts into Docker domain discovery, cached for five minutes.
+
+Aggregates use a one-hour **tumbling ingestion window**, reset when the next collection observes expiry. This is not a sliding historical window or lifetime total. Log timestamps still identify visits/hour-of-day; the reported window starts at ingestion time. Counts are bounded: 50 domains, 5,000 global device fingerprints, 1,000 fingerprints per domain, 500 endpoints, 500 IPs, 200 locations, 20 recent visitors and 500 cached user agents. Capped unique counts are lower bounds; saturation is reported. Fingerprints are 64-bit truncated hashes, not raw agent strings.
+
+Each cycle reads at most 1 MiB across eight log files and considers at most 10,000 complete lines. Lines over 8 KiB are dropped; incomplete lines are retained up to that bound and completed on the next read. Startup tails up to 1 MiB per file. If backlog exceeds 4 MiB, collection skips to the final MiB instead of monopolizing the server. `processing` exposes parsed/malformed/dropped lines, skipped bytes, rotation and cardinality limits. Domain filtering is configured separately; excluded domains are not accepted hits.
+
+Inode changes and file shrink reset file offsets. A clean incremental boundary does not discard the first new line. One-shot custom-path parsing uses the same byte/line bounds; it cannot promise complete results for a large file. Permission/read errors propagate into collection health instead of silently presenting zero traffic as healthy.
