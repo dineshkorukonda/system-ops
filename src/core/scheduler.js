@@ -34,25 +34,7 @@ function registerAllCollectors() {
     critical: true,
     collect: async () => {
       const snap = await getSystemSnapshot();
-      // Push history points to StateStore BoundedHistory
-      if (snap.uptime?.load1m) {
-        stateStore.history.cpu.push({
-          time: Date.now(),
-          value: parseFloat(snap.uptime.load1m) || 0
-        });
-      }
-      if (snap.memory?.usagePercent !== undefined) {
-        stateStore.history.ram.push({
-          time: Date.now(),
-          value: snap.memory.usagePercent
-        });
-      }
-      if (snap.swap?.usagePercent !== undefined) {
-        stateStore.history.swap.push({
-          time: Date.now(),
-          value: snap.swap.usagePercent
-        });
-      }
+      stateStore.recordSystemHistory(snap);
       return snap;
     }
   });

@@ -434,6 +434,7 @@ async function getSystemSnapshot() {
   const goSnapshot = await goCollectorClient.getSystemSnapshot();
   if (goSnapshot) {
     goSnapshot.tls = await getTlsCertStatus();
+    goSnapshot.source = 'go';
     return goSnapshot;
   }
 
@@ -449,6 +450,7 @@ async function getSystemSnapshot() {
 
   return {
     timestamp: new Date().toISOString(),
+    source: 'node',
     uptime: uptimeLoad,
     memory: memorySwap.memory,
     swap: memorySwap.swap,

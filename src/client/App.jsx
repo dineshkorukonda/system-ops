@@ -23,7 +23,8 @@ export function App() {
   const [activeTab, setActiveTab] = useState('system');
   const [theme, setTheme] = useState(() => localStorage.getItem('ops_theme') || 'dark');
   const [refreshInterval, setRefreshInterval] = useState(10);
-  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [monitoringHealth, setMonitoringHealth] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -53,6 +54,7 @@ export function App() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
 
   const activeTabRef = useRef(activeTab);
+  const lastMetricSuccessRef = useRef(null);
   activeTabRef.current = activeTab;
   const processSortRef = useRef(processSort);
   processSortRef.current = processSort;
@@ -167,11 +169,28 @@ export function App() {
       if (res.ok) {
         const data = await res.json();
         setSystemData(data);
-        if (data.uptime?.load1m) pushMetric(setCpuHistory, parseFloat(data.uptime.load1m) || 0);
-        if (data.memory?.usagePercent !== undefined) pushMetric(setRamHistory, data.memory.usagePercent);
-        if (data.swap?.usagePercent !== undefined) pushMetric(setSwapHistory, data.swap.usagePercent);
+        setMonitoringHealth(data.monitoringHealth);
+        setLastUpdated(data.collection?.lastSuccess ? new Date(data.collection.lastSuccess) : null);
+        if (data.collection?.fresh && data.collection.lastSuccess !== lastMetricSuccessRef.current) {
+          lastMetricSuccessRef.current = data.collection.lastSuccess;
+          if (Number.isFinite(data.uptime?.cpuPercent)) pushMetric(setCpuHistory, data.uptime.cpuPercent);
+          if (Number.isFinite(data.memory?.usagePercent)) pushMetric(setRamHistory, data.memory.usagePercent);
+          if (Number.isFinite(data.swap?.usagePercent)) pushMetric(setSwapHistory, data.swap.usagePercent);
+        }
+      } else {
+        const failure = await res.json();
+        setMonitoringHealth({ ok: false });
+        setSystemData(previous => ({ ...previous, collection: failure.collection || {
+          status: 'error', fresh: false, lastError: failure.error || 'Collection request failed',
+        } }));
       }
-    } catch (e) {}
+    } catch (e) {
+      setMonitoringHealth({ ok: false });
+      setSystemData(previous => ({ ...previous, collection: {
+        ...previous?.collection, status: 'unavailable', fresh: false,
+        lastError: 'Unable to refresh monitoring data',
+      } }));
+    }
   };
 
   const fetchProcesses = async () => {
@@ -276,7 +295,6 @@ export function App() {
     else if (tab === 'security') promises.push(fetchSecurityData());
 
     await Promise.allSettled(promises);
-    setLastUpdated(new Date());
     setIsSyncing(false);
   };
 
@@ -297,7 +315,7 @@ export function App() {
         fetchOsUpdates(),
         fetchBranding(),
         fetchVersionCheck(),
-      ]).then(() => setLastUpdated(new Date()));
+      ]);
     }
   }, [isAuthenticated]);
 
@@ -379,6 +397,7 @@ export function App() {
           activeTabTitle={tabTitles[activeTab] || 'Console'}
           siteSubtitle={branding?.siteSubtitle || 'Operations Console'}
           lastUpdated={lastUpdated}
+          monitoringHealth={monitoringHealth}
           isSyncing={isSyncing}
           onSync={syncCurrentView}
           refreshInterval={refreshInterval}

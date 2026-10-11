@@ -24,8 +24,6 @@ const { getServiceLogs } = require('./collectors/services');
 const { getPm2Logs } = require('./collectors/pm2');
 const { getLogSourcesList, getLogSourceTail } = require('./collectors/logSources');
 const { getBackupFilePath, listBackupFiles } = require('./collectors/backupFiles');
-const { sampleProcesses } = require('./collectors/processCollector');
-const { getSystemSnapshot } = require('./collectors/system');
 const { getServicesSnapshot } = require('./collectors/services');
 const { getPm2Snapshot } = require('./collectors/pm2');
 const { getCapabilities } = require('./collectors/capabilities');
@@ -79,6 +77,14 @@ app.get('/api/health', (req, res) => {
   return res.status(200).json({ ok: true });
 });
 
+// Public readiness is intentionally minimal. Detailed host/error information
+// is available only through the authenticated diagnostics and health APIs.
+app.get('/ready', (req, res) => {
+  const { ok } = collectorManager.getHealth();
+  res.setHeader('Cache-Control', 'no-store');
+  return res.status(ok ? 200 : 503).json({ ok });
+});
+
 /**
  * Authentication Endpoints
  */
@@ -129,10 +135,16 @@ app.get('/api/v2/ops/diagnostics', async (req, res) => {
 
   return res.json({
     ...nodeDiagnostics,
+    monitoringHealth: collectorManager.getHealth(),
     goCollector: goStatus,
     goCollectorDiagnostics: goDiagnostics,
     memoryBreakdown: buildMemoryBreakdown(nodeDiagnostics, goDiagnostics, goStatus)
   });
+});
+
+app.get('/api/v2/ops/health', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  return res.json(collectorManager.getHealth());
 });
 
 /**
@@ -309,25 +321,28 @@ app.get('/api/v2/system/capabilities', async (req, res) => {
 });
 
 app.get('/api/v2/system/snapshot', async (req, res) => {
-  const cached = stateStore.get('system');
-  if (cached) {
-    return res.json(cached);
-  }
+  res.setHeader('Cache-Control', 'no-store');
   try {
-    const data = await getSystemSnapshot();
-    return res.json(data);
+    if (!stateStore.get('system')) await collectorManager.runCollector('system');
+    const data = stateStore.get('system');
+    const collection = collectorManager.getCollectorHealth('system');
+    if (!data || !collection.lastSuccess) return res.status(503).json({ error: 'System collection is not ready', collection });
+    return res.json({ ...data, collection, monitoringHealth: collectorManager.getHealth() });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to fetch system snapshot', details: error.message });
   }
 });
 
 app.get('/api/v2/system/processes', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   const { limit, sort } = req.query;
   const limitNum = parseInt(limit, 10) || 50;
   const sortBy = sort === 'mem' ? 'mem' : 'cpu';
 
+  if (!stateStore.get('processes')) await collectorManager.runCollector('processes');
+
   const cached = stateStore.get('processes');
-  if (cached && cached.processes) {
+  if (cached && cached.processes && collectorManager.getCollectorHealth('processes').lastSuccess) {
     let procs = [...cached.processes];
     if (sortBy === 'mem') {
       procs.sort((a, b) => b.rssBytes - a.rssBytes);
@@ -338,16 +353,15 @@ app.get('/api/v2/system/processes', async (req, res) => {
       sortBy,
       limit: limitNum,
       total: cached.total || procs.length,
-      processes: procs.slice(0, limitNum)
+      processes: procs.slice(0, limitNum),
+      collection: collectorManager.getCollectorHealth('processes'),
     });
   }
 
-  try {
-    const data = await sampleProcesses({ limit: limitNum, sortBy });
-    return res.json(data);
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to fetch system processes', details: error.message });
-  }
+  return res.status(503).json({
+    error: 'Process collection is not ready',
+    collection: collectorManager.getCollectorHealth('processes'),
+  });
 });
 
 /**
