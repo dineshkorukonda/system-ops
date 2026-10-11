@@ -61,29 +61,33 @@ sudo bash /opt/system-ops/scripts/recover.sh
 
 ## Docker (optional)
 
-Docker is supported for read-only host monitoring. Native systemd install is recommended for full features (Go sidecar, in-dashboard updates, security collectors).
+Native Ubuntu/systemd is recommended for host monitoring. Docker packages the console and mounted log/backup access. Its CPU/process metrics describe the container's `/proc`; mounting `/host/proc` does not make the current collectors sample the host. Host systemd, package/security commands, the Go sidecar, and in-dashboard native updates are unavailable in the default image.
 
 ```bash
 cp .env.docker.example .env.docker
-# edit APP_PASSWORD and paths, then:
+# set APP_PASSWORD, a random SESSION_SECRET of at least 32 bytes, and paths:
 docker compose --env-file .env.docker up -d --build
 ```
 
 Notes:
 
 - The image runs a multi-stage build so the React UI is included.
-- Mount `/var/run/docker.sock` only if you need the Docker page (see security comment in `docker-compose.yml`).
+- Settings persist in the `system-ops-data` named volume. Configuration comes from `.env.docker`; shell interpolation does not override its credentials.
+- The default image does not include the Docker CLI. Socket mounting alone does not enable Docker monitoring; a custom image also needs the CLI and appropriate socket permissions (see security comment in `docker-compose.yml`).
 - Set `BACKUPS_DIR` and add a volume mount when backup files live on the host.
+- Production startup rejects empty/example passwords and session secrets. Before upgrading a native install, check `/opt/system-ops/.env` and replace example credentials; use a randomly generated `SESSION_SECRET` of at least 32 bytes. Credential values are never included in startup errors.
 
 ---
 
 ## Development
 
+Use Node.js 24.x (also used by CI, Docker, and the native installer).
+
 ```bash
 git clone https://github.com/dineshkorukonda/system-ops.git
 cd system-ops
 npm install
-cp .env.example .env   # set APP_PASSWORD
+cp .env.example .env   # set APP_PASSWORD and SESSION_SECRET
 npm run build          # produces dist/
 npm start              # http://127.0.0.1:9080
 ```
@@ -93,6 +97,12 @@ Run tests:
 ```bash
 npm test
 ```
+
+After building, `npm run test:smoke` starts a temporary production instance with
+random credentials and isolated settings. It verifies built assets, login,
+authenticated snapshots, diagnostics, and settings writes. CI also runs
+`bash scripts/docker-smoke.sh` to check image startup, Compose configuration,
+and settings persistence after container recreation.
 
 Frontend hot reload (proxies API to port 9080):
 

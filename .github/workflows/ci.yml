@@ -14,7 +14,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
 
       - name: Install dependencies
@@ -25,3 +25,16 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+      - name: Smoke-test production startup and authentication
+        run: npm run test:smoke
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build and smoke-test the production image
+        run: bash scripts/docker-smoke.sh
