@@ -134,7 +134,7 @@ function registerAllCollectors() {
   });
 
   // 8. Dynamic System Capabilities (default: 30s)
-  const capabilitiesInterval = parseInt(process.env.SYSTEM_OPS_CAPABILITIES_INTERVAL, 10) || 30000;
+  const capabilitiesInterval = parseInt(process.env.SYSTEM_OPS_CAPABILITIES_INTERVAL, 10) || 300000;
   collectorManager.register({
     name: 'capabilities',
     stateKey: 'capabilities',
@@ -196,8 +196,15 @@ function registerAllCollectors() {
     critical: false,
     collect: async () => getCertbotSnapshot(),
   });
+  applyIntegrationSettings();
+}
+
+function applyIntegrationSettings() {
+  const { getSettings } = require('../services/settingsService');
+  for (const [name, enabled] of Object.entries(getSettings().integrations)) collectorManager.setEnabled(name, enabled);
 }
 
 module.exports = {
-  registerAllCollectors
+  registerAllCollectors,
+  applyIntegrationSettings,
 };

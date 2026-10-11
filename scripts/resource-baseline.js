@@ -56,7 +56,8 @@ async function run(scenario, ticksPerSecond) {
     APP_PASSWORD: password, SESSION_SECRET: crypto.randomBytes(32).toString('hex'),
     SYSTEM_OPS_DATA_DIR: directory, ENABLE_GO_COLLECTOR: 'false',
     NGINX_LOG_PATH: log, TRACKED_DOMAINS: 'baseline.local',
-    OLLAMA_URL: 'http://127.0.0.1:1', SYSTEM_OPS_TRAFFIC_INTERVAL: '1000' };
+    OLLAMA_URL: 'http://127.0.0.1:1', SYSTEM_OPS_TRAFFIC_INTERVAL: '1000', ENABLE_TRAFFIC: 'true',
+    ENABLE_OLLAMA: scenario === 'failing-integrations' ? 'true' : 'false' };
   const child = spawn(process.execPath, ['src/start.js'], { cwd: path.join(__dirname, '..'), env,
     stdio: ['ignore', 'pipe', 'pipe'] });
   let output = '';
