@@ -135,6 +135,7 @@ app.get('/api/v2/ops/diagnostics', async (req, res) => {
 
   return res.json({
     ...nodeDiagnostics,
+    runtime: require('./core/runtimeDiagnostics').getRuntimeDiagnostics(),
     monitoringHealth: collectorManager.getHealth(),
     goCollector: goStatus,
     goCollectorDiagnostics: goDiagnostics,
