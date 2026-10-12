@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Badge } from './ui/Badge';
 
-function useClock() {
+export function useClock() {
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     const update = () => { if (!document.hidden) setNow(Date.now()); };

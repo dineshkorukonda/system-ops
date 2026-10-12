@@ -4,7 +4,7 @@
  --bg-main:#0b101b; --card-bg:#111827; --card-header:#111827; --panel-alt:#172033;
  --text-main:#e5eaf4; --text-primary:#f0f3fa; --text-secondary:#b3bfd2; --text-muted:#97a6bc;
  --border-color:#283348; --border-subtle:#222c3f; --border:#283348;
- --input-bg:#172033; --surface-muted:#172033; --surface-raised:#1d2940;
+ --input-bg:#172033; --surface:var(--card-bg); --surface-muted:#172033; --surface-raised:#1d2940;
  --accent:#8ba8ff; --accent-bg:#223056; --success:#6ee7b7; --success-bg:#14382e;
  --warning:#fcd34d; --warning-bg:#41351b; --error:#fda4af; --error-bg:#41232e;
 }

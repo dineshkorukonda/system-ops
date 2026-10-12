@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
+import { useClock } from './CollectionStatus';
 const SOURCES = [
   ['pm2','PM2 applications','apps','pm2'], ['docker','Docker','apps','docker'],
   ['systemd','System services','apps','services'], ['ollama','Ollama','apps','ollama'],
@@ -10,6 +11,9 @@ const SOURCES = [
   ['osUpdates','OS updates','host','osUpdates'],
 ];
 export function DiscoveryView({ capabilities, onNavigate, onChanged, hiddenViews, setHiddenViews, health }) {
+  const now = useClock();
+  const critical = Object.values(health?.collectors || {}).filter(source => source.critical && source.enabled);
+  const ready = health?.ok && critical.length > 0 && critical.every(source => source.fresh && now - Date.parse(source.lastSuccess) <= source.staleAfterMs);
   const [filter,setFilter] = useState('all'), [showMissing,setShowMissing] = useState(false);
   const [busy,setBusy] = useState(null), [error,setError] = useState(null);
   const detected = SOURCES.filter(([key]) => capabilities?.[key]?.available);
@@ -30,7 +34,7 @@ export function DiscoveryView({ capabilities, onNavigate, onChanged, hiddenViews
       <div><span>Detected sources</span><strong>{capabilities ? detected.length : '—'}</strong><small>Evidence from this server</small></div>
       <div><span>Monitoring enabled</span><strong>{capabilities ? SOURCES.filter(([key]) => capabilities[key]?.enabled && key !== 'tls').length : '—'}</strong><small>Optional background collectors</small></div>
       <div><span>Needs attention</span><strong>{capabilities ? SOURCES.filter(([key]) => capabilities[key]?.error).length : '—'}</strong><small>Access or collection errors</small></div>
-      <div><span>Host monitoring</span><strong className="summary-word">{health?.ok ? 'Ready' : 'Checking'}</strong><small>Collection readiness, not service uptime</small></div>
+      <div><span>Host monitoring</span><strong className="summary-word">{ready ? 'Ready' : 'Not ready'}</strong><small>Collection readiness, not service uptime</small></div>
     </div>
     {error && <p role="alert" className="error-message">{error}</p>}
     <section className="source-section"><div className="section-heading"><div><h2>Sources & integrations</h2><p>Detection is separate from health. Nothing is enabled automatically.</p></div><label className="missing-toggle"><input type="checkbox" checked={showMissing} onChange={event => setShowMissing(event.target.checked)} />Show undetected sources</label></div>
