@@ -10,12 +10,16 @@ test('check validation rejects unsafe schemes, credentials and invalid schedulin
 test('actual HTTP/TCP success, expected content, redirect/body bounds, outage and deadlines',async()=>{
   const server=http.createServer((req,res)=>{if(req.url==='/hang')return;if(req.url==='/large')return res.end('x'.repeat(70000));if(req.url==='/redirect'){res.writeHead(302,{Location:'/'});return res.end();}res.end('fixture ready');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const port=server.address().port;
-  const config=validateCheck({id:'web',type:'http',url:`http://127.0.0.1:${port}`,expectedText:'fixture ready',timeoutMs:100});
+  // Successful I/O should not race the minimum timeout on a busy server.
+  // Exercise the short deadline separately against an endpoint that never replies.
+  const config=validateCheck({id:'web',type:'http',url:`http://127.0.0.1:${port}`,expectedText:'fixture ready',timeoutMs:2000});
   try {
     assert.equal((await probe(config)).status,'up');assert.equal((await probe({...config,type:'tcp',host:'127.0.0.1',port})).status,'up');
     assert.equal((await probe({...config,url:config.url+'redirect'})).status,'down');
     assert.match((await probe({...config,url:config.url+'large'})).error,/limit/);
-    assert.equal((await probe({...config,url:config.url+'hang'})).status,'down');
+    const hanging=await probe({...config,url:config.url+'hang',timeoutMs:100});
+    assert.equal(hanging.status,'down');
+    assert.match(hanging.error,/timeout|aborted/i);
   }finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
   assert.equal((await probe(config)).status,'down');
 });

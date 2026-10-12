@@ -1,4 +1,4 @@
-const { spawn } = require('node:child_process');
+const childProcess = require('node:child_process');
 const { commandStarted } = require('../core/runtimeDiagnostics');
 const { collectionSignal } = require('../core/collectionContext');
 
@@ -19,7 +19,7 @@ function runCommand(file, args, timeoutMs = 5000) {
       } catch { child.kill('SIGKILL'); }
     };
     const abort = () => kill('Collection cancelled');
-    try { child = spawn(file, args, { windowsHide: true, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] }); }
+    try { child = childProcess.spawn(file, args, { windowsHide: true, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] }); }
     catch (error) { complete(false); return resolve({ success: false, stdout, stderr: error.message, code: error.code }); }
     timer = setTimeout(() => kill('Command timeout'), timeoutMs);
     signal?.addEventListener('abort', abort, { once: true });
