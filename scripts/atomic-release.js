@@ -4,6 +4,10 @@ async function main(){
   if(process.platform!=='linux'||process.getuid()!==0)throw new Error('Run this release helper as root on Linux');
   const root=fs.realpathSync(process.env.INSTALL_DIR||'/opt/system-ops'),user=process.env.OPS_USER||'ops';
   if(!/^[a-zA-Z0-9_-]{1,64}$/.test(user))throw new Error('Invalid service account');
+  const environment=require('dotenv').parse(fs.readFileSync(path.join(root,'.env')));
+  const dataDir=process.env.SYSTEM_OPS_DATA_DIR || environment.SYSTEM_OPS_DATA_DIR || path.join(root,'data');
+  fs.mkdirSync(dataDir,{recursive:true});
+  if(process.argv.includes('--background')) return require('../src/services/updateLauncher').launchUpdate({root,dataDir,script:__filename});
   fs.mkdirSync(path.join(root,'releases'),{recursive:true});
   const run=(file,args,cwd=root,extraEnv={})=>execFileSync('runuser',['-u',user,'--',file,...args],{cwd,stdio:'inherit',env:{...process.env,NODE_ENV:'development',...extraEnv}});
   fs.accessSync(path.join(root,'.env'),fs.constants.R_OK);
@@ -37,4 +41,21 @@ async function main(){
     console.log(`=== Update successful: ${commit} ===`);
   } catch(error){if(oldConfig)fs.writeFileSync(previousDropin,oldConfig);else if(fs.existsSync(previousDropin))fs.unlinkSync(previousDropin);execFileSync('systemctl',['daemon-reload']);throw error;}
 }
-main().catch(error=>{console.error(`=== Update failed: ${error.message} ===`);process.exitCode=1;});
+function recordResult(success,message) {
+  const root=process.env.INSTALL_DIR||'/opt/system-ops';
+  const environment=require('dotenv').parse(fs.readFileSync(path.join(root,'.env')));
+  const dir=process.env.SYSTEM_OPS_DATA_DIR||environment.SYSTEM_OPS_DATA_DIR||path.join(root,'data');
+  fs.mkdirSync(dir,{recursive:true});
+  const filename=path.join(dir,'update-result.json'),temporary=filename+'.tmp';
+  fs.writeFileSync(temporary,JSON.stringify({phase:success?'success':'failed',success,failed:!success,message,needsRefresh:success,finishedAt:new Date().toISOString()}),{mode:0o640,flush:true});
+  const user=process.env.OPS_USER||'ops';
+  if(!/^[a-zA-Z0-9_-]{1,64}$/.test(user))throw new Error('Invalid service account');
+  fs.chownSync(temporary,Number(execFileSync('id',['-u',user],{encoding:'utf8'})),Number(execFileSync('id',['-g',user],{encoding:'utf8'})));
+  fs.renameSync(temporary,filename);
+  const lock=path.join(dir,'.update.lock');if(fs.existsSync(lock))fs.unlinkSync(lock);
+}
+main().then(result=>{if(!result?.queued)recordResult(true,'Update complete. Refresh to load the new version.');}).catch(error=>{
+  console.error(`=== Update failed: ${error.message} ===`);
+  if(!process.argv.includes('--background'))try{recordResult(false,error.message);}catch(statusError){console.error(`Could not record update result: ${statusError.message}`);}
+  process.exitCode=1;
+});
