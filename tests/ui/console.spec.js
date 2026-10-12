@@ -6,8 +6,8 @@ async function fixture(page) {
   const capabilities=Object.fromEntries(['pm2','docker','systemd','tls','traffic','security','databases','backups','ollama','certbot','osUpdates'].map(key=>[key,{available:true,enabled:true,status:'detected',evidence:[{target:`Fixture ${key}`,readable:true}],count:null}]));
   capabilities.ollama.available=false;capabilities.ollama.enabled=false;
   await page.route('**/api/v2/system/capabilities',route=>route.fulfill({json:capabilities}));
-  await page.goto('/');await page.getByPlaceholder('Enter console password...').fill('ui-fixture-password');
-  await page.getByRole('button',{name:'AUTHENTICATE',exact:true}).click();
+  await page.goto('/');await page.getByLabel('Access password').fill('ui-fixture-password');
+  await page.getByRole('button',{name:'Initialize Secure Session',exact:true}).click();
   await expect(page.getByRole('heading',{name:'A clearer view of what’s running.'})).toBeVisible();
   await page.getByLabel('Refresh interval').selectOption('0');
   return {errors,capabilities};
@@ -41,6 +41,10 @@ for(const theme of ['dark','light']) test(`${theme}: all feature views render, n
   const audit=await new AxeBuilder({page}).include('.app-sidebar').include('.app-topbar').include('.discovery-view').withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
   expect(audit.violations).toEqual([]);
   await page.screenshot({path:`artifacts/ui/overview-${theme}.png`,fullPage:true});
+  await page.getByRole('textbox',{name:'Search modules'}).fill('Databases');
+  await page.getByRole('textbox',{name:'Search modules'}).press('Enter');
+  await expect(page).toHaveURL(/#databases$/);
+  await expect(page.locator('#module-search-results')).toHaveCount(0);
   for(const id of Object.keys(VIEWS).filter(id=>id!=='discovery')) {
     await page.goto(`/#${id}`);
     await expect(page.locator('.view-heading h1')).toHaveText(VIEWS[id][0]);
@@ -87,15 +91,15 @@ test('mobile category navigation, light theme, empty discovery and login/logout'
   await page.goto('/#discovery');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:'artifacts/ui/mobile-light.png',fullPage:true});
-  await page.getByRole('button',{name:'Log out'}).click();await expect(page.getByRole('button',{name:'AUTHENTICATE'})).toBeVisible();
+  await page.getByRole('button',{name:'Log out'}).click();await expect(page.getByRole('button',{name:'Initialize Secure Session'})).toBeVisible();
 });
 test('empty discovery and capability API failures are explicit, keyboard navigation reaches content',async({page})=>{
   await fixture(page);
   await page.route('**/api/v2/system/capabilities',route=>route.fulfill({json:{}}));
-  await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await page.getByRole('button',{name:'Refresh telemetry',exact:true}).click();
   await expect(page.getByRole('heading',{name:'No sources detected in this category'})).toBeVisible();
   await page.route('**/api/v2/system/capabilities',route=>route.fulfill({status:503,json:{error:'Fixture discovery unavailable'}}));
-  await page.getByRole('button',{name:'Refresh',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Fixture discovery unavailable');
+  await page.getByRole('button',{name:'Refresh telemetry',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Fixture discovery unavailable');
   await page.locator('.skip-link').focus();await page.keyboard.press('Enter');await expect(page.locator('main')).toBeFocused();
 });
 test('availability check form saves real configuration and notification settings stay explicit',async({page})=>{

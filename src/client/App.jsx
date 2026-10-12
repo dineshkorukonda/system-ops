@@ -333,6 +333,9 @@ export function App() {
 
       <div className="flex flex-1 flex-col md:pl-64 min-w-0">
         <TopBar
+          siteName={branding?.siteName || 'system-ops'}
+          onNavigate={navigate}
+          availableTabs={Object.fromEntries(CATEGORIES.flatMap(category => visibleViews(category, capabilities, hiddenViews)).map(id => [id, VIEWS[id][0]]))}
           activeTabTitle={VIEWS[activeTab]?.[0] || 'Console'}
           siteSubtitle={branding?.siteSubtitle || 'Operations Console'}
           lastUpdated={lastUpdated}
@@ -347,7 +350,7 @@ export function App() {
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
         />
 
-        <main id="main-content" tabIndex={-1} className="flex-1 p-4 md:p-6 max-w-[1600px] w-full mx-auto">
+        <main id="main-content" tabIndex={-1} className="ops-content flex-1 p-4 md:p-7 max-w-[1800px] w-full mx-auto">
           {activeTab !== 'discovery' && <div className="view-heading"><div className="eyebrow">{CATEGORIES.find(category => category.views.includes(activeTab))?.label}</div><h1>{VIEWS[activeTab]?.[0]}</h1><nav className="category-tabs" aria-label="Category views">{visibleViews(CATEGORIES.find(category => category.views.includes(activeTab)), capabilities, hiddenViews).map(id => <button key={id} aria-current={id === activeTab ? 'page' : undefined} onClick={() => navigate(id)}>{VIEWS[id][0]}</button>)}</nav></div>}
           {activeTab === 'discovery' && <DiscoveryView capabilities={capabilities} health={monitoringHealth} onNavigate={navigate} onChanged={fetchCapabilities} hiddenViews={hiddenViews} setHiddenViews={setHiddenViews} />}
           {VIEWS[activeTab]?.[1] && !capabilities?.[VIEWS[activeTab][1]]?.enabled && <div className="setup-note"><strong>Monitoring is disabled</strong><span>Enable this source on the overview to collect data. Existing observations may be historical.</span><button onClick={() => navigate('discovery')}>Manage sources →</button></div>}

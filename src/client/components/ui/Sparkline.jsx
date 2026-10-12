@@ -1,16 +1,17 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { cn } from '../../lib/utils';
 
 export function Sparkline({
   data = [],
   width = 200,
   height = 40,
-  strokeColor = '#10b981',
+  strokeColor = 'var(--accent)',
   className,
 }) {
+  const gradId = useId();
   if (!data || data.length < 2) {
     return (
-      <div className={cn('h-[40px] w-full flex items-center justify-center text-[10px] text-[var(--text-muted)] font-mono', className)}>
+      <div style={{ height }} className={cn('w-full flex items-center justify-center text-[10px] text-[var(--text-muted)] font-mono', className)}>
         COLLECTING TELEMETRY...
       </div>
     );
@@ -31,10 +32,11 @@ export function Sparkline({
   const firstX = padding;
   const lastX = width - padding;
   const areaData = `M ${points[0]} L ${points.join(' L ')} L ${lastX},${height} L ${firstX},${height} Z`;
-  const gradId = `spark-grad-${strokeColor.replace(/[^a-zA-Z0-9]/g, '')}`;
 
   return (
     <svg
+      role="img"
+      aria-label="Resource usage over recent samples"
       viewBox={`0 0 ${width} ${height}`}
       className={cn('w-full overflow-visible', className)}
       style={{ height }}
