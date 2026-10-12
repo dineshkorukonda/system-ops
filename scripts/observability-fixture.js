@@ -20,7 +20,7 @@ async function main(){
     const imported=await fetch('http://127.0.0.1:19092/api/dashboards/db',{method:'POST',headers:auth,body:JSON.stringify({dashboard,overwrite:true})});if(!imported.ok)throw new Error('Grafana dashboard import failed');
     let scraped=false;for(let i=0;i<20;i++){const response=await fetch('http://127.0.0.1:19091/api/v1/query?query=system_ops_process_resident_memory_bytes');const result=await response.json();if(result.data?.result?.length){scraped=true;break;}await new Promise(resolve=>setTimeout(resolve,500));}
     if(!scraped)throw new Error('Authenticated Prometheus scrape did not produce samples');
-    const unauthenticated=await fetch('http://127.0.0.1:19090/metrics');if(unauthenticated.status!==401)throw new Error('Metrics unexpectedly accessible without authentication');
+    const unauthenticated=await fetch('http://127.0.0.1:19090/metrics',{redirect:'manual'});if(unauthenticated.status!==401)throw new Error(`Unauthenticated metrics must return 401, received ${unauthenticated.status}`);
     fs.mkdirSync('artifacts',{recursive:true});fs.writeFileSync('artifacts/observability-fixture.json',JSON.stringify({node:process.version,prometheus:'3.5.0',grafana:'12.1.1',authenticatedScrape:true,unauthenticatedStatus:401,dashboardImported:true,panels:dashboard.panels.length,limitations:['Disposable local CI deployment; extra service resource costs are not included in Node-only baseline.']},null,2));
     console.log('PASS: protected metrics, real Prometheus scrape and Grafana dashboard import');
   }finally{app.kill('SIGTERM');for(const name of [promName,grafanaName])try{execFileSync('docker',['rm','-f',name],{stdio:'ignore'});}catch{}}
