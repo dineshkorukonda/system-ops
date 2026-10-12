@@ -185,7 +185,7 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
           </CardContent></Card>}
         <Card className="h-full flex flex-col min-h-[500px]">
           <CardHeader className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <CardTitle>
                 LOGS: {selectedApp ? `${selectedApp.user} / ${selectedProcess?.name || selectedApp.app}` : 'SELECT APP'}
               </CardTitle>
@@ -195,7 +195,7 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <select
                 value={logLines}
                 onChange={(e) => setLogLines(e.target.value)}

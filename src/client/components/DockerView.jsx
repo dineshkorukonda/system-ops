@@ -172,13 +172,13 @@ export function DockerView({ dockerData, onRefresh }) {
         <div className="lg:col-span-6 space-y-4">
           <Card className="h-full flex flex-col">
             <CardHeader className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <CardTitle>Containers ({filteredContainers.length})</CardTitle>
                 <Badge variant={running > 0 ? 'ok' : 'neutral'} className="text-[9px]">
                   DAEMON
                 </Badge>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <input
                   type="text"
                   placeholder="Filter containers..."
@@ -249,7 +249,7 @@ export function DockerView({ dockerData, onRefresh }) {
                       }`}
                     >
                       <div className="min-w-0 pr-3 space-y-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-semibold text-[var(--text-primary)] truncate text-[13px]">{c.name}</span>
                           <span className="text-[10px] text-[var(--text-muted)]">({c.id})</span>
                         </div>
@@ -289,7 +289,7 @@ export function DockerView({ dockerData, onRefresh }) {
         <div className="lg:col-span-6">
           <Card className="h-full flex flex-col min-h-[560px]">
             <CardHeader className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <CardTitle>
                   LOGS: {selectedContainer ? selectedContainer.name : 'SELECT CONTAINER'}
                 </CardTitle>
@@ -298,7 +298,7 @@ export function DockerView({ dockerData, onRefresh }) {
                 </Badge>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={logLines}
                   onChange={(e) => setLogLines(e.target.value)}
@@ -369,7 +369,7 @@ export function DockerView({ dockerData, onRefresh }) {
       {/* ─── Docker Networks Table ─── */}
       <Card>
         <CardHeader className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <CardTitle>Networks ({networks.length})</CardTitle>
             <Badge variant="neutral" className="text-[9px]">BRIDGE / OVERLAY</Badge>
           </div>

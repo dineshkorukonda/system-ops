@@ -178,7 +178,7 @@ export function ServicesView({ servicesData, onRefresh }) {
         <div className="lg:col-span-7">
           <Card className="h-full flex flex-col min-h-[560px]">
             <CardHeader className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <CardTitle>
                   JOURNAL: {selectedUnit ? `${selectedUnit}.service` : 'SELECT UNIT'}
                 </CardTitle>
@@ -186,7 +186,7 @@ export function ServicesView({ servicesData, onRefresh }) {
                   JOURNALCTL
                 </Badge>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={logLines}
                   onChange={(e) => setLogLines(e.target.value)}
