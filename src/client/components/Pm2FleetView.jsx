@@ -85,13 +85,13 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
         <Card>
           <CardHeader>
             <CardTitle>PM2 Users &amp; Environments</CardTitle>
-            <Button variant="secondary" size="sm" onClick={onRefresh} className="font-mono text-[11px]">
+            <Button variant="secondary" size="sm" onClick={onRefresh} className="font-mono text-xs">
               REFRESH
             </Button>
           </CardHeader>
           <CardContent className="p-4 space-y-3">
             {users.length === 0 ? (
-              <div className="text-xs text-neutral-500 font-mono">No PM2 users configured.</div>
+              <div className="text-xs text-[var(--text-muted)] font-mono">No PM2 users configured.</div>
             ) : (
               users.map((u, idx) => {
                 const online = (u.processes || []).filter((p) => p.status === 'online').length;
@@ -101,10 +101,10 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
                 return (
                   <div
                     key={idx}
-                    className="rounded border border-[#1a1a1a] bg-[#0c0c0c] p-3 space-y-2 font-mono text-xs theme-header"
+                    className="rounded border border-[var(--border-color)] bg-[var(--card-bg)] p-3 space-y-2 font-mono text-xs theme-header"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-neutral-200">
+                      <span className="font-semibold text-[var(--text-secondary)]">
                         USER: {u.user}
                       </span>
                       <Badge variant={u.error ? 'warn' : online === total && total > 0 ? 'ok' : 'err'}>
@@ -112,16 +112,16 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
                       </Badge>
                     </div>
                     {u.error ? (
-                      <div className="text-amber-400 text-[11px]">{u.error}</div>
+                      <div className="text-[var(--warning)] text-xs">{u.error}</div>
                     ) : (
-                      <div className="flex justify-between text-[11px] text-neutral-400">
-                        <span>ONLINE: <strong className="text-emerald-400">{online}</strong></span>
+                      <div className="flex justify-between text-xs text-[var(--text-secondary)]">
+                        <span>ONLINE: <strong className="text-[var(--success)]">{online}</strong></span>
                         <span>STOPPED: {total - online}</span>
                         <span>MEMORY: {formatBytes(memSum)}</span>
                       </div>
                     )}
                     {u.pm2Path && (
-                      <div className="text-[10px] text-neutral-500 truncate pt-1 border-t border-[#141414]">
+                      <div className="text-[10px] text-[var(--text-muted)] truncate pt-1 border-t border-[var(--border-color)]">
                         PATH: {u.pm2Path}
                       </div>
                     )}
@@ -137,7 +137,7 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
           <CardHeader>
             <CardTitle>Process Fleet ({totalFleetCount})</CardTitle>
           </CardHeader>
-          <div className="divide-y divide-[#141414] max-h-[380px] overflow-y-auto font-mono text-xs">
+          <div className="divide-y divide-[var(--border-color)] max-h-[380px] overflow-y-auto font-mono text-xs">
             {users.flatMap((u) =>
               (u.processes || []).map((p) => {
                 const isSelected =
@@ -148,13 +148,13 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
                     onClick={() => openApp(u.user, p)}
                     className={`w-full flex items-center justify-between p-3 text-left transition-colors cursor-pointer ${
                       isSelected
-                        ? 'bg-[#171717] border-l-2 border-white font-medium'
-                        : 'hover:bg-[#0d0d0d]'
+                        ? 'bg-[var(--surface-raised)] border-l-2 border-white font-medium'
+                        : 'hover:bg-[var(--card-bg)]'
                     }`}
                   >
                     <div>
-                      <div className="font-semibold text-white">{p.name}</div>
-                      <div className="text-[10px] text-neutral-500">
+                      <div className="font-semibold text-[var(--text-primary)]">{p.name}</div>
+                      <div className="text-[10px] text-[var(--text-muted)]">
                         USER: {u.user} | ID: {p.pm_id} | PID: {p.pid || '--'} | RESTARTS: {p.restart_time ?? '—'}
                       </div>
                     </div>
@@ -162,7 +162,7 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
                       <Badge variant={p.status === 'online' ? 'ok' : 'err'} className="text-[9px]">
                         {(p.status || 'UNKNOWN').toUpperCase()}
                       </Badge>
-                      <div className="text-[10px] text-neutral-400">
+                      <div className="text-[10px] text-[var(--text-secondary)]">
                         {p.formattedMemory || '0 B'}
                       </div>
                     </div>
@@ -199,7 +199,7 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
               <select
                 value={logLines}
                 onChange={(e) => setLogLines(e.target.value)}
-                className="h-7 rounded border border-[#262626] bg-[#0d0d0d] px-2 font-mono text-[11px] text-neutral-300 outline-none hover:border-neutral-700 focus:border-neutral-400 theme-input"
+                className="h-7 rounded border border-[var(--border-color)] bg-[var(--card-bg)] px-2 font-mono text-xs text-[var(--text-secondary)] outline-none hover:border-neutral-700 focus:border-neutral-400 theme-input"
               >
                 <option value="50">50 lines</option>
                 <option value="100">100 lines</option>
@@ -211,21 +211,21 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
                 placeholder="Filter logs..."
                 value={logFilter}
                 onChange={(e) => setLogFilter(e.target.value)}
-                className="h-7 rounded border border-[#262626] bg-[#0d0d0d] px-2 font-mono text-[11px] text-white placeholder-neutral-500 outline-none w-32 theme-input"
+                className="h-7 rounded border border-[var(--border-color)] bg-[var(--card-bg)] px-2 font-mono text-xs text-[var(--text-primary)] placeholder-neutral-500 outline-none w-32 theme-input"
               />
-              <Button variant="secondary" size="sm" onClick={handleCopyLogs} className="font-mono text-[11px] h-7">
+              <Button variant="secondary" size="sm" onClick={handleCopyLogs} className="font-mono text-xs h-7">
                 {copySuccess ? 'COPIED' : 'COPY'}
               </Button>
-              <Button variant="outline" size="sm" onClick={fetchAppLogs} disabled={isLoadingLogs} className="font-mono text-[11px] h-7">
+              <Button variant="outline" size="sm" onClick={fetchAppLogs} disabled={isLoadingLogs} className="font-mono text-xs h-7">
                 {isLoadingLogs ? '...' : 'TAIL'}
               </Button>
             </div>
           </CardHeader>
-          <div className="flex-1 bg-[#020202] p-4 font-mono text-[11px] leading-relaxed text-neutral-300 overflow-y-auto max-h-[calc(100vh-230px)] select-text">
+          <div className="flex-1 bg-[var(--bg-main)] p-4 font-mono text-xs leading-relaxed text-[var(--text-secondary)] overflow-y-auto max-h-[calc(100vh-230px)] select-text">
             {isLoadingLogs ? (
-              <div className="text-neutral-500">Fetching live log tail...</div>
+              <div className="text-[var(--text-muted)]">Fetching live log tail...</div>
             ) : filteredLogLines.length === 0 ? (
-              <div className="text-neutral-600">No matching log entries found.</div>
+              <div className="text-[var(--text-muted)]">No matching log entries found.</div>
             ) : (
               filteredLogLines.map((line, idx) => {
                 const isErr = /error|fail|exception|fatal|panic/i.test(line);
@@ -234,7 +234,7 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
                   <div
                     key={idx}
                     className={`py-0.5 whitespace-pre-wrap break-all ${
-                      isErr ? 'text-rose-400 font-semibold' : isWarn ? 'text-amber-400' : 'text-neutral-300'
+                      isErr ? 'text-[var(--error)] font-semibold' : isWarn ? 'text-[var(--warning)]' : 'text-[var(--text-secondary)]'
                     }`}
                   >
                     {line}

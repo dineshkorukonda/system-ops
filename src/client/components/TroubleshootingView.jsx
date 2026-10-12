@@ -342,11 +342,11 @@ export function TroubleshootingView({ capabilities }) {
   return (
     <div className="space-y-6">
       {/* Top Banner & Diagnostic Runner */}
-      <Card className="border-[var(--border-subtle)] bg-[#0a0a0a]">
-        <CardHeader className="bg-[#121212]">
-          <div className="flex items-center gap-2">
-            <CardTitle>OPS DIAGNOSTICS & SYSTEM TROUBLESHOOTING</CardTitle>
-            <Badge variant="ok">SELF-HEALING</Badge>
+      <Card className="border-[var(--border-subtle)] bg-[var(--card-bg)]">
+        <CardHeader className="bg-[var(--card-bg)] flex-wrap gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <CardTitle>System diagnostics</CardTitle>
+            <Badge variant="neutral">Read-only audit</Badge>
           </div>
           <Button
             variant="default"
@@ -365,7 +365,7 @@ export function TroubleshootingView({ capabilities }) {
 
           {memoryBreakdown && (
             <div className="border border-[var(--border)] bg-[var(--surface-muted)] p-3 rounded font-mono text-xs space-y-3">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] pb-1 border-b border-[var(--border)] flex justify-between">
+              <div className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] pb-1 border-b border-[var(--border)] flex justify-between">
                 <span>MEMORY BREAKDOWN</span>
                 <Badge variant={memoryBreakdown.activeCollector === 'hybrid' ? 'ok' : 'neutral'}>
                   {memoryBreakdown.activeCollector}
@@ -373,17 +373,17 @@ export function TroubleshootingView({ capabilities }) {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                <div className="p-2.5 rounded border border-[var(--border)] bg-black/20">
+                <div className="p-2.5 rounded border border-[var(--border)] bg-[var(--surface-muted)]">
                   <div className="text-[10px] uppercase text-[var(--text-muted)] mb-1">Node API</div>
-                  <div className="text-sm font-semibold text-neutral-200">{memoryBreakdown.node?.rssFormatted || 'N/A'}</div>
+                  <div className="text-sm font-semibold text-[var(--text-secondary)]">{memoryBreakdown.node?.rssFormatted || 'N/A'}</div>
                   <div className="text-[10px] text-[var(--text-secondary)] mt-1">
                     heap {memoryBreakdown.node?.heapUsedFormatted || 'N/A'} · external {memoryBreakdown.node?.externalFormatted || 'N/A'}
                   </div>
                 </div>
 
-                <div className="p-2.5 rounded border border-[var(--border)] bg-black/20">
+                <div className="p-2.5 rounded border border-[var(--border)] bg-[var(--surface-muted)]">
                   <div className="text-[10px] uppercase text-[var(--text-muted)] mb-1">Go Collector</div>
-                  <div className="text-sm font-semibold text-neutral-200">
+                  <div className="text-sm font-semibold text-[var(--text-secondary)]">
                     {memoryBreakdown.goCollector?.available
                       ? memoryBreakdown.goCollector.rssFormatted
                       : 'offline'}
@@ -397,7 +397,7 @@ export function TroubleshootingView({ capabilities }) {
 
                 <div className="p-2.5 rounded border border-emerald-950 bg-emerald-950/10">
                   <div className="text-[10px] uppercase text-[var(--text-muted)] mb-1">Combined RSS</div>
-                  <div className="text-sm font-semibold text-emerald-300">
+                  <div className="text-sm font-semibold text-[var(--success)]">
                     {memoryBreakdown.combinedRssFormatted || 'N/A'}
                   </div>
                   <div className="text-[10px] text-[var(--text-secondary)] mt-1">
@@ -411,7 +411,7 @@ export function TroubleshootingView({ capabilities }) {
           {/* Diagnostic Results Box */}
           {diagResults && (
             <div className="space-y-2 border border-[var(--border)] bg-[var(--surface-muted)] p-3 rounded font-mono text-xs">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] pb-1 border-b border-[var(--border)] flex justify-between">
+              <div className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] pb-1 border-b border-[var(--border)] flex justify-between">
                 <span>AUDIT RESULTS</span>
                 <span className="text-[var(--text-muted)]">
                   {diagResults.filter((r) => r.ok).length} / {diagResults.length} HEALTHY
@@ -426,14 +426,14 @@ export function TroubleshootingView({ capabilities }) {
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-neutral-200">{r.title}</span>
+                      <span className="font-semibold text-[var(--text-secondary)]">{r.title}</span>
                       <Badge variant={r.ok ? 'ok' : 'err'} className="text-[9px]">
                         {r.ok ? 'PASSED' : 'ACTION REQUIRED'}
                       </Badge>
                     </div>
-                    <div className="text-[11px] text-[var(--text-secondary)] mt-1">{r.message}</div>
+                    <div className="text-xs text-[var(--text-secondary)] mt-1">{r.message}</div>
                     {!r.ok && (
-                      <div className="mt-2 text-[10px] text-rose-300 bg-black/60 p-1.5 rounded border border-rose-900/50 flex items-center justify-between gap-2">
+                      <div className="mt-2 text-[10px] text-[var(--error)] bg-[var(--surface-muted)] p-1.5 rounded border border-rose-900/50 flex items-center justify-between gap-2">
                         <span className="truncate">{r.fix}</span>
                         <button
                           onClick={() => handleCopy(r.fix, `diag-${i}`)}
@@ -469,7 +469,7 @@ export function TroubleshootingView({ capabilities }) {
               className={`px-2.5 py-1 text-xs font-mono rounded cursor-pointer transition-colors ${
                 selectedCategory === cat.id
                   ? 'bg-neutral-200 text-black font-semibold'
-                  : 'bg-[#121212] text-[var(--text-secondary)] hover:bg-[#1f1f1f] border border-[var(--border-subtle)]'
+                  : 'bg-[var(--card-bg)] text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] border border-[var(--border-subtle)]'
               }`}
             >
               {cat.label}
@@ -482,7 +482,7 @@ export function TroubleshootingView({ capabilities }) {
           placeholder="Search symptoms or commands..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full sm:w-64 bg-[var(--surface-raised)] border border-[var(--border-subtle)] rounded px-3 py-1.5 text-xs text-[var(--text-primary)] font-mono placeholder:text-neutral-600 focus:outline-none focus:border-neutral-400"
+          className="w-full sm:w-64 bg-[var(--surface-raised)] border border-[var(--border-subtle)] rounded px-3 py-1.5 text-xs text-[var(--text-primary)] font-mono placeholder:text-[var(--text-muted)] focus:outline-none focus:border-neutral-400"
         />
       </div>
 
@@ -490,12 +490,12 @@ export function TroubleshootingView({ capabilities }) {
       <div className="space-y-4">
         {filteredGuides.map((guide, gIdx) => (
           <Card key={guide.id} className="border-[var(--border)] bg-[var(--surface)]">
-            <CardHeader className="bg-[#0f0f0f] py-2.5 px-4">
+            <CardHeader className="bg-[var(--surface-muted)] py-2.5 px-4">
               <div className="flex items-center gap-2.5">
                 <Badge variant={guide.badgeVariant} className="text-[10px]">
                   {guide.badge}
                 </Badge>
-                <h4 className="font-mono text-xs font-semibold text-neutral-200">
+                <h4 className="font-mono text-xs font-semibold text-[var(--text-secondary)]">
                   {guide.title}
                 </h4>
               </div>
@@ -510,7 +510,7 @@ export function TroubleshootingView({ capabilities }) {
                   <div className="font-mono text-[10px] font-bold uppercase text-[var(--text-muted)] mb-1">
                     SYMPTOM
                   </div>
-                  <div className="font-mono text-rose-400 text-[11px]">
+                  <div className="font-mono text-[var(--error)] text-xs">
                     {guide.symptom}
                   </div>
                 </div>
@@ -519,7 +519,7 @@ export function TroubleshootingView({ capabilities }) {
                   <div className="font-mono text-[10px] font-bold uppercase text-[var(--text-muted)] mb-1">
                     ROOT CAUSES
                   </div>
-                  <ul className="list-disc list-inside text-[var(--text-secondary)] text-[11px] space-y-0.5">
+                  <ul className="list-disc list-inside text-[var(--text-secondary)] text-xs space-y-0.5">
                     {guide.causes.map((cause, cIdx) => (
                       <li key={cIdx}>{cause}</li>
                     ))}
@@ -529,7 +529,7 @@ export function TroubleshootingView({ capabilities }) {
 
               {/* Solution Overview */}
               <div className="text-xs text-[var(--text-secondary)]">
-                <span className="font-semibold text-neutral-200">Solution: </span>
+                <span className="font-semibold text-[var(--text-secondary)]">Solution: </span>
                 {guide.solution}
               </div>
 
@@ -547,12 +547,12 @@ export function TroubleshootingView({ capabilities }) {
                         <span>{cmdItem.label}</span>
                         <button
                           onClick={() => handleCopy(cmdItem.cmd, copyKey)}
-                          className="flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-raised)] hover:bg-[#222] border border-[#2a2a2a] px-2 py-0.5 rounded cursor-pointer transition-colors"
+                          className="flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-raised)] hover:bg-[var(--surface-muted)] border border-[var(--border-color)] px-2 py-0.5 rounded cursor-pointer transition-colors"
                         >
                           <span>{isCopied ? 'COPIED ✓' : 'COPY'}</span>
                         </button>
                       </div>
-                      <pre className="text-[11px] text-[var(--text-secondary)] overflow-x-auto whitespace-pre-wrap selection:bg-neutral-800">
+                      <pre className="text-xs text-[var(--text-secondary)] overflow-x-auto whitespace-pre-wrap selection:bg-neutral-800">
                         {cmdItem.cmd}
                       </pre>
                     </div>

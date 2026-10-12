@@ -26,7 +26,7 @@ const GUIDES = [
       'Install PM2: npm install -g pm2',
       'Start apps: pm2 start app.js && pm2 save',
       'Set users in .env: PM2_USERS=root (only users with PM2)',
-      'Set binary path: PM2_PATH_ROOT=/usr/bin/pm2',
+      'Configure /etc/system-ops/pm2-monitor.conf for cross-user monitoring (see docs/PM2-MONITORING.md).',
       'Verify: sudo bash /opt/system-ops/scripts/debug-pm2.sh',
     ],
     envVars: ['PM2_USERS=root', 'PM2_PATH_ROOT=/path/to/pm2'],
@@ -109,7 +109,7 @@ const GUIDES = [
   },
 ];
 
-export function IntegrationsView({ capabilities, onNavigate }) {
+export function IntegrationsView({ capabilities, onNavigate, onChanged }) {
   const [copiedIdx, setCopiedIdx] = useState(null);
   const [enabled, setEnabled] = useState({});
   const [error, setError] = useState(null);
@@ -130,6 +130,7 @@ export function IntegrationsView({ capabilities, onNavigate }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.errors?.join(', ') || 'Unable to save integration');
       setEnabled(data.settings.integrations);
+      await onChanged?.();
     } catch (err) { setError(err.message); } finally { setSaving(false); }
   };
 
@@ -146,15 +147,15 @@ export function IntegrationsView({ capabilities, onNavigate }) {
     <div className="space-y-6 max-w-4xl">
       <Card><CardHeader><CardTitle>Background monitoring</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-neutral-400">Enable the integrations you use. Monitoring continues when the dashboard is closed.</p>
-          {error && <p role="alert" className="text-red-400">{error}</p>}
+          <p className="text-sm text-[var(--text-secondary)]">Enable the integrations you use. Monitoring continues when the dashboard is closed.</p>
+          {error && <p role="alert" className="text-[var(--error)]">{error}</p>}
           {Object.entries(enabled).map(([name, checked]) => <label key={name} className="flex items-center gap-3 text-sm">
             <input type="checkbox" checked={checked} disabled={saving} onChange={() => toggle(name)} />
             <span>{name === 'osUpdates' ? 'OS updates' : name}</span>
           </label>)}
         </CardContent>
       </Card>
-      <div className="font-mono text-xs text-neutral-400 leading-relaxed">
+      <div className="font-mono text-xs text-[var(--text-secondary)] leading-relaxed">
         Features are auto-detected on this VPS. Only installed integrations appear in the sidebar.
         Use the guides below to set up anything missing.
       </div>
@@ -167,10 +168,10 @@ export function IntegrationsView({ capabilities, onNavigate }) {
           </CardHeader>
           <CardContent className="space-y-2 font-mono text-xs">
             {installed.map((g) => (
-              <div key={g.id} className="flex items-center justify-between py-2 border-b border-[#141414] last:border-0">
+              <div key={g.id} className="flex items-center justify-between py-2 border-b border-[var(--border-color)] last:border-0">
                 <div>
-                  <span className="text-white font-semibold">{g.name}</span>
-                  <span className="text-neutral-500 ml-2">— detected</span>
+                  <span className="text-[var(--text-primary)] font-semibold">{g.name}</span>
+                  <span className="text-[var(--text-muted)] ml-2">— detected</span>
                 </div>
                 {onNavigate && (
                   <Button
@@ -190,7 +191,7 @@ export function IntegrationsView({ capabilities, onNavigate }) {
 
       {notInstalled.length > 0 && (
         <div className="space-y-4">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 font-mono">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] font-mono">
             Available to Set Up
           </div>
           {notInstalled.map((guide, gIdx) => (
@@ -200,11 +201,11 @@ export function IntegrationsView({ capabilities, onNavigate }) {
                 <Badge variant="neutral">NOT DETECTED</Badge>
               </CardHeader>
               <CardContent className="space-y-4 font-mono text-xs">
-                <p className="text-neutral-400">{guide.description}</p>
+                <p className="text-[var(--text-secondary)]">{guide.description}</p>
 
                 <div>
-                  <div className="text-[10px] uppercase text-neutral-500 mb-2">Setup Steps</div>
-                  <ol className="list-decimal list-inside space-y-1.5 text-neutral-300">
+                  <div className="text-[10px] uppercase text-[var(--text-muted)] mb-2">Setup Steps</div>
+                  <ol className="list-decimal list-inside space-y-1.5 text-[var(--text-secondary)]">
                     {guide.setupSteps.map((step, i) => (
                       <li key={i} className="leading-relaxed">{step}</li>
                     ))}
@@ -213,14 +214,14 @@ export function IntegrationsView({ capabilities, onNavigate }) {
 
                 {guide.envVars.length > 0 && (
                   <div>
-                    <div className="text-[10px] uppercase text-neutral-500 mb-2">.env Configuration</div>
-                    <div className="rounded border border-[#1a1a1a] bg-[#050505] p-3 space-y-1">
+                    <div className="text-[10px] uppercase text-[var(--text-muted)] mb-2">.env Configuration</div>
+                    <div className="rounded border border-[var(--border-color)] bg-[var(--surface-muted)] p-3 space-y-1">
                       {guide.envVars.map((line, i) => (
                         <div key={i} className="flex items-center justify-between gap-2">
-                          <code className="text-emerald-400/90 text-[11px]">{line}</code>
+                          <code className="text-[var(--success)]/90 text-xs">{line}</code>
                           <button
                             onClick={() => handleCopy(line, `${gIdx}-${i}`)}
-                            className="text-[9px] text-neutral-500 hover:text-white shrink-0 cursor-pointer"
+                            className="text-[9px] text-[var(--text-muted)] hover:text-[var(--text-primary)] shrink-0 cursor-pointer"
                           >
                             {copiedIdx === `${gIdx}-${i}` ? 'COPIED' : 'COPY'}
                           </button>
@@ -237,7 +238,7 @@ export function IntegrationsView({ capabilities, onNavigate }) {
 
       {notInstalled.length === 0 && (
         <Card>
-          <CardContent className="p-6 text-center font-mono text-xs text-neutral-400">
+          <CardContent className="p-6 text-center font-mono text-xs text-[var(--text-secondary)]">
             All supported integrations are active on this server.
           </CardContent>
         </Card>

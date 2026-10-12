@@ -44,34 +44,17 @@ function pathReadable(filePath) {
  * Detect host capabilities. Only mark features available when genuinely present.
  */
 async function getCapabilities() {
-  // Cheap discovery only. Never run a disabled integration to decide whether
-  // to display it, and reuse monitored snapshots rather than collecting twice.
-  const path = require('path');
   const { stateStore } = require('../core/stateStore');
-  const enabled = require('../services/settingsService').getSettings().integrations;
-  const binary = name => (process.env.PATH || '').split(path.delimiter).some(directory =>
-    fs.existsSync(path.join(directory, process.platform === 'win32' ? `${name}.exe` : name)));
-  const installed = {
-    docker: socketExists() || binary('docker'),
-    pm2: binary('pm2') || require('../../plugins/superpowers/skills/pm2_discovery').getPm2Users().length > 0,
-    ollama: binary('ollama') || !!process.env.OLLAMA_URL,
-    systemd: fs.existsSync('/run/systemd/system'),
-    backups: !!(process.env.BACKUPS_DIR || process.env.BACKUP_DIR || process.env.LOG_SOURCES),
-    traffic: fs.existsSync(process.env.NGINX_LOG_PATH || '/var/log/nginx/access.log'),
-    databases: binary('psql') || binary('redis-cli') || binary('mysql'),
-    security: binary('ufw') || binary('fail2ban-client'),
-    osUpdates: binary('apt'), certbot: binary('certbot'),
-  };
-  const result = { timestamp: new Date().toISOString(), discovery: 'filesystem-and-cached-monitoring' };
-  for (const [name, present] of Object.entries(installed)) {
-    const key = name === 'systemd' ? 'services' : name;
-    const snapshot = stateStore.get(key);
-    result[name] = { available: present || !!snapshot, installed: present,
-      enabled: enabled[key] === true, needsSetup: !present,
-      permissionIssue: snapshot?.permissionIssue === true,
-      error: snapshot?.error || null, count: snapshot?.count ?? snapshot?.total ?? 0 };
-  }
-  return result;
+  const { discoverNginxLogFiles, discoverNginxSslMap } = require('../utils/domainDiscovery');
+  const names = ['docker', 'pm2', 'traffic', 'system', 'services', 'backups', 'ollama', 'databases', 'security', 'osUpdates', 'certbot'];
+  return require('./discovery').discover({
+    enabled: require('../services/settingsService').getSettings().integrations,
+    snapshots: Object.fromEntries(names.map(name => [name, stateStore.get(name)])),
+    stats: Object.fromEntries(names.map(name => [name, require('../core/collectorManager').collectorManager.getCollectorHealth(name) || {}])),
+    pm2Users: require('../../plugins/superpowers/skills/pm2_discovery').getPm2Users(),
+    pm2Paths: require('../../plugins/superpowers/skills/pm2_discovery').getPm2DiscoveryPaths(),
+    logPaths: discoverNginxLogFiles(), sslPaths: [...discoverNginxSslMap().values(), ...require('./tlsCerts').discoverLetsencryptLiveCerts().values()],
+  });
 }
 
 async function detectDocker() {

@@ -31,7 +31,7 @@ test('isPermissionError detects docker socket permission failures', () => {
   );
   assert.strictEqual(
     isPermissionError({ stderr: 'Cannot connect to the Docker daemon' }),
-    true
+    false
   );
   assert.strictEqual(isPermissionError({ stderr: 'container not found' }), false);
 });

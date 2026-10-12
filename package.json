@@ -12,7 +12,8 @@
     "dev": "node --watch src/server.js",
     "test": "node --test tests/*.test.js",
     "test:smoke": "node scripts/runtime-smoke.js",
-    "typecheck": "tsc -p tsconfig.collectors.json"
+    "typecheck": "tsc -p tsconfig.collectors.json",
+    "test:ui": "playwright test"
   },
   "keywords": [
     "nodejs",
@@ -36,12 +37,15 @@
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "geoip-lite": "^2.0.3",
+    "leaflet": "^1.9.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tailwind-merge": "^3.6.0",
     "ua-parser-js": "^2.0.10"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.64.0",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.0",
     "autoprefixer": "^10.5.4",
