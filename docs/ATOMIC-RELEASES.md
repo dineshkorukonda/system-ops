@@ -10,6 +10,16 @@ CI runs Linux pointer/build-failure/path-boundary tests and a real production-pr
 
 ## Dashboard updater launch
 
+Production smoke checks wait up to 45 seconds for the first healthy system snapshot after HTTP liveness. An initial `503` is expected while collection is running; authentication failures, malformed snapshots, and unhealthy successful responses still fail validation. A collector that never becomes ready fails with a bounded timeout and its last state.
+
+The installer and updated release helper validate a separate `/etc/sudoers.d/system-ops-update` policy with `visudo` before installing it as root with mode `0440`. This permits only the exact background deploy command and preserves other sudo rules. An installation bootstrapping through an older release helper needs the one-time command below after its first successful SSH deployment. It uses the fixed root checkout path, not the versioned `current` path:
+
+```bash
+sudo env INSTALL_DIR=/opt/system-ops OPS_USER=ops node /opt/system-ops/current/scripts/setup-update-permissions.js
+```
+
+Use the actual install root and service account for a custom installation. This command only repairs the updater permission; it does not start a deployment.
+
 The dashboard invokes the exact permitted sudo command, using noninteractive sudo and the deploy wrapper background mode. The wrapper starts system-ops-update.service outside the dashboard service control group, so restarting the dashboard cannot kill the updater. The worker appends to shared update.log and atomically records an ops-readable update-result.json after readiness/rollback. A short launch grace period avoids reporting failure before systemd has created the unit. Root checkout and active release paths are distinct, so updates remain supported after the first staged activation. Docker/Windows installs are reported as unsupported for dashboard self-update.
 
 Existing broken dashboard installations need a one-time SSH update: from the root checkout run `sudo bash scripts/deploy.sh`. After the repaired version is installed, dashboard updates use the independent worker. This bypasses the old API launcher without resetting the checkout or deleting assets. Native sudoers/systemd behavior still needs verification on the target server; no live host was modified here.

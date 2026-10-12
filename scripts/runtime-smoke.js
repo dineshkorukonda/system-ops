@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const { spawn } = require('node:child_process');
 const { once } = require('node:events');
+const { waitForSystemSnapshot } = require('./smoke-readiness');
 
 async function freePort() {
   const socket = net.createServer();
@@ -30,7 +31,7 @@ async function smoke() {
   let child;
   let output = '';
   const request = (route, options = {}) => fetch(`${base}${route}`, {
-    ...options, signal: AbortSignal.timeout(15000),
+    ...options, signal: options.signal || AbortSignal.timeout(15000),
   });
   try {
     if (!external) {
@@ -102,12 +103,7 @@ async function smoke() {
     const headers = { Cookie: cookie };
     const status = await request('/api/auth/status', { headers });
     assert.equal((await status.json()).authenticated, true);
-    const snapshot = await request('/api/v2/system/snapshot', { headers });
-    assert.equal(snapshot.status, 200);
-    const data = await snapshot.json();
-    assert.ok(data.memory && data.uptime, 'System snapshot structure missing');
-    assert.equal(data.collection.status, 'healthy');
-    assert.ok(data.collection.lastSuccess && data.collection.source);
+    await waitForSystemSnapshot(request, headers);
     const healthResponse = await request('/api/v2/ops/health', { headers });
     assert.equal(healthResponse.status, 200);
     const health = await healthResponse.json();
