@@ -1,8 +1,9 @@
 const fs = require('fs');
 const { runCommand } = require('./exec');
+const { dockerConnection, readNativeInventory } = require('./dockerConnection');
 
-const DOCKER_BIN = process.env.DOCKER_PATH || 'docker';
-const DOCKER_SOCKET = process.env.DOCKER_SOCKET || '/var/run/docker.sock';
+const DOCKER_BIN = process.env.DOCKER_PATH || readNativeInventory().dockerBinary || 'docker';
+const DOCKER_SOCKET = dockerConnection().socket || '/var/run/docker.sock';
 
 function isPermissionError(res) {
   const msg = `${res.stderr || ''} ${res.stdout || ''}`.toLowerCase();
@@ -14,7 +15,7 @@ function isPermissionError(res) {
 
 function socketExists() {
   try {
-    return fs.existsSync(DOCKER_SOCKET);
+    return fs.existsSync(dockerConnection().socket);
   } catch {
     return false;
   }
@@ -24,7 +25,8 @@ function socketExists() {
  * Run a docker CLI command, falling back to sudo when the ops user lacks socket access.
  */
 async function runDocker(args, timeoutMs = 5000) {
-  if (process.env.DOCKER_SOCKET && !process.env.DOCKER_HOST) args = ['--host', `unix://${process.env.DOCKER_SOCKET}`, ...args];
+  const connection = dockerConnection();
+  args = [...connection.args, ...args];
   if (process.env.DOCKER_USE_SUDO === 'true') {
     const sudoRes = await runCommand('sudo', ['-n', DOCKER_BIN, ...args], timeoutMs);
     return { ...sudoRes, usedSudo: true };
@@ -58,7 +60,7 @@ function buildDockerError(res) {
 
   if (!socketExists() && !process.env.DOCKER_HOST && !process.env.DOCKER_CONTEXT && process.platform !== 'win32') {
     return {
-      error: `Docker socket not found at ${DOCKER_SOCKET}`,
+      error: `Docker socket not found at ${dockerConnection().socket}`,
       permissionIssue: false,
       hint: 'Install Docker or set DOCKER_SOCKET if using a custom socket path.',
     };

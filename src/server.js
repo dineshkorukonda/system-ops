@@ -126,7 +126,10 @@ for (const [route, name] of Object.entries(cachedRoutes)) app.get(route, (req, r
   const collection = collectorManager.getCollectorHealth(name);
   const cached = stateStore.get(name);
   res.setHeader('Cache-Control', 'no-store');
-  if (cached != null) return res.json({ ...cached, collection });
+  if (cached != null) return res.json({ ...cached, collection: name === 'pm2' && collection?.enabled && ['healthy', 'stale'].includes(collection.status) && cached.incomplete && !cached.error ? {
+    ...collection, status: 'partial', fresh: false,
+    lastError: 'Some PM2 accounts could not be read; listed apps are a partial inventory.',
+  } : collection });
   return res.status(collection?.enabled ? 503 : 200).json({ available: false,
     disabled: collection?.enabled === false, collection,
     error: collection?.enabled ? 'Waiting for collection' : 'Integration is disabled' });
@@ -221,6 +224,9 @@ app.post('/api/v2/discovery/rescan', async (req, res) => {
     const { target } = req.body || {};
     if (!target || target === 'pm2') require('../plugins/superpowers/skills/pm2_discovery').clearPm2Cache();
     const result = await collectorManager.rescan(target || null);
+    // Capabilities must reflect Docker/other collectors that run later in the
+    // registration order, rather than retaining the pre-rescan evidence.
+    if (!target) stateStore.set('capabilities', await getCapabilities());
     return res.json({ success: true, result });
   } catch (err) {
     return res.status(500).json({ error: 'Rescan failed', details: err.message });

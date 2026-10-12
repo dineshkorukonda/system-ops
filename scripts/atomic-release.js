@@ -39,6 +39,8 @@ async function main(){
       run('npm',['ci'],stage);run('npm',['test'],stage,{NODE_ENV:'test',SYSTEM_OPS_DATA_DIR:testData});run('npm',['run','build'],stage);run('npm',['run','test:smoke'],stage);
       // Validate and install only the exact background launcher permission.
       require(path.join(stage,'scripts','setup-update-permissions')).installUpdatePermissions({root,user});
+      // Private account homes are scanned once by root; polling stays unprivileged.
+      require(path.join(stage,'scripts','setup-runtime-discovery')).setupRuntimeDiscovery({root:stage,user});
       },restart,ready});
     // Refresh only the fixed launcher after a healthy activation. Older root
     // wrappers did not forward --background into the active release helper.

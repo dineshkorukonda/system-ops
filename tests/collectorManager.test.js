@@ -89,3 +89,23 @@ test('ProcessCollector - parseProcStat correctly parses process name with spaces
   assert.strictEqual(parsed.utime, 50);
   assert.strictEqual(parsed.stime, 25);
 });
+
+test('newly enabled collectors retry a busy budget instead of waiting their full interval', async t => {
+  const store = new StateStore();
+  const manager = new CollectorManager(store, { maxConcurrent: 1 });
+  t.after(() => manager.stopAll());
+  let release;
+  manager.register({ name: 'busy', critical: true, collect: () => new Promise(resolve => { release = resolve; }) });
+  let collected;
+  const ready = new Promise(resolve => { collected = resolve; });
+  manager.register({ name: 'pm2', enabled: false, intervalMs: 60000, collect: async () => { collected(); return {}; } });
+  manager.isRunning = true;
+  const busy = manager.runCollector('busy');
+  manager.setEnabled('pm2', true);
+  await new Promise(resolve => setTimeout(resolve, 20));
+  release({}); await busy;
+  let timer;
+  try { await Promise.race([ready, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Enabled collector was not retried')), 2500); })]); }
+  finally { clearTimeout(timer); }
+  assert.ok(manager.collectors.get('pm2').skippedRuns > 0);
+});

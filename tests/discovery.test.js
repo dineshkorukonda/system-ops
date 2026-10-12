@@ -28,6 +28,17 @@ test('healthy monitored evidence expires instead of reporting permanently health
   const caps=discover({env:{},io:fakeIo({}),enabled:{docker:true},snapshots:{docker:{daemonReachable:true,total:0}},stats:{docker:{lastSuccess:new Date(Date.now()-300000).toISOString()}}});
   assert.equal(caps.docker.status,'stale');assert.equal(caps.docker.count,0);
 });
+
+test('successful helper/daemon access is not hidden by private home/socket filesystem permissions', () => {
+  const caps = discover({ env: { PM2_USERS: 'root', DOCKER_SOCKET: '/var/run/docker.sock' },
+    io: fakeIo({ '/root/.pm2': 'denied', '/var/run/docker.sock': 'denied' }), pm2Users: ['root'], enabled: { pm2: true, docker: true },
+    snapshots: { pm2: { totalProcesses: 2, allUsers: [{ user: 'root', pm2Path: '/root/pm2', error: null }] }, docker: { daemonReachable: true, total: 3 } },
+    stats: { pm2: { lastSuccess: new Date().toISOString() }, docker: { lastSuccess: new Date().toISOString() } },
+  });
+  assert.equal(caps.pm2.error, null); assert.equal(caps.pm2.permissionIssue, false);
+  assert.equal(caps.docker.error, null); assert.equal(caps.docker.permissionIssue, false);
+  assert.equal(caps.pm2.count, 2); assert.equal(caps.docker.count, 3);
+});
 test('category navigation filters missing sources and user preferences without breaking deep links', async () => {
   const {CATEGORIES,visibleViews,routeFromHash}=await import('../src/client/lib/navigation.mjs');
   const apps=CATEGORIES.find(category=>category.id==='apps');

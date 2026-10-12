@@ -245,6 +245,7 @@ fi
 cp "$INSTALL_DIR/sudoers/system-ops-sudoers" /etc/sudoers.d/system-ops
 chmod 0440 /etc/sudoers.d/system-ops
 INSTALL_DIR="$INSTALL_DIR" OPS_USER="$OPS_USER" node "$INSTALL_DIR/scripts/setup-update-permissions.js"
+INSTALL_DIR="$INSTALL_DIR" OPS_USER="$OPS_USER" node "$INSTALL_DIR/scripts/setup-runtime-discovery.js"
 
 # Install and start systemd units
 cp "$INSTALL_DIR/systemd/system-ops.service" /etc/systemd/system/system-ops.service
