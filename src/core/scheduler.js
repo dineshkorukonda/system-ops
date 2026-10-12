@@ -25,6 +25,11 @@ const OLLAMA_SERVICE = process.env.OLLAMA_SERVICE_NAME || 'ollama';
  * Intervals are configurable via environment variables.
  */
 function registerAllCollectors() {
+  const store = require('../services/durableStore').getDurableStore();
+  const checks = new (require('../services/checkService').CheckService)(store);
+  collectorManager.register({ name: 'checks', stateKey: 'checks', intervalMs: 5000, critical: false,
+    enabled: store.checks().some(check => check.enabled && check.type !== 'external'),
+    collect: () => checks.runDue(require('./collectionContext').collectionSignal()) });
   // 1. System Health (CPU, RAM, Swap, Ports, TLS, Disks) - Fast cycle (default: 4s)
   const systemInterval = parseInt(process.env.SYSTEM_OPS_SYSTEM_INTERVAL, 10) || 4000;
   collectorManager.register({

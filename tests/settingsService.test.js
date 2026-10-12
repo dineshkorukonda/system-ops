@@ -4,8 +4,19 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const DATA_DIR = path.join(__dirname, '../data');
+const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'ops-settings-test-'));
+process.env.SYSTEM_OPS_DATA_DIR = DATA_DIR;
+process.env.NODE_ENV = 'test';
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+test.beforeEach(() => {
+  require('../src/services/durableStore').getDurableStore().db.exec('DELETE FROM settings');
+  if (fs.existsSync(SETTINGS_FILE)) fs.unlinkSync(SETTINGS_FILE);
+});
+test.after(() => {
+  require('../src/services/durableStore').getDurableStore().close();
+  for (const file of fs.readdirSync(DATA_DIR)) fs.unlinkSync(path.join(DATA_DIR, file));
+  fs.rmdirSync(DATA_DIR);
+});
 
 function backupSettings() {
   if (fs.existsSync(SETTINGS_FILE)) {

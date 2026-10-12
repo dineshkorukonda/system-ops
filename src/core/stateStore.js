@@ -33,7 +33,8 @@ class BoundedHistory {
  * Holds cached snapshots and metadata for each collector.
  */
 class StateStore {
-  constructor() {
+  constructor({ persistence = null } = {}) {
+    this.persistence = persistence;
     this.state = {
       system: null,
       processes: null,
@@ -57,6 +58,9 @@ class StateStore {
       ram: new BoundedHistory(300),
       swap: new BoundedHistory(300)
     };
+    if (persistence) for (const [metric, samples] of Object.entries(persistence.history())) {
+      samples.forEach(sample => this.history[metric].push(sample));
+    }
   }
 
   set(key, data, meta = {}) {
@@ -125,6 +129,7 @@ class StateStore {
     for (const [key, value] of Object.entries(values)) {
       if (Number.isFinite(value)) this.history[key].push({ time, value });
     }
+    this.persistence?.metrics(values, time);
   }
 
   getDiagnostics() {
@@ -147,12 +152,13 @@ class StateStore {
         cpu: this.history.cpu.length,
         ram: this.history.ram.length,
         swap: this.history.swap.length
-      }
+      },
+      persistence: this.persistence?.status() || { available: false, disabled: true }
     };
   }
 }
 
-const stateStore = new StateStore();
+const stateStore = new StateStore({ persistence: require('../services/durableStore').getDurableStore() });
 
 module.exports = {
   StateStore,

@@ -39,13 +39,17 @@ function getEnvDefaults() {
 }
 
 function readRawSettings() {
+  const durable = require('./durableStore').getDurableStore().setting('settings');
+  if (durable) return durable;
   ensureDataDir();
   if (!fs.existsSync(SETTINGS_FILE)) {
     return {};
   }
   try {
     const raw = fs.readFileSync(SETTINGS_FILE, 'utf8');
-    return JSON.parse(raw);
+    const imported = JSON.parse(raw);
+    require('./durableStore').getDurableStore().saveSetting('settings', imported);
+    return imported;
   } catch {
     return {};
   }
@@ -145,6 +149,9 @@ function updateSettings(partial) {
   }
 
   ensureDataDir();
+  if (!require('./durableStore').getDurableStore().saveSetting('settings', next)) {
+    return { success: false, errors: ['Settings could not be persisted. Check persistence diagnostics and disk access.'] };
+  }
   const tmpFile = `${SETTINGS_FILE}.tmp`;
   fs.writeFileSync(tmpFile, JSON.stringify(next, null, 2), 'utf8');
   fs.renameSync(tmpFile, SETTINGS_FILE);

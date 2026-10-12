@@ -55,7 +55,18 @@ test('detectInstallType identifies local dev install', () => {
   assert.ok(['systemd', 'docker', 'unknown'].includes(type));
 });
 
-test('fetchLatestFromMain returns version from GitHub package.json', async () => {
+test('fetchLatestFromMain parses GitHub package and commit responses without relying on network quotas', async (t) => {
+  const { EventEmitter } = require('node:events');
+  t.mock.method(require('node:https'), 'get', (url, options, callback) => {
+    const request = new EventEmitter(); request.destroy = () => {};
+    queueMicrotask(() => {
+      const response = new EventEmitter(); response.statusCode = 200; callback(response);
+      const body = url.includes('/contents/') ? { content: Buffer.from(JSON.stringify({ version: '2.1.0' })).toString('base64') }
+        : { sha: 'fixture-commit', commit: { message: 'fixture update', committer: { date: '2026-10-12T00:00:00Z' } } };
+      response.emit('data', JSON.stringify(body)); response.emit('end');
+    });
+    return request;
+  });
   const { fetchLatestFromMain } = require('../src/services/updateService');
   const info = await fetchLatestFromMain();
   assert.ok(info.latest, 'should return a version string');

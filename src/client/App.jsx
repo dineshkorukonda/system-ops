@@ -183,6 +183,12 @@ export function App() {
     const data = await load('system', '/api/v2/system/snapshot', setSystemData);
     if (!data) return;
     setMonitoringHealth(data.monitoringHealth);
+    if (data.persistence?.available && data.history) {
+      setCpuHistory(data.history.cpu.map(sample => sample.value));
+      setRamHistory(data.history.ram.map(sample => sample.value));
+      setSwapHistory(data.history.swap.map(sample => sample.value));
+      return;
+    }
     if (data.collection?.fresh && data.collection.lastSuccess !== lastMetricSuccessRef.current) {
       lastMetricSuccessRef.current = data.collection.lastSuccess;
       if (Number.isFinite(data.uptime?.cpuPercent)) pushMetric(setCpuHistory, data.uptime.cpuPercent);
