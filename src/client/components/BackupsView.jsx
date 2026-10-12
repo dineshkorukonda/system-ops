@@ -69,7 +69,7 @@ export function BackupsView({
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-neutral-400 font-mono leading-relaxed">
+      <p className="text-xs text-[var(--text-secondary)] font-mono leading-relaxed">
         Track backup logs and downloadable dumps. This page stays visible so you can see what is missing and configure it below.
       </p>
 
@@ -79,15 +79,15 @@ export function BackupsView({
             <CardTitle>Setup checklist</CardTitle>
             <Badge variant="warn">ACTION NEEDED</Badge>
           </CardHeader>
-          <CardContent className="space-y-3 font-mono text-[11px] text-neutral-300">
+          <CardContent className="space-y-3 font-mono text-xs text-[var(--text-secondary)]">
             {noSourcesConfigured && (
               <div className="rounded border border-amber-500/20 bg-amber-500/5 p-3 space-y-2">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400/90">Configure log sources</div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--warning)]/90">Configure log sources</div>
                 <ol className="list-decimal list-inside space-y-1 leading-relaxed">
                   <li>Create backup dir: sudo mkdir -p /var/backups/postgres/logs</li>
                   <li>Add to /opt/system-ops/.env:</li>
                 </ol>
-                <code className="block text-emerald-400/90 text-[10px] break-all">
+                <code className="block text-[var(--success)]/90 text-[10px] break-all">
                   BACKUPS_DIR=/var/backups/postgres{'\n'}
                   LOG_SOURCES=pg-backup:file:/var/backups/postgres/logs/backup.log:200
                 </code>
@@ -96,14 +96,14 @@ export function BackupsView({
             )}
             {logMissing && selectedSourceMeta && (
               <div className="rounded border border-amber-500/20 bg-amber-500/5 p-3 space-y-2">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400/90">Log file missing</div>
-                <div className="text-neutral-400">Configured path does not exist yet:</div>
-                <code className="block text-rose-400/90 text-[10px] break-all">{selectedSourceMeta.target}</code>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--warning)]/90">Log file missing</div>
+                <div className="text-[var(--text-secondary)]">Configured path does not exist yet:</div>
+                <code className="block text-[var(--error)]/90 text-[10px] break-all">{selectedSourceMeta.target}</code>
                 <div>Create it or point LOG_SOURCES at your real backup log, then restart the service.</div>
               </div>
             )}
             {files.length === 0 && !noSourcesConfigured && (
-              <div className="text-neutral-500">
+              <div className="text-[var(--text-muted)]">
                 No dump files in BACKUPS_DIR yet — run your backup job once, or set BACKUPS_DIR to the folder that holds .sql.gz / .dump files.
               </div>
             )}
@@ -123,7 +123,7 @@ export function BackupsView({
             <select
               value={selectedSource}
               onChange={(e) => setSelectedSource(e.target.value)}
-              className="w-full h-8 rounded border border-[#262626] bg-[#0d0d0d] px-3 text-xs text-white outline-none theme-input"
+              className="w-full h-8 rounded border border-[var(--border-color)] bg-[var(--card-bg)] px-3 text-xs text-[var(--text-primary)] outline-none theme-input"
             >
               {sources.length === 0 ? (
                 <option value="">No log sources configured</option>
@@ -139,14 +139,14 @@ export function BackupsView({
               <select
                 value={linesCount}
                 onChange={(e) => setLinesCount(e.target.value)}
-                className="h-8 flex-1 rounded border border-[#262626] bg-[#0d0d0d] px-2 text-xs text-white outline-none theme-input"
+                className="h-8 flex-1 rounded border border-[var(--border-color)] bg-[var(--card-bg)] px-2 text-xs text-[var(--text-primary)] outline-none theme-input"
               >
                 <option value="50">50 lines</option>
                 <option value="100">100 lines</option>
                 <option value="200">200 lines</option>
                 <option value="500">500 lines</option>
               </select>
-              <Button size="sm" onClick={fetchLogTail} disabled={isLoading} className="font-mono text-[11px]">
+              <Button size="sm" onClick={fetchLogTail} disabled={isLoading} className="font-mono text-xs">
                 {isLoading ? 'FETCHING...' : 'FETCH TAIL'}
               </Button>
             </div>
@@ -170,10 +170,10 @@ export function BackupsView({
             </Badge>
           </CardHeader>
           <CardContent className="p-4 space-y-2 font-mono text-xs">
-            <div className="font-medium text-white">
+            <div className="font-medium text-[var(--text-primary)]">
               {backupStatus.message || 'Select a log source to inspect'}
             </div>
-            <div className="text-[11px] text-neutral-500 pt-1 border-t border-[#141414]">
+            <div className="text-xs text-[var(--text-muted)] pt-1 border-t border-[var(--border-color)]">
               TARGET: {logTailData?.target || selectedSource || '--'}
             </div>
           </CardContent>
@@ -187,26 +187,26 @@ export function BackupsView({
               REFRESH
             </Button>
           </CardHeader>
-          <div className="divide-y divide-[#141414] max-h-[260px] overflow-y-auto font-mono text-xs">
+          <div className="divide-y divide-[var(--border-color)] max-h-[260px] overflow-y-auto font-mono text-xs">
             {files.length === 0 ? (
-              <div className="p-4 text-center text-neutral-500 font-sans">
+              <div className="p-4 text-center text-[var(--text-muted)] font-sans">
                 No backup dump files found in storage directory.
               </div>
             ) : (
               files.map((f, idx) => (
                 <div key={idx} className="flex items-center justify-between p-3">
                   <div className="min-w-0 pr-2">
-                    <div className="font-semibold text-neutral-200 truncate text-[11px]">
+                    <div className="font-semibold text-[var(--text-secondary)] truncate text-xs">
                       {f.name}
                     </div>
-                    <div className="text-[10px] text-neutral-500">
+                    <div className="text-[10px] text-[var(--text-muted)]">
                       {f.formattedSize} | {f.formattedDate}
                     </div>
                   </div>
                   <a
                     href={`/api/v2/backups/download?filename=${encodeURIComponent(f.name)}`}
                     download
-                    className="inline-flex items-center justify-center rounded border border-[#262626] bg-[#121212] px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-[#1f1f1f] transition-colors"
+                    className="inline-flex items-center justify-center rounded border border-[var(--border-color)] bg-[var(--card-bg)] px-2.5 py-1 text-[10px] font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-raised)] transition-colors"
                   >
                     DOWNLOAD
                   </a>
@@ -223,12 +223,12 @@ export function BackupsView({
           <CardHeader className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle>Log Tail Terminal</CardTitle>
             <div className="flex items-center gap-2.5">
-              <label className="flex items-center gap-1.5 font-mono text-[11px] text-neutral-400 cursor-pointer">
+              <label className="flex items-center gap-1.5 font-mono text-xs text-[var(--text-secondary)] cursor-pointer">
                 <input
                   type="checkbox"
                   checked={reverseOrder}
                   onChange={(e) => setReverseOrder(e.target.checked)}
-                  className="rounded border-[#262626] bg-[#0d0d0d] text-white"
+                  className="rounded border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)]"
                 />
                 <span>NEWEST FIRST</span>
               </label>
@@ -237,18 +237,18 @@ export function BackupsView({
                 placeholder="Search log..."
                 value={logFilter}
                 onChange={(e) => setLogFilter(e.target.value)}
-                className="h-7 rounded border border-[#262626] bg-[#0d0d0d] px-2 font-mono text-[11px] text-white placeholder-neutral-500 outline-none w-32 theme-input"
+                className="h-7 rounded border border-[var(--border-color)] bg-[var(--card-bg)] px-2 font-mono text-xs text-[var(--text-primary)] placeholder-neutral-500 outline-none w-32 theme-input"
               />
-              <Button variant="secondary" size="sm" onClick={handleCopyLogs} className="font-mono text-[11px] h-7">
+              <Button variant="secondary" size="sm" onClick={handleCopyLogs} className="font-mono text-xs h-7">
                 {copySuccess ? 'COPIED' : 'COPY'}
               </Button>
             </div>
           </CardHeader>
-          <div className="flex-1 bg-[#020202] p-4 font-mono text-[11px] leading-relaxed text-neutral-300 overflow-y-auto max-h-[calc(100vh-230px)] select-text">
+          <div className="flex-1 bg-[var(--bg-main)] p-4 font-mono text-xs leading-relaxed text-[var(--text-secondary)] overflow-y-auto max-h-[calc(100vh-230px)] select-text">
             {isLoading ? (
-              <div className="text-neutral-500 font-sans">Fetching log tail...</div>
+              <div className="text-[var(--text-muted)] font-sans">Fetching log tail...</div>
             ) : rawLines.length === 0 ? (
-              <div className="text-neutral-600 font-sans">No log entries found.</div>
+              <div className="text-[var(--text-muted)] font-sans">No log entries found.</div>
             ) : (
               rawLines.map((line, idx) => {
                 const isHeader = /^=== Backup started/i.test(line);
@@ -259,12 +259,12 @@ export function BackupsView({
                     key={idx}
                     className={`py-0.5 whitespace-pre-wrap break-all ${
                       isHeader
-                        ? 'text-neutral-500 font-semibold'
+                        ? 'text-[var(--text-muted)] font-semibold'
                         : isSuccess
-                        ? 'text-emerald-400 font-semibold'
+                        ? 'text-[var(--success)] font-semibold'
                         : isFail
-                        ? 'text-rose-400 font-semibold'
-                        : 'text-neutral-300'
+                        ? 'text-[var(--error)] font-semibold'
+                        : 'text-[var(--text-secondary)]'
                     }`}
                   >
                     {line}

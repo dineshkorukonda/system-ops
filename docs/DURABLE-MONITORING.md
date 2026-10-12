@@ -1,0 +1,11 @@
+# Bounded persistence
+
+Node 24's built-in SQLite API stores monitoring data under SYSTEM_OPS_DATA_DIR/monitoring.sqlite (the existing data directory by default). No separate database daemon is required. Settings are imported from settings.json once; SQLite becomes authoritative and successful updates also write a JSON compatibility mirror for older releases. There are no destructive schema changes in version 1. Future schema versions are refused, never silently downgraded. Back up the data directory before upgrading.
+
+CPU, RAM and swap are minute rollups (sum/count, including real zeros), capped at 10,080 buckets per metric: at most seven days of continuous samples. The authenticated history API returns at most 300 buckets; the host chart uses the latest 30 minute averages and recovers them after restart. Unknown periods are missing buckets, never synthesized zeros. Detailed process lists are not persisted.
+
+The schema reserves bounded check configurations (50), observations (10,080 per check), incidents (2,000 retained closed incidents plus open incidents) and delivery state for the upcoming check/notification lifecycle. Missing tables migrate transactionally via user_version. SQLite enforces a 64 MiB main-database ceiling; WAL checkpointing is bounded by 128 pages and the retained journal target is 1 MiB. These are operational bounds, not an absolute combined-file byte guarantee during a transaction or with a reader holding a snapshot. Only this application should hold the database connection.
+
+Open, migration, write or disk-access failures are visible in authenticated diagnostics and history responses. History reads return explicit 503/degraded persistence rather than pretending a restart recovered data. New settings writes fail visibly when persistence cannot commit. Collector liveness/readiness remains separate from persistence health; existing JSON settings can still provide startup fallback. Failures do not overwrite a corrupt or newer database.
+
+Tests cover actual database reopen, settings/history recovery, averaging and zero values, retention, outage/recovery records, read-only failures, corrupt files and future schema refusal. JSON rollback compatibility applies to settings only; an older release will not understand new monitoring history/check tables. This is local durability, not replicated storage or a backup policy.

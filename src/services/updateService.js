@@ -99,6 +99,10 @@ function githubApiGet(apiPath) {
 }
 
 async function getLocalGitCommit() {
+  try {
+    const revision=fs.readFileSync(path.join(__dirname,'../../.release-revision'),'utf8').trim();
+    if(/^[a-f0-9]{40}$/.test(revision))return revision;
+  } catch {}
   const res = await runCommand('git', ['rev-parse', 'HEAD'], 3000);
   if (res.success && res.stdout.trim()) {
     return res.stdout.trim();

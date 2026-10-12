@@ -1,0 +1,11 @@
+{
+  "title": "System Ops monitoring health", "uid": "system-ops-health", "schemaVersion": 39, "version": 1,
+  "__inputs": [{"name":"DS_PROMETHEUS","label":"Prometheus","type":"datasource","pluginId":"prometheus","pluginName":"Prometheus"}],
+  "time": {"from":"now-1h","to":"now"}, "refresh":"30s",
+  "panels": [
+    {"id":1,"title":"Collection readiness","type":"stat","gridPos":{"x":0,"y":0,"w":6,"h":5},"datasource":{"type":"prometheus","uid":"${DS_PROMETHEUS}"},"targets":[{"refId":"A","expr":"system_ops_monitoring_ready"}]},
+    {"id":2,"title":"Durable storage available","type":"stat","gridPos":{"x":6,"y":0,"w":6,"h":5},"datasource":{"type":"prometheus","uid":"${DS_PROMETHEUS}"},"targets":[{"refId":"A","expr":"system_ops_persistence_available"}]},
+    {"id":3,"title":"Node RSS","type":"timeseries","gridPos":{"x":0,"y":5,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"${DS_PROMETHEUS}"},"fieldConfig":{"defaults":{"unit":"bytes"}},"targets":[{"refId":"A","expr":"system_ops_process_resident_memory_bytes"}]},
+    {"id":4,"title":"Collector freshness","type":"timeseries","gridPos":{"x":12,"y":5,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"${DS_PROMETHEUS}"},"targets":[{"refId":"A","expr":"system_ops_collector_fresh","legendFormat":"{{collector}}"}]}
+  ]
+}

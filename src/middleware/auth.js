@@ -43,7 +43,7 @@ function isAuthenticated(req) {
 }
 function requireAuth(req, res, next) {
   if (isAuthenticated(req)) return next();
-  if ([req.originalUrl, req.baseUrl, req.path].some(value => value?.startsWith('/api'))) return res.status(401).json({ error: 'Unauthorized', message: 'Authentication required. Please log in.' });
+  if ([req.originalUrl, req.baseUrl, req.path].some(value => value?.startsWith('/api') || /^\/metrics(?:\?|$)/.test(value || ''))) return res.status(401).json({ error: 'Unauthorized', message: 'Authentication required. Please log in.' });
   return res.redirect('/login.html');
 }
 function handleLogin(req, res) {

@@ -10,7 +10,7 @@ export function Sparkline({
 }) {
   if (!data || data.length < 2) {
     return (
-      <div className={cn('h-[40px] w-full flex items-center justify-center text-[10px] text-neutral-600 font-mono', className)}>
+      <div className={cn('h-[40px] w-full flex items-center justify-center text-[10px] text-[var(--text-muted)] font-mono', className)}>
         COLLECTING TELEMETRY...
       </div>
     );

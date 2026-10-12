@@ -8,7 +8,6 @@ function isPermissionError(res) {
   const msg = `${res.stderr || ''} ${res.stdout || ''}`.toLowerCase();
   return (
     /permission denied/.test(msg) ||
-    /cannot connect to the docker daemon/.test(msg) ||
     /got permission denied while trying to connect/.test(msg)
   );
 }
@@ -25,8 +24,9 @@ function socketExists() {
  * Run a docker CLI command, falling back to sudo when the ops user lacks socket access.
  */
 async function runDocker(args, timeoutMs = 5000) {
+  if (process.env.DOCKER_SOCKET && !process.env.DOCKER_HOST) args = ['--host', `unix://${process.env.DOCKER_SOCKET}`, ...args];
   if (process.env.DOCKER_USE_SUDO === 'true') {
-    const sudoRes = await runCommand('sudo', [DOCKER_BIN, ...args], timeoutMs);
+    const sudoRes = await runCommand('sudo', ['-n', DOCKER_BIN, ...args], timeoutMs);
     return { ...sudoRes, usedSudo: true };
   }
 
@@ -36,7 +36,7 @@ async function runDocker(args, timeoutMs = 5000) {
   }
 
   if (isPermissionError(direct) && process.platform !== 'win32') {
-    const sudoRes = await runCommand('sudo', [DOCKER_BIN, ...args], timeoutMs);
+    const sudoRes = await runCommand('sudo', ['-n', DOCKER_BIN, ...args], timeoutMs);
     return { ...sudoRes, usedSudo: true };
   }
 
@@ -56,9 +56,9 @@ function buildDockerError(res) {
     };
   }
 
-  if (!socketExists() && process.platform !== 'win32') {
+  if (!socketExists() && !process.env.DOCKER_HOST && !process.env.DOCKER_CONTEXT && process.platform !== 'win32') {
     return {
-      error: 'Docker socket not found at /var/run/docker.sock',
+      error: `Docker socket not found at ${DOCKER_SOCKET}`,
       permissionIssue: false,
       hint: 'Install Docker or set DOCKER_SOCKET if using a custom socket path.',
     };

@@ -161,6 +161,58 @@ app.get('/api/v2/ops/health', (req, res) => {
   return res.json(collectorManager.getHealth());
 });
 
+app.get('/api/v2/history', (req, res) => {
+  const store = require('./services/durableStore').getDurableStore();
+  res.setHeader('Cache-Control', 'no-store');
+  return res.status(store.status().available ? 200 : 503).json({ history: store.history(), persistence: store.status() });
+});
+
+const durableStore = require('./services/durableStore').getDurableStore();
+const checkService = new (require('./services/checkService').CheckService)(durableStore);
+const notifications = new (require('./services/notificationService').NotificationService)(durableStore);
+app.get('/api/v2/notifications', (req, res) => res.json({ ...notifications.status(), collection: collectorManager.getCollectorHealth('notifications') }));
+app.post('/api/v2/notifications/test', logTailLimiter, async (req, res) => {
+  try { return res.json(await notifications.test()); }
+  catch (error) { return res.status(502).json({ error: error.message }); }
+});
+app.get('/metrics', requireAuth, (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('text/plain; version=0.0.4; charset=utf-8');
+  return res.send(require('./services/prometheusMetrics').renderMetrics({
+    health: collectorManager.getHealth(), diagnostics: stateStore.getDiagnostics(),
+    runtime: require('./core/runtimeDiagnostics').getRuntimeDiagnostics(), persistence: durableStore.status(),
+  }));
+});
+app.get('/api/v2/checks', (req, res) => res.status(durableStore.status().available ? 200 : 503).json(checkService.snapshot()));
+app.put('/api/v2/checks/:id', (req, res) => {
+  try {
+    const check = require('./services/checkService').validateCheck({ ...req.body, id: req.params.id });
+    if (!durableStore.saveCheck(check)) return res.status(503).json({ error: durableStore.status().error });
+    if ((!check.enabled || check.maintenanceUntil > Date.now()) && !durableStore.observation(check.id, { status: 'unknown', error: check.enabled ? 'Maintenance window' : 'Check disabled' })) return res.status(503).json({ error: durableStore.status().error });
+    collectorManager.setEnabled('checks', durableStore.checks().some(item => item.enabled && item.type !== 'external'));
+    return res.json({ success: true, check });
+  } catch (error) { return res.status(400).json({ error: error.message }); }
+});
+app.delete('/api/v2/checks/:id', (req, res) => {
+  if (!durableStore.removeCheck(req.params.id)) return res.status(503).json({ error: durableStore.status().error });
+  collectorManager.setEnabled('checks', durableStore.checks().some(item => item.enabled && item.type !== 'external'));
+  return res.json({ success: true });
+});
+app.post('/api/v2/checks/:id/observations', (req, res) => {
+  const check = durableStore.checks().find(item => item.id === req.params.id && item.type === 'external');
+  if (!check) return res.status(404).json({ error: 'External check not found' });
+  const { status, time, latencyMs, error } = req.body || {};
+  const latest = durableStore.observations(check.id).at(-1);
+  if (!['up','down','unknown'].includes(status) || !Number.isInteger(time) || time < Date.now()-86400000 || time > Date.now() || latest && time <= latest.time || latencyMs != null && (!Number.isFinite(latencyMs) || latencyMs < 0 || latencyMs > 60000)) return res.status(400).json({ error: 'Invalid or out-of-order observation' });
+  if (!durableStore.observation(check.id, { status, latencyMs, error: typeof error === 'string' ? error : null }, time)) return res.status(503).json({ error: durableStore.status().error });
+  return res.json({ success: true });
+});
+app.post('/api/v2/incidents/:id/acknowledge', (req, res) => {
+  if (!Number.isInteger(Number(req.params.id)) || !durableStore.incidents().some(incident => incident.id === Number(req.params.id))) return res.status(404).json({ error: 'Incident not found' });
+  if (!durableStore.acknowledge(Number(req.params.id))) return res.status(503).json({ error: durableStore.status().error });
+  return res.json({ success: true });
+});
+
 /**
  * Explicit Rescan Endpoint (Manual refresh allowed without polling multiplying overhead)
  */
@@ -273,7 +325,9 @@ app.get('/api/v2/system/snapshot', async (req, res) => {
     const data = stateStore.get('system');
     const collection = collectorManager.getCollectorHealth('system');
     if (!data || !collection.lastSuccess) return res.status(503).json({ error: 'System collection is not ready', collection });
-    return res.json({ ...data, collection, monitoringHealth: collectorManager.getHealth() });
+    const durable = require('./services/durableStore').getDurableStore();
+    return res.json({ ...data, collection, monitoringHealth: collectorManager.getHealth(),
+      history: durable.history(30), persistence: durable.status() });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to fetch system snapshot', details: error.message });
   }
@@ -477,6 +531,7 @@ if (process.env.NODE_ENV !== 'test') {
     if (shuttingDown) return;
     shuttingDown = true;
     collectorManager.stopAll();
+    require('./services/durableStore').getDurableStore().close();
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(1), 10000).unref();
   };

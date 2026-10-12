@@ -5,13 +5,13 @@ import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell, TableEmp
 
 function SummaryTile({ title, value, detail, variant = 'neutral' }) {
   return (
-    <div className="rounded border border-[#1f1f1f] bg-[#0a0a0a] p-4 space-y-1">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">{title}</div>
+    <div className="rounded border border-[var(--border-color)] bg-[var(--card-bg)] p-4 space-y-1">
+      <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">{title}</div>
       <div className="flex items-center gap-2">
-        <span className="text-lg font-semibold text-white">{value}</span>
+        <span className="text-lg font-semibold text-[var(--text-primary)]">{value}</span>
         <Badge variant={variant}>{variant === 'ok' ? 'OK' : variant === 'warn' ? 'CHECK' : '—'}</Badge>
       </div>
-      <p className="text-[11px] text-neutral-400 leading-relaxed">{detail}</p>
+      <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{detail}</p>
     </div>
   );
 }
@@ -19,8 +19,8 @@ function SummaryTile({ title, value, detail, variant = 'neutral' }) {
 function SetupSteps({ title, steps }) {
   return (
     <div className="rounded border border-amber-500/20 bg-amber-500/5 p-3 space-y-2">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400/90">{title}</div>
-      <ol className="list-decimal list-inside space-y-1 font-mono text-[11px] text-neutral-300 leading-relaxed">
+      <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--warning)]/90">{title}</div>
+      <ol className="list-decimal list-inside space-y-1 font-mono text-xs text-[var(--text-secondary)] leading-relaxed">
         {steps.map((step, i) => (
           <li key={i}>{step}</li>
         ))}
@@ -79,8 +79,8 @@ export function SecurityView({ securityData, certbotData }) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <div className="text-base font-semibold text-white">{overall.headline}</div>
-            <p className="text-sm text-neutral-400 mt-1 leading-relaxed">{overall.detail}</p>
+            <div className="text-base font-semibold text-[var(--text-primary)]">{overall.headline}</div>
+            <p className="text-sm text-[var(--text-secondary)] mt-1 leading-relaxed">{overall.detail}</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <SummaryTile
@@ -137,12 +137,12 @@ export function SecurityView({ securityData, certbotData }) {
           <Badge variant={ufw.active ? 'ok' : 'warn'}>{ufw.active ? 'ON' : 'OFF'}</Badge>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          <p className="text-neutral-400 text-xs leading-relaxed">
-            The firewall decides which internet traffic is allowed in. When it is <strong className="text-neutral-200">ON</strong>,
+          <p className="text-[var(--text-secondary)] text-xs leading-relaxed">
+            The firewall decides which internet traffic is allowed in. When it is <strong className="text-[var(--text-secondary)]">ON</strong>,
             unknown incoming connections are blocked unless a port is listed below.
           </p>
           {ufw.incomingPolicy === 'block-by-default' && (
-            <div className="rounded border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px] text-emerald-300/90">
+            <div className="rounded border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-[var(--success)]/90">
               Default rule: block strangers from connecting — only the ports below are open.
             </div>
           )}
@@ -159,7 +159,7 @@ export function SecurityView({ securityData, certbotData }) {
                 {parsedRules.filter((r) => r.port).map((rule, i) => (
                   <TableRow key={i}>
                     <TableCell className="font-medium">{rule.label}</TableCell>
-                    <TableCell className="font-mono text-xs text-neutral-400">{rule.port}</TableCell>
+                    <TableCell className="font-mono text-xs text-[var(--text-secondary)]">{rule.port}</TableCell>
                     <TableCell>
                       <Badge variant={rule.allowed ? 'ok' : 'err'}>{rule.allowed ? 'Open' : 'Blocked'}</Badge>
                     </TableCell>
@@ -168,9 +168,9 @@ export function SecurityView({ securityData, certbotData }) {
               </TableBody>
             </Table>
           ) : ufw.available ? (
-            <div className="text-neutral-500 text-xs font-mono">No allow rules parsed — check sudo ufw status on the server.</div>
+            <div className="text-[var(--text-muted)] text-xs font-mono">No allow rules parsed — check sudo ufw status on the server.</div>
           ) : (
-            <div className="text-neutral-500 text-xs">UFW not installed.</div>
+            <div className="text-[var(--text-muted)] text-xs">UFW not installed.</div>
           )}
         </CardContent>
       </Card>
@@ -183,45 +183,45 @@ export function SecurityView({ securityData, certbotData }) {
           </Badge>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-neutral-400 text-xs leading-relaxed">
+          <p className="text-[var(--text-secondary)] text-xs leading-relaxed">
             Fail2ban watches SSH login failures. If someone tries wrong passwords too many times,
             their IP address is temporarily banned. This is normal on any public VPS.
           </p>
           {!fail2ban.available ? (
-            <div className="text-neutral-500 text-xs">Not installed — run: sudo apt install fail2ban</div>
+            <div className="text-[var(--text-muted)] text-xs">Not installed — run: sudo apt install fail2ban</div>
           ) : (
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 font-mono text-xs">
-                <div className="rounded bg-[#0a0a0a] border border-[#1a1a1a] p-3">
-                  <div className="text-neutral-500 text-[10px] uppercase">Blocked now</div>
-                  <div className="text-xl font-bold text-white mt-1">{fail2ban.totalBanned || 0}</div>
+                <div className="rounded bg-[var(--card-bg)] border border-[var(--border-color)] p-3">
+                  <div className="text-[var(--text-muted)] text-[10px] uppercase">Blocked now</div>
+                  <div className="text-xl font-bold text-[var(--text-primary)] mt-1">{fail2ban.totalBanned || 0}</div>
                 </div>
-                <div className="rounded bg-[#0a0a0a] border border-[#1a1a1a] p-3">
-                  <div className="text-neutral-500 text-[10px] uppercase">Failed attempts</div>
-                  <div className="text-xl font-bold text-white mt-1">{fail2ban.totalFailed || 0}</div>
+                <div className="rounded bg-[var(--card-bg)] border border-[var(--border-color)] p-3">
+                  <div className="text-[var(--text-muted)] text-[10px] uppercase">Failed attempts</div>
+                  <div className="text-xl font-bold text-[var(--text-primary)] mt-1">{fail2ban.totalFailed || 0}</div>
                 </div>
-                <div className="rounded bg-[#0a0a0a] border border-[#1a1a1a] p-3">
-                  <div className="text-neutral-500 text-[10px] uppercase">Monitors</div>
-                  <div className="text-sm font-semibold text-white mt-1">SSH logins</div>
+                <div className="rounded bg-[var(--card-bg)] border border-[var(--border-color)] p-3">
+                  <div className="text-[var(--text-muted)] text-[10px] uppercase">Monitors</div>
+                  <div className="text-sm font-semibold text-[var(--text-primary)] mt-1">SSH logins</div>
                 </div>
-                <div className="rounded bg-[#0a0a0a] border border-[#1a1a1a] p-3">
-                  <div className="text-neutral-500 text-[10px] uppercase">Active jails</div>
-                  <div className="text-xl font-bold text-white mt-1">{fail2ban.jailCount || 0}</div>
+                <div className="rounded bg-[var(--card-bg)] border border-[var(--border-color)] p-3">
+                  <div className="text-[var(--text-muted)] text-[10px] uppercase">Active jails</div>
+                  <div className="text-xl font-bold text-[var(--text-primary)] mt-1">{fail2ban.jailCount || 0}</div>
                 </div>
               </div>
               {(fail2ban.bannedIps || []).length > 0 ? (
                 <div className="space-y-2">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Blocked IP addresses</div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Blocked IP addresses</div>
                   <div className="flex flex-wrap gap-2">
                     {fail2ban.bannedIps.map((ip) => (
-                      <span key={ip} className="font-mono text-[11px] px-2 py-1 rounded bg-rose-500/10 border border-rose-500/20 text-rose-300">
+                      <span key={ip} className="font-mono text-xs px-2 py-1 rounded bg-rose-500/10 border border-rose-500/20 text-[var(--error)]">
                         {ip}
                       </span>
                     ))}
                   </div>
                 </div>
               ) : (
-                <div className="text-neutral-500 text-xs">No IPs blocked right now — your server is not under active attack.</div>
+                <div className="text-[var(--text-muted)] text-xs">No IPs blocked right now — your server is not under active attack.</div>
               )}
               {(fail2ban.jails || []).length > 0 && (
                 <Table>
@@ -257,7 +257,7 @@ export function SecurityView({ securityData, certbotData }) {
             </Badge>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-neutral-400 text-xs leading-relaxed">
+            <p className="text-[var(--text-secondary)] text-xs leading-relaxed">
               SSL certificates encrypt traffic to your websites (the padlock in the browser).
               Only matters if this server handles HTTPS directly — skip if you use Cloudflare or another proxy.
             </p>
@@ -279,7 +279,7 @@ export function SecurityView({ securityData, certbotData }) {
                   certs.map((cert) => (
                     <TableRow key={cert.name}>
                       <TableCell className="font-medium">{cert.name}</TableCell>
-                      <TableCell className="text-xs text-neutral-500">{(cert.domains || []).join(', ')}</TableCell>
+                      <TableCell className="text-xs text-[var(--text-muted)]">{(cert.domains || []).join(', ')}</TableCell>
                       <TableCell>{cert.formattedExpiry || '—'}</TableCell>
                       <TableCell>
                         <Badge variant={cert.valid ? (cert.daysRemaining <= 14 ? 'warn' : 'ok') : 'err'}>

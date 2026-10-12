@@ -1,0 +1,8 @@
+import React,{useState} from 'react';import {Button} from './ui/Button';
+export function NotificationsView({data,onChanged}) {
+ const [message,setMessage]=useState(null),[busy,setBusy]=useState(false);
+ const test=async()=>{setBusy(true);try{const res=await fetch('/api/v2/notifications/test',{method:'POST'}),result=await res.json();if(!res.ok)throw new Error(result.error || 'Delivery failed');setMessage('Receiver acknowledged the test notification.');await onChanged();}catch(error){setMessage(error.message);}finally{setBusy(false);}};
+ return <section className="source-section"><h2>Notification delivery</h2><div className="setup-note"><strong>{data?.configured?'Webhook configured':'No webhook configured'}</strong><span>Configure SYSTEM_OPS_WEBHOOK_URL and optional SYSTEM_OPS_WEBHOOK_TOKEN on the server. Credentials are never returned here. Receivers must deduplicate event IDs.</span><Button disabled={busy||!data?.configured} onClick={test}>{busy?'Sending…':'Send test notification'}</Button></div>
+ {message&&<p role="status">{message}</p>}{data?.error&&<p role="alert" className="error-message">{data.error}</p>}
+ {!data?.deliveries?.length?<div className="empty-state">No notification deliveries recorded.</div>:<div className="space-y-3">{data.deliveries.map(event=><article className="setup-note" key={`${event.incident_id}-${event.kind}`}><strong>Incident {event.incident_id} · {event.kind}</strong><span>{event.delivered===-1?'Suppressed':event.delivered?'Acknowledged':event.attempts>=10?'Retries exhausted':'Pending retry'} · {event.attempts} attempts</span>{event.error&&<span className="error-message">{event.error}</span>}</article>)}</div>}</section>;
+}

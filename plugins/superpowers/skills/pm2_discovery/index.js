@@ -104,6 +104,17 @@ function getPm2Users() {
   } catch {}
   return [...users].slice(0, 16);
 }
+function getPm2DiscoveryPaths() {
+  const paths = getPm2Users().flatMap(user => [userHome(user), process.env['PM2_PATH_' + user.toUpperCase().replace(/[^A-Z0-9]/g, '_')]]).filter(Boolean);
+  try {
+    const config = '/etc/system-ops/pm2-monitor.conf';
+    if (fs.statSync(config).size <= 65536) for (const line of fs.readFileSync(config, 'utf8').split('\n').slice(0, 64)) {
+      const [user, home, binary] = line.split('|');
+      if (validUser(user)) paths.push(home, binary);
+    }
+  } catch {}
+  return [...new Set(paths.filter(value => value && path.isAbsolute(value)))].slice(0, 32);
+}
 async function getPm2UserProcesses(user) {
   if (!validUser(user)) return { user, processes: [], error: 'Invalid user name', pm2Path: null };
   try {
@@ -231,6 +242,7 @@ module.exports = {
   collectPm2Snapshot,
   getPm2Logs,
   getPm2Users,
+  getPm2DiscoveryPaths,
   clearPm2Cache,
   runPm2Command,
   parsePm2Json,

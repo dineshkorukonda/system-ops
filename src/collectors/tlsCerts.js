@@ -17,16 +17,16 @@ function extractHostname(value) {
 
 async function readCertFromFile(certPath) {
   if (!certPath || !fs.existsSync(certPath)) return null;
-
-  const opensslRes = await runCommand('openssl', ['x509', '-enddate', '-noout', '-in', certPath], 3000);
-  if (!opensslRes.success || !opensslRes.stdout.includes('notAfter=')) return null;
-
-  const dateStr = opensslRes.stdout.replace('notAfter=', '').trim();
-  const validTo = new Date(dateStr);
+  let cert;
+  try {
+    if (fs.statSync(certPath).size > 1024 * 1024) return null;
+    cert = new (require('node:crypto').X509Certificate)(fs.readFileSync(certPath));
+  } catch { return null; }
+  const validTo = new Date(cert.validTo);
   if (Number.isNaN(validTo.getTime())) return null;
 
   const daysRemaining = Math.floor((validTo - Date.now()) / (1000 * 60 * 60 * 24));
-  const isValid = daysRemaining > 0;
+  const isValid = validTo > new Date() && new Date(cert.validFrom) <= new Date();
 
   return {
     target: path.basename(path.dirname(certPath)),
@@ -37,7 +37,7 @@ async function readCertFromFile(certPath) {
     validTo: validTo.toISOString(),
     formattedValidTo: validTo.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
     statusText: isValid ? `${daysRemaining} days remaining` : 'EXPIRED',
-    issuer: null,
+    issuer: cert.issuer,
   };
 }
 
@@ -79,7 +79,7 @@ function checkNetworkTlsCert(hostname, port = 443, timeoutMs = 5000) {
 
             const validTo = new Date(cert.valid_to);
             const daysRemaining = Math.floor((validTo - Date.now()) / (1000 * 60 * 60 * 24));
-            const isValid = daysRemaining > 0;
+            const isValid = validTo > new Date() && new Date(cert.valid_from) <= new Date();
             const issuer =
               typeof cert.issuer === 'object'
                 ? cert.issuer.O || cert.issuer.CN || null
@@ -228,4 +228,6 @@ module.exports = {
   getTlsCertStatus,
   checkNetworkTlsCert,
   extractHostname,
+  discoverLetsencryptLiveCerts,
+  readCertFromFile,
 };

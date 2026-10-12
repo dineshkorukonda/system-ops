@@ -29,30 +29,30 @@ export function ProcessMonitorView({
           <CardTitle>System Process Monitor</CardTitle>
           <Badge variant="ok">{filtered.length} PROCESSES</Badge>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <input
             type="text"
             placeholder="Search by PID, user, command..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-8 rounded border border-[#262626] bg-[#0d0d0d] px-3 font-mono text-xs text-white placeholder-neutral-500 outline-none hover:border-neutral-700 focus:border-neutral-400 w-48 sm:w-64 theme-input"
+            className="h-8 rounded border border-[var(--border-color)] bg-[var(--card-bg)] px-3 font-mono text-xs text-[var(--text-primary)] placeholder-neutral-500 outline-none hover:border-neutral-700 focus:border-neutral-400 w-48 sm:w-64 theme-input"
           />
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value)}
-            className="h-8 rounded border border-[#262626] bg-[#0d0d0d] px-2 font-mono text-xs text-neutral-300 outline-none hover:border-neutral-700 focus:border-neutral-400 theme-input"
+            className="h-8 rounded border border-[var(--border-color)] bg-[var(--card-bg)] px-2 font-mono text-xs text-[var(--text-secondary)] outline-none hover:border-neutral-700 focus:border-neutral-400 theme-input"
           >
             <option value="cpu">Sort by % CPU</option>
             <option value="mem">Sort by % RAM</option>
           </select>
-          <Button variant="secondary" size="sm" onClick={onRefresh} className="font-mono text-[11px]">
+          <Button variant="secondary" size="sm" onClick={onRefresh} className="font-mono text-xs">
             REFRESH
           </Button>
         </div>
       </CardHeader>
       <div className="overflow-x-auto max-h-[calc(100vh-220px)] overflow-y-auto">
         <table className="w-full text-left font-mono text-xs">
-          <thead className="sticky top-0 z-10 border-b border-[#1a1a1a] bg-[#0c0c0c] text-[10px] uppercase text-neutral-500 theme-header">
+          <thead className="sticky top-0 z-10 border-b border-[var(--border-color)] bg-[var(--card-bg)] text-[10px] uppercase text-[var(--text-muted)] theme-header">
             <tr>
               <th className="px-4 py-2.5 w-20">PID</th>
               <th className="px-4 py-2.5 w-28">User</th>
@@ -63,42 +63,42 @@ export function ProcessMonitorView({
               <th className="px-4 py-2.5">Command</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#141414]">
+          <tbody className="divide-y divide-[var(--border-color)]">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-neutral-500 font-sans">
+                <td colSpan={7} className="px-4 py-8 text-center text-[var(--text-muted)] font-sans">
                   No matching active processes found.
                 </td>
               </tr>
             ) : (
               filtered.map((p, idx) => (
-                <tr key={idx} className="hover:bg-[#0d0d0d]">
-                  <td className="px-4 py-2 font-semibold text-neutral-300">
+                <tr key={idx} className="hover:bg-[var(--card-bg)]">
+                  <td className="px-4 py-2 font-semibold text-[var(--text-secondary)]">
                     {p.pid}
                   </td>
-                  <td className="px-4 py-2 text-neutral-400">{p.user}</td>
+                  <td className="px-4 py-2 text-[var(--text-secondary)]">{p.user}</td>
                   <td className="px-4 py-2 font-bold">
                     <span
                       className={
                         p.cpuPercent > 50
-                          ? 'text-rose-400'
+                          ? 'text-[var(--error)]'
                           : p.cpuPercent > 10
-                          ? 'text-amber-400'
-                          : 'text-neutral-300'
+                          ? 'text-[var(--warning)]'
+                          : 'text-[var(--text-secondary)]'
                       }
                     >
                       {Number.isFinite(p.cpuPercent) ? `${p.cpuPercent}%` : '—'}
                     </span>
                   </td>
-                  <td className="px-4 py-2 text-neutral-400">{p.memPercent ? `${p.memPercent}%` : '--'}</td>
-                  <td className="px-4 py-2 text-neutral-400">{p.formattedRss || '0 B'}</td>
+                  <td className="px-4 py-2 text-[var(--text-secondary)]">{p.memPercent ? `${p.memPercent}%` : '--'}</td>
+                  <td className="px-4 py-2 text-[var(--text-secondary)]">{p.formattedRss || '0 B'}</td>
                   <td className="px-4 py-2">
                     <Badge variant={p.state === 'R' ? 'ok' : 'neutral'} className="text-[9px] px-1.5 py-0">
                       {p.state || 'S'}
                     </Badge>
                   </td>
                   <td
-                    className="px-4 py-2 text-neutral-400 max-w-xs truncate text-[11px]"
+                    className="px-4 py-2 text-[var(--text-secondary)] max-w-xs truncate text-xs"
                     title={p.args || p.command}
                   >
                     {p.args || p.command}

@@ -31,10 +31,10 @@ export function SystemHealthView({
         <Card>
           <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="font-mono text-sm font-medium text-white">
+              <div className="font-mono text-sm font-medium text-[var(--text-primary)]">
                 {osUpdatesData.pendingCount} package update{osUpdatesData.pendingCount === 1 ? '' : 's'} pending
               </div>
-              <div className="font-mono text-xs text-neutral-500 mt-1">
+              <div className="font-mono text-xs text-[var(--text-muted)] mt-1">
                 {osUpdatesData.securityHint ? 'Includes security updates' : 'Run apt upgrade when convenient'}
               </div>
             </div>
@@ -51,7 +51,7 @@ export function SystemHealthView({
         <Card>
           <CardContent className="p-4 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="font-mono text-[11px] uppercase tracking-wider text-neutral-400">
+              <span className="font-mono text-xs uppercase tracking-wider text-[var(--text-secondary)]">
                 CPU Utilization
               </span>
               <Badge variant={cpuPct === null ? 'neutral' : cpuPct > 85 ? 'warn' : 'ok'}>
@@ -59,10 +59,10 @@ export function SystemHealthView({
               </Badge>
             </div>
             <div className="flex items-baseline justify-between">
-              <div className="font-mono text-2xl font-bold tracking-tight text-white">
+              <div className="font-mono text-2xl font-bold tracking-tight text-[var(--text-primary)]">
                 {cpuPct === null ? '--' : `${cpuPct}%`}
               </div>
-              <span className="font-mono text-xs text-neutral-500">
+              <span className="font-mono text-xs text-[var(--text-muted)]">
                 {upt.cpus ? `${upt.cpus} Cores · load ${upt.load1m ?? '--'}` : '--'}
               </span>
             </div>
@@ -76,7 +76,7 @@ export function SystemHealthView({
         <Card>
           <CardContent className="p-4 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="font-mono text-[11px] uppercase tracking-wider text-neutral-400">
+              <span className="font-mono text-xs uppercase tracking-wider text-[var(--text-secondary)]">
                 RAM Utilization
               </span>
               <Badge variant={memPct === null ? 'neutral' : memPct > 85 ? 'err' : memPct > 65 ? 'warn' : 'ok'}>
@@ -84,10 +84,10 @@ export function SystemHealthView({
               </Badge>
             </div>
             <div className="flex items-baseline justify-between">
-              <div className="font-mono text-2xl font-bold tracking-tight text-white">
+              <div className="font-mono text-2xl font-bold tracking-tight text-[var(--text-primary)]">
                 {mem.formattedUsed || '--'}
               </div>
-              <span className="font-mono text-xs text-neutral-500">
+              <span className="font-mono text-xs text-[var(--text-muted)]">
                 of {mem.formattedTotal || '--'}
               </span>
             </div>
@@ -101,7 +101,7 @@ export function SystemHealthView({
         <Card>
           <CardContent className="p-4 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="font-mono text-[11px] uppercase tracking-wider text-neutral-400">
+              <span className="font-mono text-xs uppercase tracking-wider text-[var(--text-secondary)]">
                 Swap Utilization
               </span>
               <Badge variant={swapPct > 50 ? 'err' : swapPct > 20 ? 'warn' : 'neutral'}>
@@ -109,10 +109,10 @@ export function SystemHealthView({
               </Badge>
             </div>
             <div className="flex items-baseline justify-between">
-              <div className="font-mono text-2xl font-bold tracking-tight text-white">
+              <div className="font-mono text-2xl font-bold tracking-tight text-[var(--text-primary)]">
                 {swap.formattedUsed || '--'}
               </div>
-              <span className="font-mono text-xs text-neutral-500">
+              <span className="font-mono text-xs text-[var(--text-muted)]">
                 of {swap.formattedTotal || '--'}
               </span>
             </div>
@@ -131,18 +131,18 @@ export function SystemHealthView({
             <CardTitle>Host Uptime &amp; Load Averages</CardTitle>
           </CardHeader>
           <CardContent className="p-4 space-y-3 font-mono text-xs">
-            <div className="flex justify-between py-1.5 border-b border-[#141414]">
-              <span className="text-neutral-500">SYSTEM UPTIME</span>
-              <span className="font-semibold text-neutral-200">{upt.uptimeText || '--'}</span>
+            <div className="flex justify-between py-1.5 border-b border-[var(--border-color)]">
+              <span className="text-[var(--text-muted)]">SYSTEM UPTIME</span>
+              <span className="font-semibold text-[var(--text-secondary)]">{upt.uptimeText || '--'}</span>
             </div>
-            <div className="flex justify-between py-1.5 border-b border-[#141414]">
-              <span className="text-neutral-500">CPU CORES</span>
+            <div className="flex justify-between py-1.5 border-b border-[var(--border-color)]">
+              <span className="text-[var(--text-muted)]">CPU CORES</span>
               <span>{upt.cpus || '--'} Cores</span>
             </div>
             <div className="flex justify-between py-1.5">
-              <span className="text-neutral-500">LOAD (1m / 5m / 15m)</span>
+              <span className="text-[var(--text-muted)]">LOAD (1m / 5m / 15m)</span>
               <span>
-                <strong className="text-emerald-400">{upt.load1m || '--'}</strong>{' / '}
+                <strong className="text-[var(--success)]">{upt.load1m || '--'}</strong>{' / '}
                 <span>{upt.load5m || '--'}</span>{' / '}
                 <span>{upt.load15m || '--'}</span>
               </span>
@@ -157,15 +157,15 @@ export function SystemHealthView({
           </CardHeader>
           <CardContent className="p-4 space-y-4 font-mono text-xs">
             <div className="space-y-1.5">
-              <div className="flex justify-between text-[11px]">
-                <span className="text-neutral-400">RAM ACTIVE</span>
+              <div className="flex justify-between text-xs">
+                <span className="text-[var(--text-secondary)]">RAM ACTIVE</span>
                 <span>{mem.formattedUsed || '0 B'} / {mem.formattedTotal || '0 B'} ({memPct}%)</span>
               </div>
               <ProgressBar value={memPct} variant="auto" />
             </div>
             <div className="space-y-1.5">
-              <div className="flex justify-between text-[11px]">
-                <span className="text-neutral-400">SWAP ACTIVE</span>
+              <div className="flex justify-between text-xs">
+                <span className="text-[var(--text-secondary)]">SWAP ACTIVE</span>
                 <span>{swap.formattedUsed || '0 B'} / {swap.formattedTotal || '0 B'} ({swapPct}%)</span>
               </div>
               <ProgressBar value={swapPct} variant="warn" />
@@ -180,7 +180,7 @@ export function SystemHealthView({
           </CardHeader>
           <div className="overflow-x-auto">
             <table className="w-full text-left font-mono text-xs">
-              <thead className="border-b border-[#1a1a1a] bg-[#0c0c0c] text-[10px] uppercase text-neutral-500 theme-header">
+              <thead className="border-b border-[var(--border-color)] bg-[var(--card-bg)] text-[10px] uppercase text-[var(--text-muted)] theme-header">
                 <tr>
                   <th className="px-4 py-2.5">Unit</th>
                   <th className="px-4 py-2.5">State</th>
@@ -188,24 +188,24 @@ export function SystemHealthView({
                   <th className="px-4 py-2.5">PID</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#141414]">
+              <tbody className="divide-y divide-[var(--border-color)]">
                 {services.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-3 text-center text-neutral-500">
+                    <td colSpan={4} className="px-4 py-3 text-center text-[var(--text-muted)]">
                       No systemd services monitored.
                     </td>
                   </tr>
                 ) : (
                   services.map((s, idx) => (
-                    <tr key={idx} className="hover:bg-[#0d0d0d]">
+                    <tr key={idx} className="hover:bg-[var(--card-bg)]">
                       <td className="px-4 py-2 font-medium">{s.fullUnit}</td>
                       <td className="px-4 py-2">
                         <Badge variant={s.isActive ? 'ok' : 'err'}>
                           {(s.activeState || 'UNKNOWN').toUpperCase()}
                         </Badge>
                       </td>
-                      <td className="px-4 py-2 text-neutral-400">{s.formattedMemory || '--'}</td>
-                      <td className="px-4 py-2 text-neutral-400">{s.pid || '--'}</td>
+                      <td className="px-4 py-2 text-[var(--text-secondary)]">{s.formattedMemory || '--'}</td>
+                      <td className="px-4 py-2 text-[var(--text-secondary)]">{s.pid || '--'}</td>
                     </tr>
                   ))
                 )}
@@ -221,13 +221,13 @@ export function SystemHealthView({
           </CardHeader>
           <CardContent className="p-4 space-y-4 font-mono text-xs">
             {disk.length === 0 ? (
-              <div className="text-center text-neutral-500">No disk mounts configured.</div>
+              <div className="text-center text-[var(--text-muted)]">No disk mounts configured.</div>
             ) : (
               disk.map((d, idx) => (
                 <div key={idx} className="space-y-1.5">
-                  <div className="flex justify-between text-[11px]">
+                  <div className="flex justify-between text-xs">
                     <span className="font-semibold">{d.path} {d.mountPoint && `(${d.mountPoint})`}</span>
-                    <span className="text-neutral-400">
+                    <span className="text-[var(--text-secondary)]">
                       {d.formattedUsed || 'N/A'} / {d.formattedTotal || 'N/A'} ({d.percent}%)
                     </span>
                   </div>
@@ -245,25 +245,25 @@ export function SystemHealthView({
           </CardHeader>
           <div className="overflow-x-auto">
             <table className="w-full text-left font-mono text-xs">
-              <thead className="border-b border-[#1a1a1a] bg-[#0c0c0c] text-[10px] uppercase text-neutral-500 theme-header">
+              <thead className="border-b border-[var(--border-color)] bg-[var(--card-bg)] text-[10px] uppercase text-[var(--text-muted)] theme-header">
                 <tr>
                   <th className="px-4 py-2.5">Service</th>
                   <th className="px-4 py-2.5">Socket</th>
                   <th className="px-4 py-2.5">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#141414]">
+              <tbody className="divide-y divide-[var(--border-color)]">
                 {ports.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="px-4 py-3 text-center text-neutral-500">
+                    <td colSpan={3} className="px-4 py-3 text-center text-[var(--text-muted)]">
                       Checking ports...
                     </td>
                   </tr>
                 ) : (
                   ports.map((p, idx) => (
-                    <tr key={idx} className="hover:bg-[#0d0d0d]">
+                    <tr key={idx} className="hover:bg-[var(--card-bg)]">
                       <td className="px-4 py-2 font-medium">{p.name}</td>
-                      <td className="px-4 py-2 text-neutral-400">{p.host}:{p.port}</td>
+                      <td className="px-4 py-2 text-[var(--text-secondary)]">{p.host}:{p.port}</td>
                       <td className="px-4 py-2">
                         <Badge variant={p.listening ? 'ok' : 'err'}>
                           {p.listening ? 'BOUND' : 'UNBOUND'}
@@ -284,25 +284,25 @@ export function SystemHealthView({
           </CardHeader>
           <div className="overflow-x-auto">
             <table className="w-full text-left font-mono text-xs">
-              <thead className="border-b border-[#1a1a1a] bg-[#0c0c0c] text-[10px] uppercase text-neutral-500 theme-header">
+              <thead className="border-b border-[var(--border-color)] bg-[var(--card-bg)] text-[10px] uppercase text-[var(--text-muted)] theme-header">
                 <tr>
                   <th className="px-4 py-2.5">Hostname / Cert</th>
                   <th className="px-4 py-2.5">Valid Until</th>
                   <th className="px-4 py-2.5">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#141414]">
+              <tbody className="divide-y divide-[var(--border-color)]">
                 {tls.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="px-4 py-3 text-center text-neutral-500">
+                    <td colSpan={3} className="px-4 py-3 text-center text-[var(--text-muted)]">
                       Checking certificates...
                     </td>
                   </tr>
                 ) : (
                   tls.map((t, idx) => (
-                    <tr key={idx} className="hover:bg-[#0d0d0d]">
+                    <tr key={idx} className="hover:bg-[var(--card-bg)]">
                       <td className="px-4 py-2 font-medium">{t.target}</td>
-                      <td className="px-4 py-2 text-neutral-400">{t.formattedValidTo || 'N/A'}</td>
+                      <td className="px-4 py-2 text-[var(--text-secondary)]">{t.formattedValidTo || 'N/A'}</td>
                       <td className="px-4 py-2">
                         <Badge variant={t.valid ? 'ok' : 'err'}>
                           {t.statusText || (t.valid ? 'VALID' : 'EXPIRED')}
