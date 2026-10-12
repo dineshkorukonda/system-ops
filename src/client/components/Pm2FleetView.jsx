@@ -91,7 +91,7 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
           </CardHeader>
           <CardContent className="p-4 space-y-3">
             {users.length === 0 ? (
-              <div className="text-xs text-[var(--text-muted)] font-mono">No PM2 users configured.</div>
+              <div className="text-xs text-[var(--text-muted)] font-mono">{pm2Data?.error || 'Waiting for PM2 account inventory. Native monitoring needs access to each account daemon.'}</div>
             ) : (
               users.map((u, idx) => {
                 const online = (u.processes || []).filter((p) => p.status === 'online').length;
@@ -135,7 +135,7 @@ export function Pm2FleetView({ pm2Data, onRefresh }) {
         {/* Process Selection List */}
         <Card>
           <CardHeader>
-            <CardTitle>Process Fleet ({totalFleetCount})</CardTitle>
+            <CardTitle>Process Fleet ({pm2Data?.error ? 'unknown' : totalFleetCount})</CardTitle>
           </CardHeader>
           <div className="divide-y divide-[var(--border-color)] max-h-[380px] overflow-y-auto font-mono text-xs">
             {users.flatMap((u) =>

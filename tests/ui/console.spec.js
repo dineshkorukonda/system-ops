@@ -5,6 +5,7 @@ async function fixture(page) {
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   const capabilities=Object.fromEntries(['pm2','docker','systemd','tls','traffic','security','databases','backups','ollama','certbot','osUpdates'].map(key=>[key,{available:true,enabled:true,status:'detected',evidence:[{target:`Fixture ${key}`,readable:true}],count:null}]));
   capabilities.ollama.available=false;capabilities.ollama.enabled=false;
+  capabilities.docker.target='unix:///var/run/docker.sock';
   await page.route('**/api/v2/system/capabilities',route=>route.fulfill({json:capabilities}));
   await page.goto('/');await page.getByLabel('Access password').fill('ui-fixture-password');
   await page.getByRole('button',{name:'Initialize Secure Session',exact:true}).click();
@@ -16,6 +17,7 @@ test('detected-first onboarding, categories, preferences, monitoring errors and 
   const {errors,capabilities}=await fixture(page);
   const docker=page.getByRole('article',{name:'Docker',exact:true});
   await expect(docker).toBeVisible();await expect(page.getByRole('article',{name:'Ollama',exact:true})).toHaveCount(0);
+  await expect(docker.getByText('Docker target: unix:///var/run/docker.sock',{exact:true})).toBeVisible();
   await page.getByLabel('Show undetected sources').check();await expect(page.getByRole('article',{name:'Ollama',exact:true})).toBeVisible();
   await docker.getByLabel('Show in navigation').uncheck();
   await page.reload();await expect(page.getByRole('article',{name:'Docker',exact:true}).getByLabel('Show in navigation')).not.toBeChecked();
@@ -113,4 +115,18 @@ test('availability check form saves real configuration and notification settings
   await expect(page.getByRole('heading',{name:'UI fixture health',exact:true})).toHaveCount(0);
   await page.goto('/#notifications');await expect(page.getByText('No webhook configured',{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Send test notification',exact:true})).toBeDisabled();
+});
+
+test('blocked runtime inventories show unknown counts and sidebar numbers identify views', async ({page}) => {
+  await fixture(page);
+  await expect(page.locator('.app-sidebar').getByRole('button',{name:/Applications/})).toContainText('3 views');
+  await page.route('**/api/v2/pm2/snapshot', route => route.fulfill({json:{available:false,error:'PM2 inventory is inaccessible: root: helper not configured',totalProcesses:null,allUsers:[],collection:{status:'unavailable',fresh:false}}}));
+  await page.goto('/#pm2');
+  await expect(page.getByText('Process Fleet (unknown)',{exact:true})).toBeVisible();
+  await expect(page.getByText('PM2 inventory is inaccessible: root: helper not configured',{exact:true})).toBeVisible();
+  await page.route('**/api/v2/docker/snapshot',route=>route.fulfill({json:{available:false,daemonReachable:false,error:'Docker socket permission denied',containers:[],collection:{status:'error',fresh:false}}}));
+  await page.goto('/#docker');
+  await expect(page.getByRole('heading',{name:'Docker inventory unavailable',exact:true})).toBeVisible();
+  await expect(page.getByText('Container counts and resource usage are unknown until collection succeeds.',{exact:true})).toBeVisible();
+  await expect(page.getByText('CLEAN',{exact:true})).toHaveCount(0);
 });

@@ -24,6 +24,23 @@ test('optional snapshot viewers cannot start a disabled collector', async () => 
   assert.equal(calls, 0);
 });
 
+test('PM2 partial inventory stays explicit without hiding disabled or failed collector state', async t => {
+  const col = collectorManager.collectors.get('pm2');
+  const previous = { enabled: col.enabled, cached: stateStore.state.pm2 };
+  t.after(() => { col.enabled = previous.enabled; stateStore.state.pm2 = previous.cached; });
+  col.enabled = true;
+  stateStore.set('pm2', { incomplete: true, totalProcesses: 2, allUsers: [{ user: 'root', error: 'denied' }] }, { status: 'healthy', source: 'fixture' });
+  let data = await (await request('/api/v2/pm2/snapshot', { headers })).json();
+  assert.equal(data.collection.status, 'partial'); assert.equal(data.collection.fresh, false);
+  col.enabled = false;
+  data = await (await request('/api/v2/pm2/snapshot', { headers })).json();
+  assert.equal(data.collection.status, 'disabled');
+  col.enabled = true;
+  stateStore.set('pm2', stateStore.get('pm2'), { status: 'error', error: 'fixture runtime failure' });
+  data = await (await request('/api/v2/pm2/snapshot', { headers })).json();
+  assert.equal(data.collection.status, 'error'); assert.equal(data.collection.lastError, 'fixture runtime failure');
+});
+
 before(async () => {
   const reservation = net.createServer();
   await new Promise(resolve => reservation.listen(0, '127.0.0.1', resolve));

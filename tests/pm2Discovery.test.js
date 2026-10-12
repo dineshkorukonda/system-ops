@@ -1,6 +1,25 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { parsePm2Json, collectPm2Snapshot, getPm2UserProcesses, runPm2Command } = require('../plugins/superpowers/skills/pm2_discovery');
+
+test('PM2 keeps private root and dinesh homes as unresolved accounts instead of hiding them', () => {
+  const { getPm2Users } = require('../plugins/superpowers/skills/pm2_discovery');
+  const users = getPm2Users({ env: { PM2_PATH: '/usr/bin/pm2' }, currentUser: 'ops', io: {
+    readFileSync(file) { if (file === '/etc/passwd') return 'root:x:0:0::/root:/bin/bash\ndinesh:x:1000:1000::/home/dinesh:/bin/bash\nops:x:1001:1001::/home/ops:/bin/bash'; throw new Error(); },
+    statSync(file) { if (file.replaceAll('\\', '/').startsWith('/home/ops')) throw Object.assign(new Error(), { code: 'ENOENT' }); throw Object.assign(new Error(), { code: 'EACCES' }); },
+  } });
+  assert.deepEqual(users, ['root', 'dinesh']);
+});
+
+test('PM2 does not report healthy zero apps when no account can be inventoried', async () => {
+  const missing = await collectPm2Snapshot({ userNames: [] });
+  assert.equal(missing.available, false);
+  assert.equal(missing.totalProcesses, null);
+  assert.match(missing.error, /No PM2 accounts/);
+  const denied = await collectPm2Snapshot({ userNames: ['root'], collectUser: async user => ({ user, processes: [], error: 'helper not configured' }) });
+  assert.equal(denied.totalProcesses, null);
+  assert.match(denied.error, /root: helper not configured/);
+});
 test('PM2 parser accepts empty and prefixed lists and preserves separate cluster IDs', () => {
   assert.deepEqual(parsePm2Json('ops', '[]').processes, []);
   const data = parsePm2Json('ops', 'banner\n' + JSON.stringify([

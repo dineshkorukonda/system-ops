@@ -46,6 +46,7 @@ export function DiscoveryView({ capabilities, onNavigate, onChanged, hiddenViews
           <h3>{label}</h3><p>{cap.available ? 'Detected on this server' : cap.configured ? 'Configured, awaiting evidence' : 'No evidence found'}</p>
           {cap.count != null && <p>{cap.count} items in last snapshot</p>}
           <ul className="source-evidence">{(cap.evidence || []).slice(0,3).map(item => <li key={item.target}>{item.target}{!item.readable && ' · Access denied'}</li>)}</ul>
+          {key === 'docker' && cap.target && <p className="source-evidence">Docker target: {cap.target}</p>}
           {cap.error && <p className="error-message">{cap.error}</p>}
           {cap.hint && <details><summary>Detection help</summary><p>{cap.hint}</p></details>}
           <div className="source-actions"><Button variant="secondary" onClick={() => onNavigate(destination)}>View details</Button>{key !== 'tls' && <Button disabled={!!busy} variant={cap.enabled ? 'outline' : 'default'} onClick={() => request('/api/v2/settings',{integrations:{[view]:!cap.enabled}},view)}>{busy === view ? 'Saving…' : cap.enabled ? 'Disable monitoring' : 'Enable monitoring'}</Button>}</div>

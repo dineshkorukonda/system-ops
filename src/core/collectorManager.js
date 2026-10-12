@@ -216,7 +216,11 @@ class CollectorManager {
     if (!this.isRunning || !col.enabled) return;
     clearTimeout(this.timers.get(name));
     const timer = setTimeout(async () => {
-      await this.runCollector(name);
+      const result = await this.runCollector(name);
+      if (result.skipped && result.reason === 'Concurrency budget') {
+        this.schedule(name, Math.min(1000, col.intervalMs));
+        return;
+      }
       const backoff = Math.min(8, 2 ** Math.min(3, col.consecutiveErrors));
       this.schedule(name, col.intervalMs * backoff);
     }, delay);
@@ -243,7 +247,8 @@ class CollectorManager {
     clearTimeout(this.timers.get(name));
     this.timers.delete(name);
     if (enabled && this.isRunning) {
-      this.runCollector(name).finally(() => this.schedule(name, col.intervalMs));
+      this.runCollector(name).then(result => this.schedule(name,
+        result.skipped && result.reason === 'Concurrency budget' ? Math.min(1000, col.intervalMs) : col.intervalMs));
     }
     if (!enabled) col.controller?.abort();
   }

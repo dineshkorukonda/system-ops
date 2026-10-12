@@ -67,7 +67,7 @@ async function resolvePm2Binary(user) {
     pm2BinaryCache[user] = { path: binary, ts: Date.now() }; return binary;
   }
   const variable = 'PM2_PATH_' + user.toUpperCase().replace(/[^A-Z0-9]/g, '_');
-  const explicit = process.env[variable] || (user === 'root' ? process.env.PM2_PATH : null);
+  const explicit = process.env[variable] || process.env.PM2_PATH;
   if (explicit) {
     if (!path.isAbsolute(explicit) || explicit.includes('\0')) throw new Error(`${variable} must be an absolute binary path`);
     pm2BinaryCache[user] = { path: explicit, ts: Date.now() }; return explicit;
@@ -88,22 +88,30 @@ async function resolvePm2Binary(user) {
   }
   pm2BinaryCache[user] = { path: null, ts: Date.now() }; return null;
 }
-function getPm2Users() {
-  const users = new Set((process.env.PM2_USERS || '').split(',').map(user => user.trim()).filter(validUser));
+function getPm2Users({ env = process.env, io = fs, currentUser = os.userInfo().username } = {}) {
+  const users = new Set((env.PM2_USERS || '').split(',').map(user => user.trim()).filter(validUser));
   try {
-    for (const entry of fs.readFileSync('/etc/passwd', 'utf8').split('\n')) {
+    for (const entry of io.readFileSync('/etc/passwd', 'utf8').split('\n').slice(0, 512)) {
       const [user, , uid, , , home] = entry.split(':');
-      if (validUser(user) && (user === 'root' || Number(uid) >= 1000) && home && fs.existsSync(path.join(home, '.pm2'))) users.add(user);
+      if (!validUser(user) || !(user === 'root' || Number(uid) >= 1000) || !home) continue;
+      const suffix = user.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+      if (env[`PM2_HOME_${suffix}`] || env[`PM2_PATH_${suffix}`]) { users.add(user); continue; }
+      try { if (io.statSync(path.join(home, '.pm2')).isDirectory()) users.add(user); }
+      catch (error) {
+        // An unreadable home is unresolved, not proof that PM2 is absent.
+        if (['EACCES', 'EPERM'].includes(error.code)) users.add(user);
+      }
     }
   } catch {}
-  if (process.env.PM2_HOME) users.add(os.userInfo().username);
+  if (env.PM2_HOME) users.add(currentUser);
   try {
-    for (const entry of fs.readFileSync('/etc/system-ops/pm2-monitor.conf', 'utf8').split('\n')) {
+    for (const entry of io.readFileSync('/etc/system-ops/pm2-monitor.conf', 'utf8').split('\n').slice(0, 64)) {
       const user = entry.split('|')[0]; if (validUser(user)) users.add(user);
     }
   } catch {}
   return [...users].slice(0, 16);
 }
+
 function getPm2DiscoveryPaths() {
   const paths = getPm2Users().flatMap(user => [userHome(user), process.env['PM2_PATH_' + user.toUpperCase().replace(/[^A-Z0-9]/g, '_')]]).filter(Boolean);
   try {
@@ -188,12 +196,16 @@ async function collectPm2Snapshot({ userNames = getPm2Users(), collectUser = get
     });
   }
 
+  const accessibleUsers = results.filter(result => !result.error);
+  const inventoryError = !userNames.length ? 'No PM2 accounts could be discovered. Repair native runtime discovery or configure PM2_USERS and the cross-user helper.' :
+    !accessibleUsers.length ? 'PM2 inventory is inaccessible: ' + results.map(result => `${result.user}: ${result.error}`).join('; ') : null;
   return {
-    totalProcesses,
-    onlineCount,
-    errorCount,
-    totalMemory,
-    totalMemoryFormatted: formatBytes(totalMemory),
+    ...(inventoryError ? { available: false, error: inventoryError } : {}),
+    totalProcesses: inventoryError ? null : totalProcesses,
+    onlineCount: inventoryError ? null : onlineCount,
+    errorCount: inventoryError ? null : errorCount,
+    totalMemory: inventoryError ? null : totalMemory,
+    totalMemoryFormatted: inventoryError ? 'Unknown' : formatBytes(totalMemory),
     // `users` keeps backward-compat: only users with active processes/binary
     users: activeUsers,
     // `allUsers` exposes every discovered user including those with errors
