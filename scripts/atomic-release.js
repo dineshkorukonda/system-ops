@@ -38,6 +38,11 @@ async function main(){
       const testData=fs.mkdtempSync(path.join(stage,'.validation-data-'));fs.chownSync(testData,uid,gid);
       run('npm',['ci'],stage);run('npm',['test'],stage,{NODE_ENV:'test',SYSTEM_OPS_DATA_DIR:testData});run('npm',['run','build'],stage);run('npm',['run','test:smoke'],stage);
       },restart,ready});
+    // Refresh only the fixed launcher after a healthy activation. Older root
+    // wrappers did not forward --background into the active release helper.
+    const wrapper=path.join(root,'scripts','deploy.sh'),temporaryWrapper=wrapper+'.next';
+    fs.copyFileSync(path.join(stage,'scripts','deploy.sh'),temporaryWrapper);
+    fs.chmodSync(temporaryWrapper,0o755);fs.chownSync(temporaryWrapper,0,0);fs.renameSync(temporaryWrapper,wrapper);
     console.log(`=== Update successful: ${commit} ===`);
   } catch(error){if(oldConfig)fs.writeFileSync(previousDropin,oldConfig);else if(fs.existsSync(previousDropin))fs.unlinkSync(previousDropin);execFileSync('systemctl',['daemon-reload']);throw error;}
 }
