@@ -2,11 +2,13 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { spawn } = require('child_process');
+const { execFileSync } = require('child_process');
 const https = require('https');
 const { runCommand } = require('../utils/exec');
 const { DATA_DIR } = require('./settingsService');
 
-const INSTALL_DIR = process.env.INSTALL_DIR || path.join(__dirname, '../../');
+const CODE_DIR = path.resolve(__dirname, '../../');
+const INSTALL_DIR = process.env.INSTALL_DIR || (fs.existsSync(path.join(CODE_DIR, '.release-revision')) ? path.resolve(CODE_DIR, '../..') : CODE_DIR);
 const DEPLOY_SCRIPT = path.join(INSTALL_DIR, 'scripts/deploy.sh');
 const LOCK_FILE = path.join(DATA_DIR, '.update.lock');
 const UPDATE_LOG = path.join(DATA_DIR, 'update.log');
@@ -28,7 +30,7 @@ function ensureDataDir() {
 function getCurrentVersion() {
   try {
     const pkg = JSON.parse(
-      fs.readFileSync(path.join(INSTALL_DIR, 'package.json'), 'utf8')
+      fs.readFileSync(path.join(CODE_DIR, 'package.json'), 'utf8')
     );
     return pkg.version || '0.0.0';
   } catch {
@@ -53,9 +55,11 @@ function isNewerVersion(current, latest) {
 }
 
 function detectInstallType() {
+  if (process.platform === 'win32') return 'unknown';
+  if (fs.existsSync('/.dockerenv')) return 'docker';
   const hasDeploy = fs.existsSync(DEPLOY_SCRIPT);
   const hasGit = fs.existsSync(path.join(INSTALL_DIR, '.git'));
-  if (hasDeploy && hasGit) return 'systemd';
+  if (hasDeploy && hasGit && fs.existsSync('/run/systemd/system')) return 'systemd';
   if (fs.existsSync(path.join(INSTALL_DIR, 'docker-compose.yml'))) return 'docker';
   return 'unknown';
 }
@@ -221,7 +225,7 @@ function readLock() {
   try {
     const lock = JSON.parse(fs.readFileSync(LOCK_FILE, 'utf8'));
     const age = Date.now() - new Date(lock.startedAt).getTime();
-    if (age > LOCK_TIMEOUT_MS) {
+    if (age > LOCK_TIMEOUT_MS && !lock.unit) {
       fs.unlinkSync(LOCK_FILE);
       return null;
     }
@@ -269,7 +273,7 @@ function extractLastUpdateSession(logContent) {
 function parseLogOutcome(logContent) {
   const log = extractLastUpdateSession(logContent);
 
-  if (log.includes('Deployment Complete!')) {
+  if (log.includes('Deployment Complete!') || log.includes('=== Update successful:')) {
     return {
       phase: 'success',
       success: true,
@@ -280,6 +284,7 @@ function parseLogOutcome(logContent) {
   }
 
   const buildFailed = log.includes('Deployment FAILED')
+    || log.includes('=== Update failed:')
     || log.includes('ERROR: npm ci failed')
     || log.includes('ERROR: npm run build failed');
 
@@ -376,12 +381,17 @@ function getUpdateStatus() {
 
   if (lock) {
     try {
-      process.kill(lock.pid, 0);
-      running = true;
+      if (lock.unit) {
+        const state = execFileSync('systemctl', ['show', lock.unit, '--property=ActiveState', '--value'], { encoding: 'utf8', timeout: 1500 }).trim();
+        running = ['active','activating','reloading'].includes(state);
+        if (!running && Date.now()-Date.parse(lock.startedAt)<10000 && !readUpdateResult()) running = true;
+        if (!running && !readUpdateResult()) finalizeUpdateFromLog();
+      } else { process.kill(lock.pid, 0); running = true; }
     } catch {
-      running = false;
-      if (fs.existsSync(LOCK_FILE)) {
-        finalizeUpdateFromLog();
+      if (lock.unit && Date.now()-Date.parse(lock.startedAt)<10000 && !readUpdateResult()) running = true;
+      else {
+        running = false;
+        if (fs.existsSync(LOCK_FILE)) finalizeUpdateFromLog();
       }
     }
   }
@@ -412,8 +422,10 @@ function getUpdateStatus() {
 }
 
 function startUpdate() {
+  if (detectInstallType() !== 'systemd') return { success: false, error: 'Dashboard updates require a native Linux/systemd installation. Redeploy the image for Docker installs.' };
   const existing = readLock();
   if (existing) {
+    if (existing.unit && getUpdateStatus().running) return { success: false, error: 'An update is already in progress' };
     try {
       process.kill(existing.pid, 0);
       return { success: false, error: 'An update is already in progress' };
@@ -437,16 +449,9 @@ function startUpdate() {
   const header = `\n=== Update started at ${new Date().toISOString()} on ${os.hostname()} ===\n`;
   fs.writeSync(logStream, header);
 
-  const isWindows = process.platform === 'win32';
-  const opsUser = process.env.OPS_USER || 'ops';
-  const cmd = isWindows ? 'bash' : 'sudo';
-  const args = isWindows
-    ? [DEPLOY_SCRIPT]
-    : [
-      'bash',
-      '-c',
-      `chown -R ${opsUser}:${opsUser} "${INSTALL_DIR}" 2>/dev/null; exec bash "${DEPLOY_SCRIPT}"`,
-    ];
+  // Match the narrowly allowed sudo command; a root shell/chown command is not allowed.
+  const cmd = 'sudo';
+  const args = updateLaunchArgs(DEPLOY_SCRIPT);
 
   const child = spawn(cmd, args, {
     cwd: INSTALL_DIR,
@@ -456,9 +461,14 @@ function startUpdate() {
   });
 
   child.unref();
-  writeLock(child.pid);
+  fs.writeFileSync(LOCK_FILE, JSON.stringify({ unit: 'system-ops-update.service', startedAt: new Date().toISOString() }));
+  child.on('error', error => {
+    fs.writeSync(logStream, `\n=== Update failed: ${error.message} ===\n`);
+    fs.closeSync(logStream); finalizeUpdateFromLog(1);
+  });
 
   child.on('exit', (code) => {
+    if (code === 0) { fs.closeSync(logStream); return; } // Unit accepted; completion is recorded outside this service.
     try {
       fs.writeSync(logStream, `\n=== Update finished with exit code ${code} ===\n`);
       fs.closeSync(logStream);
@@ -471,6 +481,8 @@ function startUpdate() {
   return { success: true, pid: child.pid };
 }
 
+function updateLaunchArgs(script) { return ['-n', '/usr/bin/bash', script, '--background']; }
+
 module.exports = {
   getCurrentVersion,
   getVersionInfo,
@@ -481,6 +493,7 @@ module.exports = {
   fetchLatestFromMain,
   parseLogOutcome,
   extractLastUpdateSession,
+  updateLaunchArgs,
   LOCK_FILE,
   UPDATE_LOG,
   UPDATE_RESULT,

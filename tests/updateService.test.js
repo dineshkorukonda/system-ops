@@ -1,5 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
+const path = require('node:path');
 
 const {
   isNewerVersion,
@@ -73,4 +74,19 @@ test('fetchLatestFromMain parses GitHub package and commit responses without rel
   assert.ok(/^\d+\.\d+\.\d+/.test(info.latest));
   assert.strictEqual(info.source, 'main-branch');
   assert.ok(info.remoteCommit, 'should include remote commit sha');
+});
+
+test('dashboard update uses the allowed sudo script and atomic-release outcome markers',()=>{
+  const {updateLaunchArgs,parseLogOutcome}=require('../src/services/updateService');
+  assert.deepStrictEqual(updateLaunchArgs('/opt/system-ops/scripts/deploy.sh'),['-n','/usr/bin/bash','/opt/system-ops/scripts/deploy.sh','--background']);
+  assert.strictEqual(parseLogOutcome('=== Update successful: abc ===').phase,'success');
+  assert.strictEqual(parseLogOutcome('=== Update failed: readiness rollback ===').phase,'failed');
+});
+test('update worker is launched in a separate fixed systemd unit with durable logs',()=>{
+  const {launchUpdate}=require('../src/services/updateLauncher');let command;
+  const root=path.resolve('/opt/system-ops'),dataDir=path.join(root,'data'),script=path.join(root,'scripts','atomic-release.js');
+  const result=launchUpdate({root,dataDir,script,execute:(file,args)=>{command={file,args};}});
+  assert.strictEqual(result.queued,true);assert.strictEqual(command.file,'systemd-run');
+  assert.ok(command.args.includes('--unit=system-ops-update'));assert.ok(command.args.includes(`--property=StandardOutput=append:${path.join(dataDir,'update.log')}`));
+  assert.ok(command.args.includes('--setenv=SYSTEM_OPS_UPDATE_UNIT=1'));assert.ok(!command.args.includes('-c'));
 });
