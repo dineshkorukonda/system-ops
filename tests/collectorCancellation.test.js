@@ -2,26 +2,48 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { once } = require('node:events');
 const http = require('node:http');
+const childProcess = require('node:child_process');
 const { CollectorManager } = require('../src/core/collectorManager');
 const { StateStore } = require('../src/core/stateStore');
 const { runCommand } = require('../src/utils/exec');
 const { combinedSignal } = require('../src/core/collectionContext');
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-test('deadline kills a real child and prevents overlapping retries until it closes', async () => {
+test('deadline kills a real child and prevents overlapping retries until it closes', { timeout: 10000 }, async t => {
   const manager = new CollectorManager(new StateStore());
   let childPid;
+  const spawn = childProcess.spawn;
+  t.mock.method(childProcess, 'spawn', (...args) => {
+    const child = spawn(...args);
+    // The OS supplies this immediately, even if Node startup is slower than
+    // the collection deadline. Do not depend on the child printing in time.
+    childPid = child.pid;
+    return child;
+  });
+  let commandClosed, releaseCollection;
+  const closed = new Promise(resolve => { commandClosed = resolve; });
+  const release = new Promise(resolve => { releaseCollection = resolve; });
+  t.after(() => { releaseCollection(); manager.stopAll(); });
   manager.register({ name: 'child', timeoutMs: 150, collect: async () => {
-    const result = await runCommand(process.execPath, ['-e', 'console.log(process.pid); setInterval(() => {}, 1000)'], 10000);
-    childPid = Number(result.stdout.trim());
+    const result = await runCommand(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], 10000);
+    commandClosed(result);
+    await release;
     return result;
   } });
-  const result = await manager.runCollector('child');
-  assert.equal(result.success, false);
-  assert.match(result.error, /deadline/);
-  await sleep(100);
-  assert.ok(childPid);
-  assert.throws(() => process.kill(childPid, 0));
+  try {
+    const result = await manager.runCollector('child');
+    assert.equal(result.success, false);
+    assert.match(result.error, /deadline/);
+    const command = await closed;
+    assert.equal(command.success, false);
+    assert.match(command.stderr, /cancelled/);
+    assert.ok(Number.isInteger(childPid) && childPid > 0);
+    assert.throws(() => process.kill(childPid, 0));
+    assert.equal(manager.active, 1);
+    assert.deepEqual(await manager.runCollector('child'), { skipped: true, reason: 'Already running' });
+  } finally { releaseCollection(); }
+  // Let the held collection settle and the manager release its slot.
+  await new Promise(resolve => setImmediate(resolve));
   assert.equal(manager.active, 0);
 });
 
