@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from './ui/Card';
 import { Button } from './ui/Button';
+import { Icon } from './ui/Icon';
 
 export function LoginView({ branding, onLoginSuccess }) {
   const [password, setPassword] = useState('');
@@ -54,57 +55,28 @@ export function LoginView({ branding, onLoginSuccess }) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--bg-main)] p-4 theme-bg">
-      <div className="w-full max-w-sm">
-        <Card className="border-[var(--border-color)] bg-[var(--card-bg)] shadow-2xl">
-          <div className="p-6 text-center space-y-1.5 border-b border-[var(--border-color)] theme-header">
-            <h2 className="font-mono text-base font-bold tracking-tight text-[var(--text-primary)]">
-              {siteName.toUpperCase()}
-            </h2>
-            <p className="text-xs text-[var(--text-secondary)]">
-              {siteSubtitle}
-            </p>
+    <div className="ops-login flex min-h-screen items-center justify-center p-5 pt-28 pb-20">
+      <div className="absolute top-6 left-6 flex items-center gap-3"><span className="h-3 w-3 bg-[var(--accent)]" /><h2 className="text-lg font-bold tracking-tight">{siteName}</h2></div>
+      <div className="absolute top-6 right-6 hidden sm:flex gap-2 items-center rounded-full border border-[var(--border-color)] bg-[var(--card-bg)] px-3 py-2 text-[10px] font-mono text-[var(--text-muted)]"><Icon name="security" className="h-4 w-4 text-[var(--accent)]" />AUTHORIZED ACCESS ONLY</div>
+      <Card className="w-full max-w-md">
+        <CardContent className="!p-8">
+          <div className="flex items-center gap-3 pb-6 mb-7 border-b border-[var(--border-color)]">
+            <div className="relative flex items-center justify-center w-12 h-12 rounded-xl border border-[var(--border-color)] bg-[var(--surface-raised)] text-[var(--accent)]"><Icon name="system" /><span className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-[var(--accent)] border-2 border-[var(--card-bg)]" /></div>
+            <div><h2 className="font-bold text-base">{siteName}</h2><p className="text-[11px] font-mono text-[var(--text-muted)]">{siteSubtitle}</p></div>
           </div>
-
-          <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="block font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-                  Access Password
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter console password..."
-                  required
-                  autoFocus
-                  className="w-full h-9 rounded border border-[var(--border-color)] bg-[var(--card-bg)] px-3 font-mono text-xs text-[var(--text-primary)] placeholder-neutral-600 outline-none hover:border-neutral-600 focus:border-neutral-300 theme-input"
-                />
-              </div>
-
-              {error && (
-                <div className="rounded border border-rose-900/50 bg-rose-950/30 p-2.5 font-mono text-xs text-[var(--error)]">
-                  {error}
-                </div>
-              )}
-
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="w-full h-9 font-mono text-xs font-semibold"
-              >
-                {isLoading ? 'AUTHENTICATING...' : 'AUTHENTICATE'}
-              </Button>
-            </form>
-          </CardContent>
-
-          <div className="flex items-center justify-between border-t border-[var(--border-color)] bg-[var(--surface-muted)] px-6 py-3 font-mono text-[10px] text-[var(--text-muted)] theme-header">
-            <span>BINDING: 127.0.0.1:9080</span>
-            <span className="text-[var(--success)] font-semibold">ENCRYPTED SESSION</span>
-          </div>
-        </Card>
-      </div>
+          <h1 className="text-2xl font-bold tracking-tight mb-2">Welcome back, operator.</h1>
+          <p className="text-sm text-[var(--text-muted)] mb-7 leading-relaxed">Authenticate to access your command center.</p>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <label htmlFor="console-password" className="block font-mono text-[11px] uppercase tracking-wider text-[var(--text-secondary)]">Access password</label>
+              <div className="relative"><Icon name="key" className="absolute left-3 top-3 text-[var(--text-muted)]" /><input id="console-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter console password" required autoFocus className="theme-input w-full h-12 border pl-10 pr-4 text-sm" /></div>
+            </div>
+            {error && <div role="alert" className="rounded-lg border border-rose-900/50 bg-rose-950/20 p-3 text-xs text-rose-400">{error}</div>}
+            <Button type="submit" disabled={isLoading} className="w-full !h-12 !text-sm"><Icon name="security" />{isLoading ? 'Authenticating...' : 'Initialize Secure Session'}<Icon name="arrow" className="ml-auto" /></Button>
+          </form>
+          <p className="mt-7 pt-5 border-t border-[var(--border-color)] text-center font-mono text-[9px] tracking-wider text-[var(--text-muted)]">SYSTEM-OPS • AUTHORIZED ACCESS ONLY</p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

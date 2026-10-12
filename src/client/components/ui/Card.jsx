@@ -5,7 +5,7 @@ export function Card({ className, children, ...props }) {
   return (
     <div
       className={cn(
-        'rounded-md border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] shadow-sm transition-colors theme-card',
+        'ops-card border border-[var(--border-color)] bg-[var(--panel-alt)] text-[var(--text-main)] transition-colors theme-card',
         className
       )}
       {...props}
@@ -19,7 +19,7 @@ export function CardHeader({ className, children, ...props }) {
   return (
     <div
       className={cn(
-        'flex items-center justify-between border-b border-[var(--border-color)] px-4 py-3 bg-[var(--card-bg)] theme-header',
+        'ops-card-header flex items-center justify-between border-b border-[var(--border-color)] px-4 py-3 bg-[var(--panel-alt)] theme-header',
         className
       )}
       {...props}
@@ -33,7 +33,7 @@ export function CardTitle({ className, children, ...props }) {
   return (
     <h3
       className={cn(
-        'text-sm font-semibold text-[var(--text-primary)]',
+        'ops-card-title',
         className
       )}
       {...props}
@@ -45,7 +45,7 @@ export function CardTitle({ className, children, ...props }) {
 
 export function CardContent({ className, children, ...props }) {
   return (
-    <div className={cn('p-4', className)} {...props}>
+    <div className={cn('ops-card-content', className)} {...props}>
       {children}
     </div>
   );

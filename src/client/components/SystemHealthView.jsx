@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { Sparkline } from './ui/Sparkline';
 import { ProgressBar } from './ui/ProgressBar';
+import { Icon } from './ui/Icon';
 import { CollectionStatus } from './CollectionStatus';
 
 export function SystemHealthView({
@@ -46,84 +47,27 @@ export function SystemHealthView({
       )}
 
       {/* ─── Hero Telemetry Cards with Real-Time Sparklines ─── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* CPU utilization is distinct from load average. */}
-        <Card>
-          <CardContent className="p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-xs uppercase tracking-wider text-[var(--text-secondary)]">
-                CPU Utilization
-              </span>
-              <Badge variant={cpuPct === null ? 'neutral' : cpuPct > 85 ? 'warn' : 'ok'}>
-                {cpuPct === null ? 'NOT SAMPLED' : cpuPct > 85 ? 'HIGH' : 'NORMAL'}
-              </Badge>
-            </div>
-            <div className="flex items-baseline justify-between">
-              <div className="font-mono text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-                {cpuPct === null ? '--' : `${cpuPct}%`}
-              </div>
-              <span className="font-mono text-xs text-[var(--text-muted)]">
-                {upt.cpus ? `${upt.cpus} Cores · load ${upt.load1m ?? '--'}` : '--'}
-              </span>
-            </div>
-            <div className="pt-2">
-              <Sparkline data={cpuHistory} strokeColor="#10b981" />
-            </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {[
+          { label: 'CPU UTILIZATION', value: cpuPct === null ? '--' : `${cpuPct}%`, detail: `${upt.cpus || '--'} cores / load ${upt.load1m ?? '--'}`, icon: 'processes', percent: cpuPct ?? 0, status: cpuPct === null ? 'Awaiting sample' : cpuPct > 85 ? 'High usage' : 'Normal', warning: cpuPct > 85 },
+          { label: 'RAM USAGE', value: mem.formattedUsed || '--', detail: `${memPct ?? '--'}% of ${mem.formattedTotal || '--'}`, icon: 'services', percent: memPct, status: memPct === null ? 'Awaiting sample' : memPct > 85 ? 'High usage' : 'Allocated', warning: memPct > 85 },
+          { label: 'DISK USAGE', value: disk[0]?.formattedUsed || '--', detail: `of ${disk[0]?.formattedTotal || '--'}`, icon: 'disk', percent: disk[0]?.percent || 0, status: Number.isFinite(disk[0]?.percent) ? `${disk[0].percent}% capacity` : 'Awaiting data', warning: disk[0]?.percent > 70 },
+          { label: 'SYSTEM UPTIME', value: upt.uptimeText || '--', detail: upt.hostname || 'Server telemetry', icon: 'uptime', percent: upt.uptimeText ? 100 : 0, status: upt.uptimeText ? 'Live' : 'Awaiting sample' },
+        ].map((metric) => <Card key={metric.label} className="ops-telemetry" style={{ '--meter': `${Math.max(0, Math.min(Number(metric.percent) || 0, 100))}%`, '--meter-color': metric.warning ? 'var(--warning)' : 'var(--accent)' }}>
+          <CardContent>
+            <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="text-[10px] font-mono tracking-widest text-[var(--text-muted)] mb-3">{metric.label}</p><p className="text-[26px] font-bold tracking-tight leading-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{metric.value}</p></div><div className="ops-metric-icon shrink-0"><Icon name={metric.icon} /></div></div>
+            <div className="flex items-center justify-between gap-2 mt-6 text-[10px] font-mono"><span className="text-[var(--text-muted)]">{metric.detail}</span><span className={metric.warning ? 'text-amber-400' : 'text-[var(--accent)]'}>{metric.status}</span></div>
           </CardContent>
+        </Card>)}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card className="lg:col-span-2">
+          <CardHeader><div><CardTitle>CPU Utilization Trends</CardTitle><p className="text-[11px] text-[var(--text-muted)] font-mono mt-1.5">Real-time utilization across {upt.cpus || '--'} CPU cores</p></div><Badge variant="ok">Live Feed</Badge></CardHeader>
+          <CardContent><div className="min-h-44 flex items-center"><Sparkline data={cpuHistory} width={700} height={180} strokeColor="var(--accent)" /></div><div className="flex justify-between border-t border-[var(--border-color)] pt-4 mt-3 text-[10px] font-mono text-[var(--text-muted)]"><span>Previous {cpuHistory.length} samples</span><span>Now</span></div></CardContent>
         </Card>
-
-        {/* RAM Usage Card */}
-        <Card>
-          <CardContent className="p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-xs uppercase tracking-wider text-[var(--text-secondary)]">
-                RAM Utilization
-              </span>
-              <Badge variant={memPct === null ? 'neutral' : memPct > 85 ? 'err' : memPct > 65 ? 'warn' : 'ok'}>
-                {memPct === null ? '--' : `${memPct}%`}
-              </Badge>
-            </div>
-            <div className="flex items-baseline justify-between">
-              <div className="font-mono text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-                {mem.formattedUsed || '--'}
-              </div>
-              <span className="font-mono text-xs text-[var(--text-muted)]">
-                of {mem.formattedTotal || '--'}
-              </span>
-            </div>
-            <div className="pt-2">
-              <Sparkline data={ramHistory} strokeColor="#3b82f6" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Swap Usage Card */}
-        <Card>
-          <CardContent className="p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-xs uppercase tracking-wider text-[var(--text-secondary)]">
-                Swap Utilization
-              </span>
-              <Badge variant={swapPct > 50 ? 'err' : swapPct > 20 ? 'warn' : 'neutral'}>
-                {swapPct === null ? '--' : `${swapPct}%`}
-              </Badge>
-            </div>
-            <div className="flex items-baseline justify-between">
-              <div className="font-mono text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-                {swap.formattedUsed || '--'}
-              </div>
-              <span className="font-mono text-xs text-[var(--text-muted)]">
-                of {swap.formattedTotal || '--'}
-              </span>
-            </div>
-            <div className="pt-2">
-              <Sparkline data={swapHistory} strokeColor="#8b5cf6" />
-            </div>
-          </CardContent>
-        </Card>
+        <Card><CardHeader><CardTitle>Memory Allocation</CardTitle></CardHeader><CardContent className="space-y-6"><div className="space-y-2"><div className="flex justify-between text-xs font-mono"><span className="text-[var(--text-secondary)]">RAM</span><span className="text-[var(--accent)]">{memPct ?? '--'}%</span></div><ProgressBar value={memPct} variant="auto" /><p className="text-[10px] font-mono text-[var(--text-muted)]">{mem.formattedUsed || '--'} / {mem.formattedTotal || '--'}</p></div><div className="space-y-2"><div className="flex justify-between text-xs font-mono"><span className="text-[var(--text-secondary)]">SWAP</span><span className="text-[var(--accent)]">{swapPct ?? '--'}%</span></div><ProgressBar value={swapPct} variant="auto" /><p className="text-[10px] font-mono text-[var(--text-muted)]">{swap.formattedUsed || '--'} / {swap.formattedTotal || '--'}</p></div><div className="border-t border-[var(--border-color)] pt-4 font-mono text-[10px] text-[var(--text-muted)]">Resource usage from the latest server snapshot.</div></CardContent></Card>
       </div>
 
-      {/* ─── Grid: Host Overview, Memory Progress, Services, Disks ─── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Host Uptime & Load Averages */}
         <Card>
