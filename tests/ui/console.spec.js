@@ -98,3 +98,15 @@ test('empty discovery and capability API failures are explicit, keyboard navigat
   await page.getByRole('button',{name:'Refresh',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Fixture discovery unavailable');
   await page.locator('.skip-link').focus();await page.keyboard.press('Enter');await expect(page.locator('main')).toBeFocused();
 });
+test('availability check form saves real configuration and notification settings stay explicit',async({page})=>{
+  await fixture(page);await page.goto('/#checks');
+  await page.getByLabel('Check ID',{exact:true}).fill('ui-http-check');
+  await page.getByLabel('Name',{exact:true}).fill('UI fixture health');
+  await page.getByLabel('Endpoint URL',{exact:true}).fill('http://127.0.0.1:19086/health');
+  await page.getByRole('button',{name:'Save check',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'UI fixture health',exact:true})).toBeVisible();
+  await page.getByRole('article').filter({has:page.getByRole('heading',{name:'UI fixture health',exact:true})}).getByRole('button',{name:'Remove',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'UI fixture health',exact:true})).toHaveCount(0);
+  await page.goto('/#notifications');await expect(page.getByText('No webhook configured',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Send test notification',exact:true})).toBeDisabled();
+});

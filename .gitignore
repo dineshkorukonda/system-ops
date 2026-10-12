@@ -8,4 +8,5 @@ dist/
 go-collector/bin/
 artifacts/
 playwright-report/
+.release-revision
 test-results/

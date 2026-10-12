@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DiscoveryView } from './components/DiscoveryView';
 import { TlsView } from './components/TlsView';
+import { ChecksView } from './components/ChecksView';
+import { NotificationsView } from './components/NotificationsView';
 import { CATEGORIES, VIEWS, visibleViews, routeFromHash } from './lib/navigation.mjs';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
@@ -40,6 +42,8 @@ export function App() {
   const [swapHistory, setSwapHistory] = useState([]);
 
   const [capabilities, setCapabilities] = useState(null);
+  const [checksData, setChecksData] = useState(null);
+  const [notificationData, setNotificationData] = useState(null);
   const [systemData, setSystemData] = useState(null);
   const [processes, setProcesses] = useState([]);
   const [processSort, setProcessSort] = useState('cpu');
@@ -185,6 +189,8 @@ export function App() {
   };
 
   const fetchCapabilities = () => load('capabilities', '/api/v2/system/capabilities', setCapabilities);
+  const fetchChecks = () => load('checks', '/api/v2/checks', setChecksData);
+  const fetchNotifications = () => load('notifications', '/api/v2/notifications', setNotificationData);
   const fetchSystemSnapshot = async () => {
     const data = await load('system', '/api/v2/system/snapshot', setSystemData);
     if (!data) return;
@@ -234,7 +240,7 @@ export function App() {
     syncControllerRef.current = controller;
     setIsSyncing(true);
     const tab = activeTabRef.current;
-    const fetchers = { discovery: fetchCapabilities, tls: fetchSystemSnapshot, system: fetchSystemSnapshot, processes: fetchProcesses, docker: fetchDockerData,
+    const fetchers = { discovery: () => Promise.allSettled([fetchCapabilities(),fetchChecks()]), checks: fetchChecks, notifications: fetchNotifications, tls: fetchSystemSnapshot, system: fetchSystemSnapshot, processes: fetchProcesses, docker: fetchDockerData,
       pm2: fetchPm2Data, services: fetchServices, ollama: fetchOllamaData, backups: fetchBackupData,
       traffic: fetchTrafficData, databases: fetchDatabaseData, security: fetchSecurityData,
       integrations: fetchCapabilities };
@@ -346,6 +352,8 @@ export function App() {
           {activeTab === 'discovery' && <DiscoveryView capabilities={capabilities} health={monitoringHealth} onNavigate={navigate} onChanged={fetchCapabilities} hiddenViews={hiddenViews} setHiddenViews={setHiddenViews} />}
           {VIEWS[activeTab]?.[1] && !capabilities?.[VIEWS[activeTab][1]]?.enabled && <div className="setup-note"><strong>Monitoring is disabled</strong><span>Enable this source on the overview to collect data. Existing observations may be historical.</span><button onClick={() => navigate('discovery')}>Manage sources →</button></div>}
           {activeTab === 'tls' && <TlsView systemData={systemData} />}
+          {activeTab === 'checks' && <ChecksView data={checksData} onChanged={fetchChecks} />}
+          {activeTab === 'notifications' && <NotificationsView data={notificationData} onChanged={fetchNotifications} />}
           {(viewErrors[activeTab] || activeTab === 'discovery' && viewErrors.capabilities) && <p role="alert" className="mb-4 text-sm text-[var(--warning)]">{viewErrors[activeTab] || viewErrors.capabilities}</p>}
           {activeTab !== 'system' && collections[activeTab] && <div className="mb-4"><CollectionStatus collection={collections[activeTab]} /></div>}
           {activeTab === 'system' && (

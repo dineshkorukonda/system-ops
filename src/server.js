@@ -169,11 +169,26 @@ app.get('/api/v2/history', (req, res) => {
 
 const durableStore = require('./services/durableStore').getDurableStore();
 const checkService = new (require('./services/checkService').CheckService)(durableStore);
+const notifications = new (require('./services/notificationService').NotificationService)(durableStore);
+app.get('/api/v2/notifications', (req, res) => res.json({ ...notifications.status(), collection: collectorManager.getCollectorHealth('notifications') }));
+app.post('/api/v2/notifications/test', logTailLimiter, async (req, res) => {
+  try { return res.json(await notifications.test()); }
+  catch (error) { return res.status(502).json({ error: error.message }); }
+});
+app.get('/metrics', requireAuth, (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('text/plain; version=0.0.4; charset=utf-8');
+  return res.send(require('./services/prometheusMetrics').renderMetrics({
+    health: collectorManager.getHealth(), diagnostics: stateStore.getDiagnostics(),
+    runtime: require('./core/runtimeDiagnostics').getRuntimeDiagnostics(), persistence: durableStore.status(),
+  }));
+});
 app.get('/api/v2/checks', (req, res) => res.status(durableStore.status().available ? 200 : 503).json(checkService.snapshot()));
 app.put('/api/v2/checks/:id', (req, res) => {
   try {
     const check = require('./services/checkService').validateCheck({ ...req.body, id: req.params.id });
     if (!durableStore.saveCheck(check)) return res.status(503).json({ error: durableStore.status().error });
+    if ((!check.enabled || check.maintenanceUntil > Date.now()) && !durableStore.observation(check.id, { status: 'unknown', error: check.enabled ? 'Maintenance window' : 'Check disabled' })) return res.status(503).json({ error: durableStore.status().error });
     collectorManager.setEnabled('checks', durableStore.checks().some(item => item.enabled && item.type !== 'external'));
     return res.json({ success: true, check });
   } catch (error) { return res.status(400).json({ error: error.message }); }

@@ -54,6 +54,8 @@ class DurableStore {
   saveCheck(config) {
     const json = JSON.stringify(config);
     if (Buffer.byteLength(json) > 4096) throw new Error('Check configuration exceeds storage limit');
+    const existing = this.checks();
+    if (existing.length >= 50 && !existing.some(check => check.id === config.id)) throw new Error('At most 50 checks are supported');
     return this.write(db => {
       if (db.prepare('SELECT count(*) AS n FROM checks').get().n >= 50 && !db.prepare('SELECT id FROM checks WHERE id=?').get(config.id)) throw new Error('At most 50 checks are supported');
       db.prepare('INSERT INTO checks VALUES (?,?) ON CONFLICT(id) DO UPDATE SET config=excluded.config').run(config.id, json);
@@ -78,6 +80,15 @@ class DurableStore {
   observations(id, since = 0) { return this.read(db => db.prepare('SELECT time,status,latency AS latencyMs,error FROM observations WHERE check_id=? AND time>=? ORDER BY time').all(id, since), []); }
   incidents() { return this.read(db => db.prepare('SELECT * FROM incidents ORDER BY opened DESC LIMIT 2000').all(), []); }
   acknowledge(id) { return this.write(db => db.prepare('UPDATE incidents SET acknowledged=? WHERE id=?').run(this.now(), id)); }
+  pendingDeliveries(time = this.now()) {
+    return this.read(db => db.prepare(`SELECT deliveries.*, incidents.check_id, incidents.opened, incidents.closed, incidents.acknowledged, incidents.reason
+      FROM deliveries JOIN incidents ON incidents.id=deliveries.incident_id WHERE delivered IS NULL AND attempts<10 AND next_attempt<=? ORDER BY next_attempt LIMIT 2`).all(time), []);
+  }
+  deliveryAttempt(event, { delivered = null, error = null, nextAttempt, increment = true }) {
+    return this.write(db => db.prepare('UPDATE deliveries SET delivered=?,error=?,next_attempt=?,attempts=attempts+? WHERE incident_id=? AND kind=?')
+      .run(delivered, error?.slice(0,1000) || null, nextAttempt || this.now(), increment ? 1 : 0, event.incident_id, event.kind));
+  }
+  deliveryStatus() { return this.read(db => db.prepare('SELECT * FROM deliveries ORDER BY incident_id DESC LIMIT 100').all(), []); }
   close() { try { this.db?.exec('PRAGMA wal_checkpoint(TRUNCATE)'); this.db?.close(); this.db = null; } catch (error) { this.fail(error); } }
 }
 let singleton;

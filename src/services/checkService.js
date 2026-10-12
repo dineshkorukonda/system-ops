@@ -73,7 +73,7 @@ class CheckService {
     const end=this.now(),start=end-windowMs;
     return {timestamp:new Date(end).toISOString(),perspective:'local process; external checks require independent observer',persistence:this.store.status(),checks:this.store.checks().map(config=>{
       const rows=this.store.observations(config.id,start-config.intervalMs*1.5);const latest=rows.at(-1);
-      const fresh=config.enabled&&latest&&end-latest.time<=config.intervalMs*1.5;
+      const fresh=config.enabled&&latest&&end>=latest.time&&end-latest.time<=config.intervalMs*1.5;
       return {...config,status:config.maintenanceUntil>end?'maintenance':!config.enabled?'disabled':fresh?latest.status:'unknown',lastObservation:latest||null,availability:availability(rows,config,start,end)};
     }),incidents:this.store.incidents()};
   }

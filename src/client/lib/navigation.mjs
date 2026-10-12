@@ -2,9 +2,9 @@ export const CATEGORIES = [
   { id: 'discovery', label: 'Overview', views: ['discovery'] },
   { id: 'host', label: 'Host', views: ['system', 'processes'] },
   { id: 'apps', label: 'Applications', views: ['pm2', 'docker', 'services', 'ollama'] },
-  { id: 'network', label: 'Network & security', views: ['tls', 'traffic', 'security'] },
+  { id: 'network', label: 'Network & security', views: ['checks', 'tls', 'traffic', 'security'] },
   { id: 'storage', label: 'Storage', views: ['databases', 'backups'] },
-  { id: 'configuration', label: 'Settings', views: ['integrations', 'settings', 'troubleshooting'] },
+  { id: 'configuration', label: 'Settings', views: ['integrations', 'settings', 'notifications', 'troubleshooting'] },
 ];
 export const VIEWS = {
   discovery: ['Server overview', null], system: ['Resources', null], processes: ['Processes', null],
@@ -12,6 +12,7 @@ export const VIEWS = {
   ollama: ['Ollama', 'ollama'], tls: ['SSL certificates', 'tls'], traffic: ['Traffic', 'traffic'],
   security: ['Firewall & security', 'security'], databases: ['Databases', 'databases'], backups: ['Backups', 'backups'],
   integrations: ['Setup guides', null], settings: ['General', null], troubleshooting: ['Diagnostics', null],
+  checks: ['Availability checks', null], notifications: ['Notifications', null],
 };
 export function visibleViews(category, capabilities, hidden = []) {
   return category.views.filter(id => {
