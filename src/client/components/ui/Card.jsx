@@ -19,7 +19,7 @@ export function CardHeader({ className, children, ...props }) {
   return (
     <div
       className={cn(
-        'ops-card-header flex items-center justify-between border-b border-[var(--border-color)] px-4 py-3 bg-[var(--panel-alt)] theme-header',
+        'ops-card-header flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--panel-alt)] theme-header',
         className
       )}
       {...props}

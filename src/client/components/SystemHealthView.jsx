@@ -26,7 +26,7 @@ export function SystemHealthView({
   const swapPct = Number.isFinite(swap.usagePercent) ? swap.usagePercent : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <CollectionStatus collection={systemData?.collection} />
       {osUpdatesData?.available && osUpdatesData.pendingCount > 0 && (
         <Card>
@@ -55,17 +55,17 @@ export function SystemHealthView({
           { label: 'SYSTEM UPTIME', value: upt.uptimeText || '--', detail: upt.hostname || 'Server telemetry', icon: 'uptime', percent: upt.uptimeText ? 100 : 0, status: upt.uptimeText ? 'Live' : 'Awaiting sample' },
         ].map((metric) => <Card key={metric.label} className="ops-telemetry" style={{ '--meter': `${Math.max(0, Math.min(Number(metric.percent) || 0, 100))}%`, '--meter-color': metric.warning ? 'var(--warning)' : 'var(--accent)' }}>
           <CardContent>
-            <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="text-[10px] font-mono tracking-widest text-[var(--text-muted)] mb-3">{metric.label}</p><p className="text-[26px] font-bold tracking-tight leading-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{metric.value}</p></div><div className="ops-metric-icon shrink-0"><Icon name={metric.icon} /></div></div>
-            <div className="flex items-center justify-between gap-2 mt-6 text-[10px] font-mono"><span className="text-[var(--text-muted)]">{metric.detail}</span><span className={metric.warning ? 'text-amber-400' : 'text-[var(--accent)]'}>{metric.status}</span></div>
+            <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="text-[10px] font-mono tracking-widest text-[var(--text-muted)] mb-2">{metric.label}</p><p className="text-[22px] font-bold tracking-tight leading-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{metric.value}</p></div><div className="ops-metric-icon shrink-0"><Icon name={metric.icon} /></div></div>
+            <div className="flex items-center justify-between gap-2 mt-4 text-[10px] font-mono"><span className="text-[var(--text-muted)]">{metric.detail}</span><span className={metric.warning ? 'text-amber-400' : 'text-[var(--accent)]'}>{metric.status}</span></div>
           </CardContent>
         </Card>)}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
           <CardHeader><div><CardTitle>CPU Utilization Trends</CardTitle><p className="text-[11px] text-[var(--text-muted)] font-mono mt-1.5">Real-time utilization across {upt.cpus || '--'} CPU cores</p></div><Badge variant="ok">Live Feed</Badge></CardHeader>
-          <CardContent><div className="min-h-44 flex items-center"><Sparkline data={cpuHistory} width={700} height={180} strokeColor="var(--accent)" /></div><div className="flex justify-between border-t border-[var(--border-color)] pt-4 mt-3 text-[10px] font-mono text-[var(--text-muted)]"><span>Previous {cpuHistory.length} samples</span><span>Now</span></div></CardContent>
+          <CardContent><div className="min-h-28 flex items-center"><Sparkline data={cpuHistory} width={700} height={120} strokeColor="var(--accent)" /></div><div className="flex justify-between border-t border-[var(--border-color)] pt-3 mt-2 text-[10px] font-mono text-[var(--text-muted)]"><span>Previous {cpuHistory.length} samples</span><span>Now</span></div></CardContent>
         </Card>
-        <Card><CardHeader><CardTitle>Memory Allocation</CardTitle></CardHeader><CardContent className="space-y-6"><div className="space-y-2"><div className="flex justify-between text-xs font-mono"><span className="text-[var(--text-secondary)]">RAM</span><span className="text-[var(--accent)]">{memPct ?? '--'}%</span></div><ProgressBar value={memPct} variant="auto" /><p className="text-[10px] font-mono text-[var(--text-muted)]">{mem.formattedUsed || '--'} / {mem.formattedTotal || '--'}</p></div><div className="space-y-2"><div className="flex justify-between text-xs font-mono"><span className="text-[var(--text-secondary)]">SWAP</span><span className="text-[var(--accent)]">{swapPct ?? '--'}%</span></div><ProgressBar value={swapPct} variant="auto" /><p className="text-[10px] font-mono text-[var(--text-muted)]">{swap.formattedUsed || '--'} / {swap.formattedTotal || '--'}</p></div><div className="border-t border-[var(--border-color)] pt-4 font-mono text-[10px] text-[var(--text-muted)]">Resource usage from the latest server snapshot.</div></CardContent></Card>
+        <Card><CardHeader><CardTitle>Memory Allocation</CardTitle></CardHeader><CardContent className="space-y-4"><div className="space-y-2"><div className="flex justify-between text-xs font-mono"><span className="text-[var(--text-secondary)]">RAM</span><span className="text-[var(--accent)]">{memPct ?? '--'}%</span></div><ProgressBar value={memPct} variant="auto" /><p className="text-[10px] font-mono text-[var(--text-muted)]">{mem.formattedUsed || '--'} / {mem.formattedTotal || '--'}</p></div><div className="space-y-2"><div className="flex justify-between text-xs font-mono"><span className="text-[var(--text-secondary)]">SWAP</span><span className="text-[var(--accent)]">{swapPct ?? '--'}%</span></div><ProgressBar value={swapPct} variant="auto" /><p className="text-[10px] font-mono text-[var(--text-muted)]">{swap.formattedUsed || '--'} / {swap.formattedTotal || '--'}</p></div><div className="border-t border-[var(--border-color)] pt-4 font-mono text-[10px] text-[var(--text-muted)]">Resource usage from the latest server snapshot.</div></CardContent></Card>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
