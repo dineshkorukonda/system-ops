@@ -7,3 +7,5 @@ data/
 dist/
 go-collector/bin/
 artifacts/
+playwright-report/
+test-results/

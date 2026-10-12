@@ -178,26 +178,26 @@ export function SettingsView({ onBrandingChange }) {
         </CardHeader>
         <CardContent className="space-y-4 font-mono text-xs">
           <div className="space-y-1.5">
-            <label className="text-neutral-400 block">Site Name</label>
+            <label className="text-[var(--text-secondary)] block">Site Name</label>
             <input
               type="text"
               value={form.siteName}
               onChange={(e) => setForm({ ...form, siteName: e.target.value })}
               disabled={form.syncNameWithHostname}
               maxLength={64}
-              className="w-full h-9 rounded border border-[#262626] bg-[#0d0d0d] px-3 text-sm text-white outline-none focus:border-neutral-500 disabled:opacity-50 theme-input"
+              className="w-full h-9 rounded border border-[var(--border-color)] bg-[var(--card-bg)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-neutral-500 disabled:opacity-50 theme-input"
               placeholder="system-ops"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-neutral-400 block">Subtitle</label>
+            <label className="text-[var(--text-secondary)] block">Subtitle</label>
             <input
               type="text"
               value={form.siteSubtitle}
               onChange={(e) => setForm({ ...form, siteSubtitle: e.target.value })}
               maxLength={128}
-              className="w-full h-9 rounded border border-[#262626] bg-[#0d0d0d] px-3 text-sm text-white outline-none focus:border-neutral-500 theme-input"
+              className="w-full h-9 rounded border border-[var(--border-color)] bg-[var(--card-bg)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-neutral-500 theme-input"
               placeholder="Operations Console"
             />
           </div>
@@ -207,16 +207,16 @@ export function SettingsView({ onBrandingChange }) {
               type="checkbox"
               checked={form.syncNameWithHostname}
               onChange={(e) => setForm({ ...form, syncNameWithHostname: e.target.checked })}
-              className="rounded border-[#262626]"
+              className="rounded border-[var(--border-color)]"
             />
-            <span className="text-neutral-300">Sync site name with hostname</span>
+            <span className="text-[var(--text-secondary)]">Sync site name with hostname</span>
           </label>
 
-          <div className="rounded border border-[#1a1a1a] bg-[#050505] p-3 space-y-1">
-            <div className="text-neutral-500 text-[10px] uppercase tracking-wider">Preview</div>
-            <div className="text-white font-semibold">{previewName.toUpperCase()}</div>
-            <div className="text-neutral-400">{form.siteSubtitle}</div>
-            <div className="text-neutral-500 text-[10px] pt-1">Tab: {previewTitle}</div>
+          <div className="rounded border border-[var(--border-color)] bg-[var(--surface-muted)] p-3 space-y-1">
+            <div className="text-[var(--text-muted)] text-[10px] uppercase tracking-wider">Preview</div>
+            <div className="text-[var(--text-primary)] font-semibold">{previewName.toUpperCase()}</div>
+            <div className="text-[var(--text-secondary)]">{form.siteSubtitle}</div>
+            <div className="text-[var(--text-muted)] text-[10px] pt-1">Tab: {previewTitle}</div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -225,12 +225,12 @@ export function SettingsView({ onBrandingChange }) {
               size="sm"
               onClick={handleSave}
               disabled={isSaving}
-              className="font-mono text-[11px]"
+              className="font-mono text-xs"
             >
               {isSaving ? 'SAVING...' : 'SAVE CHANGES'}
             </Button>
             {saveMessage && (
-              <span className={`text-[11px] ${saveMessage.includes('saved') ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <span className={`text-xs ${saveMessage.includes('saved') ? 'text-[var(--success)]' : 'text-[var(--error)]'}`}>
                 {saveMessage}
               </span>
             )}
@@ -252,9 +252,9 @@ export function SettingsView({ onBrandingChange }) {
         </CardHeader>
         <CardContent className="space-y-4 font-mono text-xs">
           {(updateStatus?.running || updateInProgress) && !showUpdateResult && (
-            <div className="rounded border border-[#262626] bg-[#0a0a0a] p-3 space-y-1">
-              <div className="text-white text-sm font-medium">Updating…</div>
-              <p className="text-neutral-400 text-[11px] leading-relaxed">
+            <div className="rounded border border-[var(--border-color)] bg-[var(--card-bg)] p-3 space-y-1">
+              <div className="text-[var(--text-primary)] text-sm font-medium">Updating…</div>
+              <p className="text-[var(--text-secondary)] text-xs leading-relaxed">
                 Pulling code, rebuilding, and restarting the service. This page may stop responding for 30–60 seconds — keep this tab open.
               </p>
             </div>
@@ -264,8 +264,8 @@ export function SettingsView({ onBrandingChange }) {
             <div className="rounded border border-emerald-500/40 bg-emerald-500/10 p-4 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-emerald-400 text-sm font-semibold">Update complete</div>
-                  <p className="text-neutral-400 text-[11px] mt-1 leading-relaxed">
+                  <div className="text-[var(--success)] text-sm font-semibold">Update complete</div>
+                  <p className="text-[var(--text-secondary)] text-xs mt-1 leading-relaxed">
                     {updateStatus.message || 'The service has been restarted. Refresh this page to load the new version.'}
                   </p>
                 </div>
@@ -276,7 +276,7 @@ export function SettingsView({ onBrandingChange }) {
                   variant="secondary"
                   size="sm"
                   onClick={() => window.location.reload()}
-                  className="font-mono text-[11px]"
+                  className="font-mono text-xs"
                 >
                   REFRESH NOW
                 </Button>
@@ -287,7 +287,7 @@ export function SettingsView({ onBrandingChange }) {
                     setDismissedResultAt(updateStatus.finishedAt);
                     loadVersionInfo(true);
                   }}
-                  className="font-mono text-[11px]"
+                  className="font-mono text-xs"
                 >
                   DISMISS
                 </Button>
@@ -299,8 +299,8 @@ export function SettingsView({ onBrandingChange }) {
             <div className="rounded border border-rose-500/40 bg-rose-500/10 p-4 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-rose-400 text-sm font-semibold">Update failed</div>
-                  <p className="text-neutral-400 text-[11px] mt-1 leading-relaxed">
+                  <div className="text-[var(--error)] text-sm font-semibold">Update failed</div>
+                  <p className="text-[var(--text-secondary)] text-xs mt-1 leading-relaxed">
                     {updateStatus.message || 'Check the log below, fix any permission errors, then retry.'}
                   </p>
                 </div>
@@ -311,7 +311,7 @@ export function SettingsView({ onBrandingChange }) {
                   variant="outline"
                   size="sm"
                   onClick={() => setDismissedResultAt(updateStatus.finishedAt)}
-                  className="font-mono text-[11px]"
+                  className="font-mono text-xs"
                 >
                   DISMISS
                 </Button>
@@ -321,45 +321,45 @@ export function SettingsView({ onBrandingChange }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <div className="text-neutral-500 text-[10px] uppercase">Installed</div>
-              <div className="text-white text-sm font-semibold">v{versionInfo?.current || '—'}</div>
+              <div className="text-[var(--text-muted)] text-[10px] uppercase">Installed</div>
+              <div className="text-[var(--text-primary)] text-sm font-semibold">v{versionInfo?.current || '—'}</div>
               {versionInfo?.currentCommit && (
-                <div className="text-neutral-500 text-[10px] mt-0.5">{versionInfo.currentCommit}</div>
+                <div className="text-[var(--text-muted)] text-[10px] mt-0.5">{versionInfo.currentCommit}</div>
               )}
             </div>
             <div>
-              <div className="text-neutral-500 text-[10px] uppercase">Latest on main</div>
-              <div className="text-white text-sm font-semibold">
+              <div className="text-[var(--text-muted)] text-[10px] uppercase">Latest on main</div>
+              <div className="text-[var(--text-primary)] text-sm font-semibold">
                 {versionInfo?.latest ? `v${versionInfo.latest}` : '—'}
               </div>
               {versionInfo?.latestCommit && (
-                <div className="text-neutral-500 text-[10px] mt-0.5">{versionInfo.latestCommit}</div>
+                <div className="text-[var(--text-muted)] text-[10px] mt-0.5">{versionInfo.latestCommit}</div>
               )}
             </div>
           </div>
 
           {versionInfo?.source && !versionInfo?.checkError && (
-            <div className="text-neutral-500 text-[10px]">
+            <div className="text-[var(--text-muted)] text-[10px]">
               Checked via {versionInfo.source === 'github-release' ? 'GitHub release' : 'main branch'}
             </div>
           )}
 
           {versionInfo?.checkError && (
-            <div className="text-amber-400 text-[11px]">
+            <div className="text-[var(--warning)] text-xs">
               Could not check for updates: {versionInfo.checkError}
             </div>
           )}
 
           {versionInfo?.commitUpdate && !versionInfo?.versionUpdate && versionInfo?.updateAvailable && (
-            <div className="text-amber-400/90 text-[11px]">
+            <div className="text-[var(--warning)]/90 text-xs">
               New commits on main ({versionInfo.latestCommit}) — version unchanged, update recommended.
             </div>
           )}
 
           {versionInfo?.releaseNotes && versionInfo.updateAvailable && (
-            <div className="rounded border border-[#1a1a1a] bg-[#050505] p-3">
-              <div className="text-neutral-500 text-[10px] uppercase mb-1">Release Notes</div>
-              <pre className="text-neutral-300 whitespace-pre-wrap text-[11px] leading-relaxed">
+            <div className="rounded border border-[var(--border-color)] bg-[var(--surface-muted)] p-3">
+              <div className="text-[var(--text-muted)] text-[10px] uppercase mb-1">Release Notes</div>
+              <pre className="text-[var(--text-secondary)] whitespace-pre-wrap text-xs leading-relaxed">
                 {versionInfo.releaseNotes}
               </pre>
               {versionInfo.releaseUrl && (
@@ -367,7 +367,7 @@ export function SettingsView({ onBrandingChange }) {
                   href={versionInfo.releaseUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-400 hover:underline text-[11px] mt-2 inline-block"
+                  className="text-[var(--accent)] hover:underline text-xs mt-2 inline-block"
                 >
                   View on GitHub
                 </a>
@@ -381,7 +381,7 @@ export function SettingsView({ onBrandingChange }) {
               size="sm"
               onClick={() => loadVersionInfo(true)}
               disabled={isCheckingVersion}
-              className="font-mono text-[11px]"
+              className="font-mono text-xs"
             >
               {isCheckingVersion ? 'CHECKING...' : 'CHECK FOR UPDATES'}
             </Button>
@@ -392,7 +392,7 @@ export function SettingsView({ onBrandingChange }) {
                 size="sm"
                 onClick={() => setShowUpdateModal(true)}
                 disabled={updateStatus?.running}
-                className="font-mono text-[11px]"
+                className="font-mono text-xs"
               >
                 {updateStatus?.running ? 'UPDATING...' : versionInfo?.updateAvailable ? 'UPDATE NOW' : 'REINSTALL / SYNC'}
               </Button>
@@ -400,31 +400,31 @@ export function SettingsView({ onBrandingChange }) {
           </div>
 
           {versionInfo?.installType === 'docker' && (
-            <div className="text-neutral-400 text-[11px] leading-relaxed">
-              Docker installs: run <code className="text-neutral-200">docker compose pull && docker compose up -d</code>.
+            <div className="text-[var(--text-secondary)] text-xs leading-relaxed">
+              Docker installs: run <code className="text-[var(--text-secondary)]">docker compose pull && docker compose up -d</code>.
               For automated image monitoring, consider Diun (notify-only) or WUD (semver-aware auto-update).
             </div>
           )}
 
-          <label className="flex items-center gap-2 cursor-pointer pt-2 border-t border-[#1a1a1a]">
+          <label className="flex items-center gap-2 cursor-pointer pt-2 border-t border-[var(--border-color)]">
             <input
               type="checkbox"
               checked={form.autoUpdateEnabled}
               onChange={(e) => setForm({ ...form, autoUpdateEnabled: e.target.checked })}
-              className="rounded border-[#262626]"
+              className="rounded border-[var(--border-color)]"
             />
-            <span className="text-neutral-300">Enable automatic daily updates (systemd timer)</span>
+            <span className="text-[var(--text-secondary)]">Enable automatic daily updates (systemd timer)</span>
           </label>
-          <div className="text-neutral-500 text-[10px]">
+          <div className="text-[var(--text-muted)] text-[10px]">
             Save settings to apply the auto-update timer change.
           </div>
 
           {updateStatus?.logTail && (
-            <div className="rounded border border-[#1a1a1a] bg-[#050505] p-3">
-              <div className="text-neutral-500 text-[10px] uppercase mb-1">
+            <div className="rounded border border-[var(--border-color)] bg-[var(--surface-muted)] p-3">
+              <div className="text-[var(--text-muted)] text-[10px] uppercase mb-1">
                 Update Log {updateStatus.running ? '(live)' : ''}
               </div>
-              <pre className="text-neutral-400 whitespace-pre-wrap text-[10px] leading-relaxed max-h-48 overflow-y-auto">
+              <pre className="text-[var(--text-secondary)] whitespace-pre-wrap text-[10px] leading-relaxed max-h-48 overflow-y-auto">
                 {updateStatus.logTail}
               </pre>
             </div>
@@ -440,28 +440,28 @@ export function SettingsView({ onBrandingChange }) {
               <CardTitle>Confirm Update</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 font-mono text-xs">
-              <p className="text-neutral-400 leading-relaxed">
+              <p className="text-[var(--text-secondary)] leading-relaxed">
                 This will pull the latest code, rebuild the frontend, and restart the service.
                 The dashboard will be offline for 30–60 seconds. Do not refresh the page — wait for the log to finish.
               </p>
               {!versionInfo?.updateAvailable && (
-                <p className="text-amber-400/90 text-[11px]">
+                <p className="text-[var(--warning)]/90 text-xs">
                   You are already up to date. Only use this to force a re-sync/rebuild.
                 </p>
               )}
               <div className="space-y-1.5">
-                <label className="text-neutral-400 block">Re-enter password to confirm</label>
+                <label className="text-[var(--text-secondary)] block">Re-enter password to confirm</label>
                 <input
                   type="password"
                   value={updatePassword}
                   onChange={(e) => setUpdatePassword(e.target.value)}
-                  className="w-full h-9 rounded border border-[#262626] bg-[#0d0d0d] px-3 text-sm text-white outline-none focus:border-neutral-500 theme-input"
+                  className="w-full h-9 rounded border border-[var(--border-color)] bg-[var(--card-bg)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-neutral-500 theme-input"
                   placeholder="Password"
                   autoFocus
                 />
               </div>
               {updateError && (
-                <div className="text-rose-400 text-[11px]">{updateError}</div>
+                <div className="text-[var(--error)] text-xs">{updateError}</div>
               )}
               <div className="flex gap-2">
                 <Button
@@ -469,7 +469,7 @@ export function SettingsView({ onBrandingChange }) {
                   size="sm"
                   onClick={handleStartUpdate}
                   disabled={isUpdating || !updatePassword}
-                  className="font-mono text-[11px]"
+                  className="font-mono text-xs"
                 >
                   {isUpdating ? 'STARTING...' : 'START UPDATE'}
                 </Button>
@@ -477,7 +477,7 @@ export function SettingsView({ onBrandingChange }) {
                   variant="outline"
                   size="sm"
                   onClick={() => { setShowUpdateModal(false); setUpdatePassword(''); setUpdateError(''); }}
-                  className="font-mono text-[11px]"
+                  className="font-mono text-xs"
                 >
                   CANCEL
                 </Button>

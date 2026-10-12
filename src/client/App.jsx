@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { DiscoveryView } from './components/DiscoveryView';
+import { TlsView } from './components/TlsView';
+import { CATEGORIES, VIEWS, visibleViews, routeFromHash } from './lib/navigation.mjs';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { SystemHealthView } from './components/SystemHealthView';
@@ -21,7 +24,10 @@ const MAX_HISTORY = 30;
 
 export function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
-  const [activeTab, setActiveTab] = useState(() => window.location.hash.startsWith('#pm2') ? 'pm2' : 'system');
+  const [activeTab, setActiveTab] = useState(() => routeFromHash(window.location.hash));
+  const [hiddenViews, setHiddenViews] = useState(() => { try { const value = JSON.parse(localStorage.getItem('ops_hidden_views') || '[]'); return Array.isArray(value) ? value.filter(id => Object.hasOwn(VIEWS,id)) : []; } catch { return []; } });
+  const navigate = id => { if (id !== activeTab) window.location.hash = id; setActiveTab(id); };
+  useEffect(() => { localStorage.setItem('ops_hidden_views',JSON.stringify(hiddenViews)); },[hiddenViews]);
   const [theme, setTheme] = useState(() => localStorage.getItem('ops_theme') || 'dark');
   const [refreshInterval, setRefreshInterval] = useState(10);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -102,7 +108,7 @@ export function App() {
   useEffect(() => {
     fetchBranding();
     checkAuth();
-    const onHash = () => { if (window.location.hash.startsWith('#pm2')) setActiveTab('pm2'); };
+    const onHash = () => setActiveTab(routeFromHash(window.location.hash));
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
@@ -228,7 +234,7 @@ export function App() {
     syncControllerRef.current = controller;
     setIsSyncing(true);
     const tab = activeTabRef.current;
-    const fetchers = { system: fetchSystemSnapshot, processes: fetchProcesses, docker: fetchDockerData,
+    const fetchers = { discovery: fetchCapabilities, tls: fetchSystemSnapshot, system: fetchSystemSnapshot, processes: fetchProcesses, docker: fetchDockerData,
       pm2: fetchPm2Data, services: fetchServices, ollama: fetchOllamaData, backups: fetchBackupData,
       traffic: fetchTrafficData, databases: fetchDatabaseData, security: fetchSecurityData,
       integrations: fetchCapabilities };
@@ -264,7 +270,7 @@ export function App() {
   }, [isAuthenticated, refreshInterval]);
   if (isAuthenticated === null) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black font-mono text-xs text-neutral-500 theme-bg">
+      <div className="flex min-h-screen items-center justify-center bg-black font-mono text-xs text-[var(--text-muted)] theme-bg">
         INITIALIZING SYSTEM-OPS...
       </div>
     );
@@ -296,10 +302,11 @@ export function App() {
   );
 
   return (
-    <div className="flex min-h-screen bg-[#000000] text-white theme-bg">
+    <div className="flex min-h-screen bg-[var(--bg-main)] text-[var(--text-primary)] theme-bg"><a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.getElementById('main-content').focus(); }}>Skip to content</a>
       <Sidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={navigate}
+        hiddenViews={hiddenViews}
         siteName={branding?.siteName || 'system-ops'}
         updateAvailable={updateAvailable}
         hostData={{ uptime: systemData?.uptime, processCount: processes.length }}
@@ -320,7 +327,7 @@ export function App() {
 
       <div className="flex flex-1 flex-col md:pl-64 min-w-0">
         <TopBar
-          activeTabTitle={tabTitles[activeTab] || 'Console'}
+          activeTabTitle={VIEWS[activeTab]?.[0] || 'Console'}
           siteSubtitle={branding?.siteSubtitle || 'Operations Console'}
           lastUpdated={lastUpdated}
           monitoringHealth={monitoringHealth}
@@ -334,8 +341,12 @@ export function App() {
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
         />
 
-        <main className="flex-1 p-4 md:p-6 max-w-[1600px] w-full mx-auto">
-          {viewErrors[activeTab] && <p role="alert" className="mb-4 text-sm text-amber-400">{viewErrors[activeTab]}</p>}
+        <main id="main-content" tabIndex={-1} className="flex-1 p-4 md:p-6 max-w-[1600px] w-full mx-auto">
+          {activeTab !== 'discovery' && <div className="view-heading"><div className="eyebrow">{CATEGORIES.find(category => category.views.includes(activeTab))?.label}</div><h1>{VIEWS[activeTab]?.[0]}</h1><nav className="category-tabs" aria-label="Category views">{visibleViews(CATEGORIES.find(category => category.views.includes(activeTab)), capabilities, hiddenViews).map(id => <button key={id} aria-current={id === activeTab ? 'page' : undefined} onClick={() => navigate(id)}>{VIEWS[id][0]}</button>)}</nav></div>}
+          {activeTab === 'discovery' && <DiscoveryView capabilities={capabilities} health={monitoringHealth} onNavigate={navigate} onChanged={fetchCapabilities} hiddenViews={hiddenViews} setHiddenViews={setHiddenViews} />}
+          {VIEWS[activeTab]?.[1] && !capabilities?.[VIEWS[activeTab][1]]?.enabled && <div className="setup-note"><strong>Monitoring is disabled</strong><span>Enable this source on the overview to collect data. Existing observations may be historical.</span><button onClick={() => navigate('discovery')}>Manage sources →</button></div>}
+          {activeTab === 'tls' && <TlsView systemData={systemData} />}
+          {(viewErrors[activeTab] || activeTab === 'discovery' && viewErrors.capabilities) && <p role="alert" className="mb-4 text-sm text-[var(--warning)]">{viewErrors[activeTab] || viewErrors.capabilities}</p>}
           {activeTab !== 'system' && collections[activeTab] && <div className="mb-4"><CollectionStatus collection={collections[activeTab]} /></div>}
           {activeTab === 'system' && (
             <SystemHealthView
@@ -354,10 +365,10 @@ export function App() {
               onRefresh={syncCurrentView}
             />
           )}
-          {activeTab === 'docker' && <DockerView dockerData={dockerData} onRefresh={syncCurrentView} />}
-          {activeTab === 'pm2' && <Pm2FleetView pm2Data={pm2Data} onRefresh={syncCurrentView} />}
-          {activeTab === 'services' && <ServicesView servicesData={servicesData} onRefresh={syncCurrentView} />}
-          {activeTab === 'ollama' && (
+          {activeTab === 'docker' && capabilities?.docker?.enabled && <DockerView dockerData={dockerData} onRefresh={syncCurrentView} />}
+          {activeTab === 'pm2' && capabilities?.pm2?.enabled && <Pm2FleetView pm2Data={pm2Data} onRefresh={syncCurrentView} />}
+          {activeTab === 'services' && capabilities?.systemd?.enabled && <ServicesView servicesData={servicesData} onRefresh={syncCurrentView} />}
+          {activeTab === 'ollama' && capabilities?.ollama?.enabled && (
             <OllamaView
               statusData={ollamaStatus}
               models={ollamaModels}
@@ -367,17 +378,17 @@ export function App() {
               onRefreshLogs={fetchOllamaLogs}
             />
           )}
-          {activeTab === 'backups' && (
+          {activeTab === 'backups' && capabilities?.backups?.enabled && (
             <BackupsView sources={backupSources} files={backupFiles} onRefreshFiles={syncCurrentView} />
           )}
-          {activeTab === 'traffic' && <TrafficAnalyticsView trafficData={trafficData} />}
-          {activeTab === 'databases' && <DatabasesView databaseData={databaseData} />}
-          {activeTab === 'security' && (
+          {activeTab === 'traffic' && capabilities?.traffic?.enabled && <TrafficAnalyticsView trafficData={trafficData} />}
+          {activeTab === 'databases' && capabilities?.databases?.enabled && <DatabasesView databaseData={databaseData} />}
+          {activeTab === 'security' && capabilities?.security?.enabled && (
             <SecurityView securityData={securityData} certbotData={certbotData} />
           )}
           {activeTab === 'troubleshooting' && <TroubleshootingView capabilities={capabilities} />}
           {activeTab === 'integrations' && (
-            <IntegrationsView capabilities={capabilities} onNavigate={(tabId) => setActiveTab(tabId)} />
+            <IntegrationsView capabilities={capabilities} onNavigate={navigate} onChanged={fetchCapabilities} />
           )}
           {activeTab === 'settings' && <SettingsView onBrandingChange={handleBrandingChange} />}
         </main>

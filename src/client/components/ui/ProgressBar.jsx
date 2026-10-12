@@ -24,7 +24,7 @@ export function ProgressBar({ value = 0, variant = 'default', className }) {
   return (
     <div
       className={cn(
-        'h-1.5 w-full overflow-hidden rounded-full bg-[#1c1c1c]',
+        'h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-muted)]',
         className
       )}
     >

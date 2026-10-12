@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Badge } from './ui/Badge';
 
-function useClock() {
+export function useClock() {
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     const update = () => { if (!document.hidden) setNow(Date.now()); };
@@ -36,11 +36,11 @@ export function CollectionStatus({ collection }) {
   const status = collection?.status === 'healthy' && !isFresh(collection, now)
     ? 'stale' : collection?.status || 'collecting';
   return (
-    <div role="status" className="flex flex-wrap items-center gap-2 font-mono text-xs text-neutral-400">
+    <div role="status" className="flex flex-wrap items-center gap-2 font-mono text-xs text-[var(--text-secondary)]">
       <Badge variant={status === 'healthy' ? 'ok' : 'warn'}>{status}</Badge>
       <span>{collection?.source || 'Waiting for first collection'}</span>
       <span>{age === null ? 'No successful sample yet' : `Last successful sample ${age}s ago`}</span>
-      {collection?.lastError && <span className="text-amber-400">{collection.lastError}</span>}
+      {collection?.lastError && <span className="text-[var(--warning)]">{collection.lastError}</span>}
     </div>
   );
 }

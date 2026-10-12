@@ -54,14 +54,14 @@ export function LoginView({ branding, onLoginSuccess }) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-black p-4 theme-bg">
+    <div className="flex min-h-screen items-center justify-center bg-[var(--bg-main)] p-4 theme-bg">
       <div className="w-full max-w-sm">
-        <Card className="border-[#262626] bg-[#080808] shadow-2xl">
-          <div className="p-6 text-center space-y-1.5 border-b border-[#1a1a1a] theme-header">
-            <h2 className="font-mono text-base font-bold tracking-tight text-white">
+        <Card className="border-[var(--border-color)] bg-[var(--card-bg)] shadow-2xl">
+          <div className="p-6 text-center space-y-1.5 border-b border-[var(--border-color)] theme-header">
+            <h2 className="font-mono text-base font-bold tracking-tight text-[var(--text-primary)]">
               {siteName.toUpperCase()}
             </h2>
-            <p className="text-xs text-neutral-400">
+            <p className="text-xs text-[var(--text-secondary)]">
               {siteSubtitle}
             </p>
           </div>
@@ -69,7 +69,7 @@ export function LoginView({ branding, onLoginSuccess }) {
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="block font-mono text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+                <label className="block font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                   Access Password
                 </label>
                 <input
@@ -79,12 +79,12 @@ export function LoginView({ branding, onLoginSuccess }) {
                   placeholder="Enter console password..."
                   required
                   autoFocus
-                  className="w-full h-9 rounded border border-[#262626] bg-[#121212] px-3 font-mono text-xs text-white placeholder-neutral-600 outline-none hover:border-neutral-600 focus:border-neutral-300 theme-input"
+                  className="w-full h-9 rounded border border-[var(--border-color)] bg-[var(--card-bg)] px-3 font-mono text-xs text-[var(--text-primary)] placeholder-neutral-600 outline-none hover:border-neutral-600 focus:border-neutral-300 theme-input"
                 />
               </div>
 
               {error && (
-                <div className="rounded border border-rose-900/50 bg-rose-950/30 p-2.5 font-mono text-[11px] text-rose-400">
+                <div className="rounded border border-rose-900/50 bg-rose-950/30 p-2.5 font-mono text-xs text-[var(--error)]">
                   {error}
                 </div>
               )}
@@ -99,9 +99,9 @@ export function LoginView({ branding, onLoginSuccess }) {
             </form>
           </CardContent>
 
-          <div className="flex items-center justify-between border-t border-[#1a1a1a] bg-[#050505] px-6 py-3 font-mono text-[10px] text-neutral-500 theme-header">
+          <div className="flex items-center justify-between border-t border-[var(--border-color)] bg-[var(--surface-muted)] px-6 py-3 font-mono text-[10px] text-[var(--text-muted)] theme-header">
             <span>BINDING: 127.0.0.1:9080</span>
-            <span className="text-emerald-500 font-semibold">ENCRYPTED SESSION</span>
+            <span className="text-[var(--success)] font-semibold">ENCRYPTED SESSION</span>
           </div>
         </Card>
       </div>

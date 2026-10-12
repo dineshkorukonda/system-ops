@@ -5,7 +5,7 @@ export function Card({ className, children, ...props }) {
   return (
     <div
       className={cn(
-        'rounded-md border border-[#1f1f1f] bg-[#080808] text-white shadow-sm transition-colors theme-card',
+        'rounded-md border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] shadow-sm transition-colors theme-card',
         className
       )}
       {...props}
@@ -19,7 +19,7 @@ export function CardHeader({ className, children, ...props }) {
   return (
     <div
       className={cn(
-        'flex items-center justify-between border-b border-[#1a1a1a] px-4 py-3 bg-[#0d0d0d] theme-header',
+        'flex items-center justify-between border-b border-[var(--border-color)] px-4 py-3 bg-[var(--card-bg)] theme-header',
         className
       )}
       {...props}
@@ -33,7 +33,7 @@ export function CardTitle({ className, children, ...props }) {
   return (
     <h3
       className={cn(
-        'text-xs font-semibold uppercase tracking-wider text-neutral-300',
+        'text-sm font-semibold text-[var(--text-primary)]',
         className
       )}
       {...props}

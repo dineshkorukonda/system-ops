@@ -110,7 +110,7 @@ jobs:
           path: artifacts/collectors/
 
   pm2-fixture:
-    if: github.head_ref == 'fix/pm2-discovery' || github.head_ref == 'fix/consolidated-main' || github.event_name == 'workflow_dispatch'
+    if: github.head_ref == 'fix/pm2-discovery' || github.head_ref == 'fix/consolidated-main' || github.head_ref == 'fix/discovery-ui' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -124,3 +124,38 @@ jobs:
         with:
           name: pm2-fixture
           path: artifacts/pm2-fixture.json
+
+  browser-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci && npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:ui
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-regressions
+          path: |
+            playwright-report/
+            test-results/
+            artifacts/ui/
+
+  adapter-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: bash scripts/adapter-fixture.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: adapter-fixtures
+          path: artifacts/adapter-fixture.json

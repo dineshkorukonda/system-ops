@@ -1,95 +1,11 @@
 import React from 'react';
 import { Button } from './ui/Button';
 import { MonitoringStatus } from './CollectionStatus';
-
-export function TopBar({
-  activeTabTitle,
-  siteSubtitle = 'Operations Console',
-  lastUpdated,
-  monitoringHealth,
-  isSyncing,
-  onSync,
-  refreshInterval,
-  setRefreshInterval,
-  theme,
-  toggleTheme,
-  onLogout,
-  onOpenMobileMenu,
-}) {
-  return (
-    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-[#1f1f1f] bg-[#000000] px-4 md:px-6 theme-header">
-      {/* Left: Mobile Toggle & Breadcrumb */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onOpenMobileMenu}
-          className="flex h-8 w-8 items-center justify-center rounded border border-[#262626] text-xs font-mono md:hidden hover:bg-[#141414]"
-        >
-          MENU
-        </button>
-        <div className="flex items-center gap-2 text-xs">
-          <span className="font-semibold text-white tracking-tight">
-            {activeTabTitle}
-          </span>
-          <span className="font-mono text-neutral-500 text-[11px] hidden sm:inline truncate max-w-[200px]">
-            // {siteSubtitle.toUpperCase()}
-          </span>
-        </div>
-      </div>
-
-      {/* Right: Controls & Actions */}
-      <div className="flex items-center gap-2.5">
-        {/* Sync status */}
-        <div className="hidden sm:flex items-center gap-2 font-mono text-[11px] text-neutral-400 bg-[#0d0d0d] px-2.5 py-1 rounded border border-[#1f1f1f] theme-header">
-          <span>{lastUpdated ? lastUpdated.toLocaleTimeString() : '--:--:--'}</span>
-        </div>
-
-        <MonitoringStatus health={monitoringHealth} />
-
-        {/* Auto-refresh interval */}
-        <select
-          value={refreshInterval}
-          onChange={(e) => setRefreshInterval(Number(e.target.value))}
-          className="h-8 rounded border border-[#262626] bg-[#0d0d0d] px-2 font-mono text-xs text-neutral-300 outline-none hover:border-neutral-700 focus:border-neutral-400 theme-input"
-          title="Auto Refresh Rate"
-        >
-          <option value="10">10s</option>
-          <option value="30">30s</option>
-          <option value="60">60s</option>
-          <option value="0">Off</option>
-        </select>
-
-        {/* Manual Sync Button */}
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={onSync}
-          disabled={isSyncing}
-          className="font-mono text-[11px]"
-        >
-          {isSyncing ? 'SYNCING...' : 'SYNC'}
-        </Button>
-
-        {/* Pure Black / White Theme Toggle */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={toggleTheme}
-          className="font-mono text-[11px]"
-          title="Toggle Monochrome Theme"
-        >
-          {theme === 'dark' ? 'LIGHT' : 'DARK'}
-        </Button>
-
-        {/* Logout Button */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onLogout}
-          className="font-mono text-[11px] text-rose-400 hover:text-rose-300 border-rose-950/40 hover:bg-rose-950/20"
-        >
-          LOGOUT
-        </Button>
-      </div>
-    </header>
-  );
+export function TopBar({activeTabTitle,lastUpdated,monitoringHealth,isSyncing,onSync,refreshInterval,setRefreshInterval,theme,toggleTheme,onLogout,onOpenMobileMenu}) {
+  return <header className="app-topbar"><div className="topbar-left"><button className="mobile-menu" aria-label="Open navigation" onClick={onOpenMobileMenu}>☰</button><span className="breadcrumb">Workspace <span>/</span> <strong>{activeTabTitle}</strong></span></div>
+    <div className="topbar-actions"><MonitoringStatus health={monitoringHealth}/><span className="last-updated">{lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()}` : 'Awaiting sample'}</span>
+      <select aria-label="Refresh interval" value={refreshInterval} onChange={event => setRefreshInterval(Number(event.target.value))}><option value="10">10s</option><option value="30">30s</option><option value="60">60s</option><option value="0">Off</option></select>
+      <Button variant="secondary" disabled={isSyncing} onClick={onSync}>{isSyncing ? 'Refreshing…' : 'Refresh'}</Button>
+      <Button variant="outline" aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} onClick={toggleTheme}>{theme === 'dark' ? 'Light' : 'Dark'}</Button><Button variant="ghost" onClick={onLogout}>Log out</Button>
+    </div></header>;
 }
