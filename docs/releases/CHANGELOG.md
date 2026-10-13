@@ -19,7 +19,8 @@ All notable changes to system-ops are documented here.
 - Use the MIT-licensed UA Parser v1 line; dependency automation excludes its AGPL v2 line.
 
 ### Fixed
-- Compatible SPA fallback routing after the Express 5 upgrade, which otherwise prevented the console from starting.
+- Compatible SPA fallback routing and trusted asset roots after the Express 5 upgrade, which otherwise prevented startup and returned 404 from hidden updater staging directories.
+- Align React and React DOM after the React 19.3 update; group their future dependency updates to prevent incompatible runtime pairs.
 - Recovery now uses staged validation instead of resetting the checkout or clearing Git stashes.
 - Re-running the installer delegates to staged updates; local installs clone committed source instead of copying secrets or worktree pointers.
 - Synthetic benchmark logs rotate at a bounded byte limit during long runs.

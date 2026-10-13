@@ -104,7 +104,7 @@ app.get('/api/auth/status', (req, res) => {
 
 // Login Page Route
 app.get('/login.html', (req, res) => {
-  res.sendFile(path.join(distDir, 'index.html'));
+  res.sendFile('index.html', { root: distDir });
 });
 
 /**
@@ -491,12 +491,12 @@ app.post('/api/v2/system/update', (req, res) => {
  * Root Dashboard SPA
  */
 app.get('/', (req, res) => {
-  res.sendFile(path.join(staticDir, 'index.html'));
+  res.sendFile('index.html', { root: staticDir });
 });
 
 // Fallback for SPA routing
 app.get(/.*/, (req, res) => {
-  res.sendFile(path.join(staticDir, 'index.html'));
+  res.sendFile('index.html', { root: staticDir });
 });
 
 // Initialize Collectors & Start Server bound strictly to loopback IP
