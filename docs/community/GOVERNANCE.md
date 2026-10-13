@@ -12,6 +12,6 @@ The primary audience is an administrator of a single Ubuntu VPS. Existing integr
 
 ## Reviews and releases
 
-Require passing applicable checks and reviewable evidence. Keep changes focused; disclose skipped checks. Close issues after merged implementation and acceptance validation. Releases follow [RELEASING.md](docs/RELEASING.md). Production deployment remains an operator action.
+Require passing applicable checks and reviewable evidence. Keep changes focused; disclose skipped checks. Close issues after merged implementation and acceptance validation. Releases follow [RELEASING.md](../releases/RELEASING.md). Production deployment remains an operator action.
 
 Contributor status does not automatically confer write access. Additional maintainers may be invited based on sustained contributions and review experience, with responsibilities agreed publicly. No formal election or voting process currently exists.

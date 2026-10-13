@@ -12,6 +12,6 @@ Reports are handled on a best-effort basis with no guaranteed response time. The
 
 ## Deployment boundary
 
-The console uses a shared administrator password; it is not a multi-tenant service. Keep the default loopback binding and use HTTPS through a trusted reverse proxy. Set unique `APP_PASSWORD` and `SESSION_SECRET` values. Only configure `TRUST_PROXY` for proxies you control. Browser sessions expire and are revoked on restart; API passwords require rotation. See [authentication](docs/AUTHENTICATION.md).
+The console uses a shared administrator password; it is not a multi-tenant service. Keep the default loopback binding and use HTTPS through a trusted reverse proxy. Set unique `APP_PASSWORD` and `SESSION_SECRET` values. Only configure `TRUST_PROXY` for proxies you control. Browser sessions expire and are revoked on restart; API passwords require rotation. See [authentication](../docs/operations/AUTHENTICATION.md).
 
 Host monitoring requires access to selected logs and commands. Docker socket access carries elevated host privileges. Review sudoers changes before installation and do not grant arbitrary passwordless shells to the service account. Keep backups of persistent data before updates; future schema changes may restrict rollback. GitHub Actions do not deploy to your production host.

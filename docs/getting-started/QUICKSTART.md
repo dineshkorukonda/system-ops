@@ -36,4 +36,4 @@ sudo journalctl -u system-ops.service -n 50 --no-pager
 
 `/ready` may return 503 during initial collection. A healthy response means enabled critical collectors have recent samples; it does not mean every monitored service is healthy. Start with detected sources, enable the integrations you need, and check diagnostics for missing permissions.
 
-Next: [configuration](CONFIGURATION.md), [updates and recovery](UPDATES.md), or [troubleshooting](TROUBLESHOOTING.md).
+Next: [configuration](CONFIGURATION.md), [updates and recovery](../operations/UPDATES.md), or [troubleshooting](TROUBLESHOOTING.md).

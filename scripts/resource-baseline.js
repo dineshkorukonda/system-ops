@@ -7,14 +7,12 @@ const net = require('node:net');
 const { spawn, execFileSync } = require('node:child_process');
 const { performance } = require('node:perf_hooks');
 const { once } = require('node:events');
-const http = require('node:http');
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const seconds = Number(process.env.BASELINE_SECONDS || 120);
 const warmup = Number(process.env.BASELINE_WARMUP_SECONDS || 20);
 const scenarios = (process.env.BASELINE_SCENARIOS || 'idle,viewers,traffic,rotation,failing-integrations').split(',');
 const logMaxBytes = Number(process.env.BASELINE_LOG_MAX_BYTES || 64 * 1024 * 1024);
-const observerPort = process.env.BASELINE_OBSERVER_PORT ? Number(process.env.BASELINE_OBSERVER_PORT) : null;
 const quantile = (values, q) => values.length ? [...values].sort((a, b) => a - b)[Math.floor((values.length - 1) * q)] : null;
 
 // Synthetic soak traffic must not fill the reference host's disk. Retain only
@@ -32,19 +30,6 @@ function appendBaselineLog(filename, batch, state, maxBytes, forceRotate = false
   fs.appendFileSync(filename, batch); state.bytes += size;
 }
 
-async function readinessGateway(target, port) {
-  const server = http.createServer(async (req, res) => {
-    if (req.method !== 'GET' || req.url !== '/ready') {res.writeHead(404);res.end();return;}
-    try {
-      const response = await fetch(target + '/ready', {signal:AbortSignal.timeout(2000),redirect:'manual'});
-      await response.body?.cancel();
-      res.writeHead(response.ok ? 200 : 503, {'Content-Type':'application/json'});
-      res.end(JSON.stringify({ok:response.ok}));
-    } catch {res.writeHead(503,{'Content-Type':'application/json'});res.end('{"ok":false}');}
-  });
-  await new Promise((resolve,reject) => {server.once('error',reject);server.listen(port,'127.0.0.1',resolve);});
-  return server;
-}
 
 function procSnapshot(rootPid, extraPids = []) {
   const all = new Map();
@@ -105,7 +90,6 @@ async function run(scenario, ticksPerSecond) {
   const request = (route, opts = {}) => fetch(base + route, { ...opts, signal: AbortSignal.timeout(10000) });
   let traffic;
   let viewers;
-  let gateway;
   try {
     let ready = false;
     for (let i = 0; i < 180; i++) {
@@ -119,7 +103,6 @@ async function run(scenario, ticksPerSecond) {
     // The workload can exceed browser sessions' eight-hour lifetime. The
     // isolated API credential remains valid for the entire measurement.
     const headers = {Authorization:`Bearer ${password}`};
-    if (observerPort) gateway = await readinessGateway(base, observerPort);
     const latencies = [];
     let errors = 0;
     let requests = 0;
@@ -186,7 +169,6 @@ async function run(scenario, ticksPerSecond) {
         'Fixtures exercise API viewers, not browser rendering. This is not an availability or SLO measurement.'] };
   } finally {
     clearInterval(traffic); clearInterval(viewers);
-    if (gateway) {gateway.closeAllConnections();await new Promise(resolve=>gateway.close(resolve));}
     if (goChild && goChild.exitCode === null) { const done = once(goChild, 'exit'); goChild.kill('SIGKILL'); await done; }
     if (child.exitCode === null) { const done = once(child, 'exit'); child.kill('SIGTERM');
       const timer = setTimeout(() => child.kill('SIGKILL'), 10000); await done; clearTimeout(timer); }
@@ -198,7 +180,6 @@ async function main() {
   if (process.platform !== 'linux') throw new Error('Run this benchmark on Linux; Windows results cannot stand in for Ubuntu.');
   if (!Number.isFinite(seconds) || seconds < 1 || !Number.isFinite(warmup) || warmup < 0) throw new Error('Invalid measurement duration');
   if (!Number.isFinite(logMaxBytes) || logMaxBytes < 1024 * 1024) throw new Error('Baseline log limit must be at least 1 MiB');
-  if (observerPort && (!Number.isInteger(observerPort) || observerPort < 1 || observerPort > 65535 || scenarios.length !== 1)) throw new Error('Observer gateway requires one scenario and a valid port');
   const allowed = new Set(['idle', 'viewers', 'traffic', 'rotation', 'failing-integrations']);
   if (scenarios.some(name => !allowed.has(name))) throw new Error('Unknown workload');
   const report = { schemaVersion: 1, startedAt: new Date().toISOString(),
@@ -217,4 +198,4 @@ async function main() {
 }
 
 if (require.main === module) main().catch(error => { console.error(error); process.exitCode = 1; });
-module.exports = { procSnapshot, quantile, appendBaselineLog, readinessGateway };
+module.exports = { procSnapshot, quantile, appendBaselineLog };

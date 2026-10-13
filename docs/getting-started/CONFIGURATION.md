@@ -29,12 +29,12 @@ sudo systemctl restart system-ops.service
 
 ## Integration settings
 
-`SYSTEMD_UNITS`, `DISK_PATHS`, `TLS_HOSTS`, `LOG_SOURCES`, `BACKUPS_DIR`, `NGINX_LOG_PATH`, and `TRACKED_DOMAINS` select data sources. PM2 discovery supports configured users/homes/binaries and a restricted native helper. Docker needs an accessible CLI and local socket. Read [integration discovery](INTEGRATIONS.md) and [PM2 monitoring](PM2-MONITORING.md) before broadening permissions.
+`SYSTEMD_UNITS`, `DISK_PATHS`, `TLS_HOSTS`, `LOG_SOURCES`, `BACKUPS_DIR`, `NGINX_LOG_PATH`, and `TRACKED_DOMAINS` select data sources. PM2 discovery supports configured users/homes/binaries and a restricted native helper. Docker needs an accessible CLI and local socket. Read [integration discovery](../operations/INTEGRATIONS.md) and [PM2 monitoring](../operations/PM2-MONITORING.md) before broadening permissions.
 
 Availability checks and integration enablement are configured through Settings; persistent settings may override initial defaults. Optional absence is different from a failing configured source. Use diagnostics and collector status to distinguish them.
 
 ## Notifications and persistence
 
-Set `SYSTEM_OPS_WEBHOOK_URL` and, where needed, `SYSTEM_OPS_WEBHOOK_TOKEN` for alerts. The receiver must deduplicate stable idempotency keys. Keep destinations/tokens private. See [checks and alerts](CHECKS-ALERTS-AND-METRICS.md).
+Set `SYSTEM_OPS_WEBHOOK_URL` and, where needed, `SYSTEM_OPS_WEBHOOK_TOKEN` for alerts. The receiver must deduplicate stable idempotency keys. Keep destinations/tokens private. See [checks and alerts](../operations/CHECKS-ALERTS-AND-METRICS.md).
 
 Keep the data directory on persistent storage and back it up before upgrades. SQLite history is bounded by retention settings; backup dump files are separate operator-managed data. In Compose, use the named volume and explicit mounts for host files. Do not reuse production data in tests.

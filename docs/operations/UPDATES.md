@@ -21,7 +21,7 @@ sudo journalctl -u system-ops.service -n 100 --no-pager
 curl -i http://127.0.0.1:9080/ready
 ```
 
-An old installation with a broken dashboard launcher needs an initial SSH update. See [atomic releases](ATOMIC-RELEASES.md) for the one-time permission/wrapper repair and custom-port readiness configuration.
+An old installation with a broken dashboard launcher needs an initial SSH update. See [atomic releases](../releases/ATOMIC-RELEASES.md) for the one-time permission/wrapper repair and custom-port readiness configuration.
 
 Rollback preserves shared data; it cannot undo an incompatible schema migration. Future schema changes need explicit backup/rollback instructions. The current helper retains release directories rather than deleting them automatically.
 
@@ -34,4 +34,4 @@ git pull --ff-only
 docker compose --env-file .env.docker up -d --build
 ```
 
-Record the previous image/source revision so you can recreate it if needed. The default container does not support the native dashboard updater. See [installation limits](INSTALLATION.md).
+Record the previous image/source revision so you can recreate it if needed. The default container does not support the native dashboard updater. See [installation limits](../getting-started/INSTALLATION.md).

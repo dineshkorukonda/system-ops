@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # System Ops interactive installer for Ubuntu / Debian.
-# Resource use depends on enabled integrations; see docs/RESOURCE-BASELINE.md.
+# Resource use depends on enabled integrations; see docs/releases/RESOURCE-BASELINE.md.
 #
 # Run with:
 #   curl -sSL https://raw.githubusercontent.com/dineshkorukonda/system-ops/main/scripts/install.sh | bash

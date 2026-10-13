@@ -18,7 +18,7 @@ const website = `release-artifacts/${prefix}-website.tar.gz`;
 execFileSync('git',['archive','--format=tar.gz',`--prefix=${prefix}/`,`--output=${source}`,'HEAD']);
 execFileSync('tar',['-czf',website,'-C','web','.']);
 const metadata = `release-artifacts/${prefix}-metadata.json`;
-fs.writeFileSync(metadata,JSON.stringify({version:pkg.version,revision,node:process.version,createdAt:new Date().toISOString(),artifacts:[path.basename(source),path.basename(website)],deployment:'Source and static website; no production deployment or npm publication.',limitations:'Native updater follows main. See docs/RELIABILITY-EVIDENCE.md for acceptance gates.'},null,2)+'\n');
+fs.writeFileSync(metadata,JSON.stringify({version:pkg.version,revision,node:process.version,createdAt:new Date().toISOString(),artifacts:[path.basename(source),path.basename(website)],deployment:'Source and static website; no production deployment or npm publication.',limitations:'Native updater follows main. See docs/releases/RELIABILITY-EVIDENCE.md for acceptance gates.'},null,2)+'\n');
 const hashes = [source,website,metadata].map(filename => `${crypto.createHash('sha256').update(fs.readFileSync(filename)).digest('hex')}  ${path.basename(filename)}`).join('\n');
 fs.writeFileSync(`release-artifacts/${prefix}-SHA256SUMS`,hashes+'\n');
 console.log(`Packaged revision ${revision} in release-artifacts/.`);

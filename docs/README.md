@@ -4,35 +4,35 @@ System Ops brings host resources, runtime inventory, logs, and optional monitori
 
 ## Start here
 
-- [Quick start](QUICKSTART.md): install and open the console.
-- [Installation](INSTALLATION.md): native Ubuntu/systemd, Docker, and deployment limits.
-- [Configuration](CONFIGURATION.md): credentials, binding, storage, and integrations.
-- [Troubleshooting](TROUBLESHOOTING.md): common permission, discovery, and update failures.
+- [Quick start](getting-started/QUICKSTART.md): install and open the console.
+- [Installation](getting-started/INSTALLATION.md): native Ubuntu/systemd, Docker, and deployment limits.
+- [Configuration](getting-started/CONFIGURATION.md): credentials, binding, storage, and integrations.
+- [Troubleshooting](getting-started/TROUBLESHOOTING.md): common permission, discovery, and update failures.
 
 ## Operate
 
-- [Authentication](AUTHENTICATION.md)
-- [Integration discovery](INTEGRATIONS.md)
-- [PM2 monitoring](PM2-MONITORING.md)
-- [Discovery and navigation](DISCOVERY-AND-UI.md)
-- [Availability checks, alerts, and metrics](CHECKS-ALERTS-AND-METRICS.md)
-- [Persistent history and incidents](DURABLE-MONITORING.md)
-- [Traffic retention](TRAFFIC-RETENTION.md)
-- [Updates and recovery](UPDATES.md)
-- [Atomic release details](ATOMIC-RELEASES.md)
-- [API overview](API.md)
+- [Authentication](operations/AUTHENTICATION.md)
+- [Integration discovery](operations/INTEGRATIONS.md)
+- [PM2 monitoring](operations/PM2-MONITORING.md)
+- [Discovery and navigation](operations/DISCOVERY-AND-UI.md)
+- [Availability checks, alerts, and metrics](operations/CHECKS-ALERTS-AND-METRICS.md)
+- [Persistent history and incidents](operations/DURABLE-MONITORING.md)
+- [Traffic retention](operations/TRAFFIC-RETENTION.md)
+- [Updates and recovery](operations/UPDATES.md)
+- [Atomic release details](releases/ATOMIC-RELEASES.md)
+- [API overview](development/API.md)
 
 ## Develop and contribute
 
-- [Contributing](../CONTRIBUTING.md)
-- [Architecture](ARCHITECTURE.md)
-- [Collector ownership](COLLECTOR-OWNERSHIP.md)
-- [Collector scheduling](COLLECTOR-SCHEDULING.md)
-- [Release process](RELEASING.md)
-- [Publish the public site](PUBLIC-SITE.md)
-- [Resource measurements](RESOURCE-BASELINE.md)
-- [Reliability evidence](RELIABILITY-EVIDENCE.md)
-- [Support](../SUPPORT.md), [security](../SECURITY.md), and [governance](../GOVERNANCE.md)
+- [Contributing](../.github/CONTRIBUTING.md)
+- [Architecture](development/ARCHITECTURE.md)
+- [Collector ownership](development/COLLECTOR-OWNERSHIP.md)
+- [Collector scheduling](development/COLLECTOR-SCHEDULING.md)
+- [Release process](releases/RELEASING.md)
+- [Publish the public site](development/PUBLIC-SITE.md)
+- [Resource measurements](releases/RESOURCE-BASELINE.md)
+- [Reliability evidence](releases/RELIABILITY-EVIDENCE.md)
+- [Support](../.github/SUPPORT.md), [security](../.github/SECURITY.md), and [governance](community/GOVERNANCE.md)
 
 The public site renders these maintained Markdown sources. Run `npm run docs:build` before publishing `web/`. Historical planning files under `docs/superpowers/` are design records, not current installation instructions.
 

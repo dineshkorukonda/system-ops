@@ -7,17 +7,17 @@
     "node": ">=24.0.0 <25"
   },
   "scripts": {
-    "build": "vite build",
+    "build": "vite build --config config/vite.config.mjs",
     "start": "node src/start.js",
     "dev": "node --watch src/server.js",
     "test": "node --test tests/*.test.js",
     "test:smoke": "node scripts/runtime-smoke.js",
-    "typecheck": "tsc -p tsconfig.collectors.json",
-    "test:ui": "playwright test",
+    "typecheck": "tsc -p config/tsconfig.collectors.json",
+    "test:ui": "playwright test -c config/playwright.config.cjs",
     "docs:build": "node scripts/build-site.mjs",
     "docs:check": "node scripts/check-docs.mjs",
     "site:dev": "node scripts/serve-site.mjs",
-    "test:site": "playwright test -c playwright.site.config.cjs",
+    "test:site": "playwright test -c config/playwright.site.config.cjs",
     "licenses:report": "node scripts/license-report.mjs",
     "release:pack": "node scripts/package-release.mjs"
   },

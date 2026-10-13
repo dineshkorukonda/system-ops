@@ -2,7 +2,7 @@
 
 **A clearer view of your VPS.** Self-hosted operations console for a single Ubuntu host: resources, runtime inventory, logs, availability checks, and optional integrations in one place.
 
-[Website](https://system-ops.dineshkorukonda.online/) · [Documentation](docs/README.md) · [Get started](docs/QUICKSTART.md) · [Support](SUPPORT.md) · [Contribute](CONTRIBUTING.md)
+[Website](https://system-ops.dineshkorukonda.online/) · [Documentation](docs/README.md) · [Get started](docs/getting-started/QUICKSTART.md) · [Support](.github/SUPPORT.md) · [Contribute](.github/CONTRIBUTING.md)
 
 [![CI](https://github.com/dineshkorukonda/system-ops/actions/workflows/ci.yml/badge.svg)](https://github.com/dineshkorukonda/system-ops/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-55d889)](LICENSE)
@@ -20,7 +20,7 @@
 - **Checks and alerts:** HTTP/TCP/external observations, persisted incidents/history, webhook delivery, and protected Prometheus metrics.
 - **Operator workflow:** detected sources, optional monitoring, diagnostics, themes, and staged native updates with readiness-gated rollback.
 
-Integration availability depends on your host and configuration. The console uses a shared administrator password. Backup listings do not prove restorability, and local checks cannot observe a complete outage of their own host. Resource use depends on enabled integrations; see [reproducible measurements](docs/RESOURCE-BASELINE.md).
+Integration availability depends on your host and configuration. The console uses a shared administrator password. Backup listings do not prove restorability, and local checks cannot observe a complete outage of their own host. Resource use depends on enabled integrations; see [reproducible measurements](docs/releases/RESOURCE-BASELINE.md).
 
 ## Get started
 
@@ -32,7 +32,7 @@ less /tmp/system-ops-install.sh
 sudo bash /tmp/system-ops-install.sh
 ```
 
-The console binds to `127.0.0.1:9080` by default. Use an SSH tunnel or configure an HTTPS hostname. Follow the [quick start](docs/QUICKSTART.md) for access and verification.
+The console binds to `127.0.0.1:9080` by default. Use an SSH tunnel or configure an HTTPS hostname. Follow the [quick start](docs/getting-started/QUICKSTART.md) for access and verification.
 
 ### Docker
 
@@ -42,7 +42,7 @@ cp .env.docker.example .env.docker
 docker compose --env-file .env.docker up -d --build
 ```
 
-Docker includes the built UI and persistent data volume, with narrower host visibility. Its process metrics describe container `/proc`; host systemd/security commands, the Go sidecar, and native self-update are unavailable by default. Socket mounts alone do not install a Docker CLI. Read the [deployment comparison](docs/INSTALLATION.md).
+Docker includes the built UI and persistent data volume, with narrower host visibility. Its process metrics describe container `/proc`; host systemd/security commands, the Go sidecar, and native self-update are unavailable by default. Socket mounts alone do not install a Docker CLI. Read the [deployment comparison](docs/getting-started/INSTALLATION.md).
 
 ## Update and recover
 
@@ -51,7 +51,7 @@ sudo bash /opt/system-ops/scripts/deploy.sh
 sudo bash /opt/system-ops/scripts/recover.sh  # If an update needs recovery.
 ```
 
-The native updater follows `main`. Settings → Update now uses a separate background worker where configured. Keep SSH access and data backups; see [updates and recovery](docs/UPDATES.md) and [release validation](docs/RELIABILITY-EVIDENCE.md).
+The native updater follows `main`. Settings → Update now uses a separate background worker where configured. Keep SSH access and data backups; see [updates and recovery](docs/operations/UPDATES.md) and [release validation](docs/releases/RELIABILITY-EVIDENCE.md).
 
 ## Development
 
@@ -64,12 +64,12 @@ npm run build
 npm start             # http://127.0.0.1:9080
 ```
 
-For checks and frontend hot reload, see [CONTRIBUTING.md](CONTRIBUTING.md). Build the public docs with `npm run docs:build`; preview with `npm run site:dev`. Source documentation lives in `docs/`, and the marketing site lives in `web/`.
+For checks and frontend hot reload, see [CONTRIBUTING.md](.github/CONTRIBUTING.md). Build the public docs with `npm run docs:build`; preview with `npm run site:dev`. Source documentation lives in `docs/`, and the marketing site lives in `web/`.
 
 ## Community
 
-Ask questions in [Discussions](https://github.com/dineshkorukonda/system-ops/discussions), report reproducible defects with the [issue forms](https://github.com/dineshkorukonda/system-ops/issues/new/choose), and report vulnerabilities [privately](SECURITY.md). Support is best effort. Contributions follow the [contribution guide](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md), and [governance policy](GOVERNANCE.md).
+Ask questions in [Discussions](https://github.com/dineshkorukonda/system-ops/discussions), report reproducible defects with the [issue forms](https://github.com/dineshkorukonda/system-ops/issues/new/choose), and report vulnerabilities [privately](.github/SECURITY.md). Support is best effort. Contributions follow the [contribution guide](.github/CONTRIBUTING.md), [Code of Conduct](.github/CODE_OF_CONDUCT.md), and [governance policy](docs/community/GOVERNANCE.md).
 
-[Changelog](CHANGELOG.md) · [Reliability roadmap](https://github.com/dineshkorukonda/system-ops/issues/33) · [Third-party notices](THIRD_PARTY_NOTICES.md)
+[Changelog](docs/releases/CHANGELOG.md) · [Reliability roadmap](https://github.com/dineshkorukonda/system-ops/issues/33) · [Third-party notices](docs/community/THIRD_PARTY_NOTICES.md)
 
 MIT © 2026 Dinesh Korukonda. Dependencies retain their own licenses. See [LICENSE](LICENSE).

@@ -11,7 +11,10 @@ System Ops keeps React/Vite for the console and Express for the HTTP API. A coll
 - `src/services/`: persistent settings/history, checks, incidents, notifications, and updates.
 - `go-collector/`: optional host collector; Node remains the fallback.
 - `scripts/`, `systemd/`, `sudoers/`: installation, fixtures, and native deployment.
-- `web/`: public marketing assets; `docs/` and root community files are rendered into `web/docs/`.
+- `web/`: public marketing assets; `docs/` and `.github/` community files are rendered into `web/docs/`.
+- `config/`: Vite, Playwright, and collector TypeScript configuration; standard host discovery files stay at the root.
+
+Documentation is grouped under `docs/getting-started/`, `docs/operations/`, `docs/development/`, `docs/releases/`, `docs/community/`, and `docs/plans/`. GitHub-recognized contribution/support/security/conduct policies live in `.github/`. The root keeps README, LICENSE, and AGENTS as entry points.
 
 HTTP liveness and collection readiness are separate. Snapshot failures preserve last-good values and timestamps; missing data must remain unknown/stale. Read [collector ownership](COLLECTOR-OWNERSHIP.md) and [scheduling](COLLECTOR-SCHEDULING.md) before adding a collector.
 

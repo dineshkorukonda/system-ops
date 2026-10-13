@@ -37,4 +37,4 @@ Mounting `/host/proc` does not make current collectors read the host's metrics. 
 
 ## Development
 
-See [Contributing](../CONTRIBUTING.md) for local setup and checks. Use `npm ci` to install the locked dependency graph. Production startup rejects empty/example credentials; see [configuration](CONFIGURATION.md).
+See [Contributing](../../.github/CONTRIBUTING.md) for local setup and checks. Use `npm ci` to install the locked dependency graph. Production startup rejects empty/example credentials; see [configuration](CONFIGURATION.md).

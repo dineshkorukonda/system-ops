@@ -4,7 +4,7 @@ The console consumes authenticated JSON endpoints. This is a source-aligned over
 
 ## Authentication
 
-`POST /api/login` accepts JSON with `password` and issues a browser session cookie. `POST /api/logout` revokes that session. API callers may use `Authorization: Bearer APP_PASSWORD`; that password grants administrator access and must remain private. See [authentication](AUTHENTICATION.md).
+`POST /api/login` accepts JSON with `password` and issues a browser session cookie. `POST /api/logout` revokes that session. API callers may use `Authorization: Bearer APP_PASSWORD`; that password grants administrator access and must remain private. See [authentication](../operations/AUTHENTICATION.md).
 
 ## Public health
 
