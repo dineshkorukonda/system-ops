@@ -16,7 +16,7 @@ jobs:
         with:
           ref: ${{ inputs.tag }}
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -37,7 +37,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:site
       - run: npm run release:pack
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-package
           path: release-artifacts/
