@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    ignore:
+      # v2 changes to AGPL; upgrades need a deliberate licensing decision.
+      - dependency-name: ua-parser-js
+        versions: [">=2.0.0"]
+    groups:
+      development:
+        dependency-type: development
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+  - package-ecosystem: gomod
+    directory: /go-collector
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2

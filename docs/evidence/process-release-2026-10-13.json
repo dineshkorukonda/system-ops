@@ -1,0 +1,14 @@
+{
+  "platform": "linux",
+  "node": "v24.21.0",
+  "verified": [
+    "real production startup/readiness",
+    "atomic upgrade activation",
+    "failed readiness restores previous real process",
+    "interrupted upgrade journal recovery",
+    "shared data and prior assets preserved"
+  ],
+  "limitations": [
+    "No live systemd host was upgraded. Installer/account/sudoers permissions still require native-host verification."
+  ]
+}

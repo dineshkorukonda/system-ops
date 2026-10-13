@@ -26,7 +26,7 @@ const GUIDES = [
       'Install PM2: npm install -g pm2',
       'Start apps: pm2 start app.js && pm2 save',
       'Set users in .env: PM2_USERS=root (only users with PM2)',
-      'Configure /etc/system-ops/pm2-monitor.conf for cross-user monitoring (see docs/PM2-MONITORING.md).',
+      'Configure /etc/system-ops/pm2-monitor.conf for cross-user monitoring (see docs/operations/PM2-MONITORING.md).',
       'Verify: sudo bash /opt/system-ops/scripts/debug-pm2.sh',
     ],
     envVars: ['PM2_USERS=root', 'PM2_PATH_ROOT=/path/to/pm2'],

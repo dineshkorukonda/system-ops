@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and support
+    url: https://github.com/dineshkorukonda/system-ops/discussions
+    about: Ask setup and usage questions in Discussions.
+  - name: Security vulnerability
+    url: https://github.com/dineshkorukonda/system-ops/security/advisories/new
+    about: Report vulnerabilities privately. Do not post exploit details in public issues.

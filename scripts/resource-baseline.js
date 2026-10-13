@@ -12,7 +12,24 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const seconds = Number(process.env.BASELINE_SECONDS || 120);
 const warmup = Number(process.env.BASELINE_WARMUP_SECONDS || 20);
 const scenarios = (process.env.BASELINE_SCENARIOS || 'idle,viewers,traffic,rotation,failing-integrations').split(',');
+const logMaxBytes = Number(process.env.BASELINE_LOG_MAX_BYTES || 64 * 1024 * 1024);
 const quantile = (values, q) => values.length ? [...values].sort((a, b) => a - b)[Math.floor((values.length - 1) * q)] : null;
+
+// Synthetic soak traffic must not fill the reference host's disk. Retain only
+// the active log and one rotated file, and record every rotation in the report.
+function appendBaselineLog(filename, batch, state, maxBytes, forceRotate = false) {
+  const size = Buffer.byteLength(batch);
+  if (!Number.isFinite(maxBytes) || maxBytes < 1 || size > maxBytes) throw new Error('Invalid baseline log byte limit');
+  if (forceRotate || state.bytes + size > maxBytes) {
+    const previous = filename + '.1';
+    if (fs.existsSync(previous)) fs.unlinkSync(previous);
+    fs.renameSync(filename, previous);
+    fs.writeFileSync(filename, '');
+    state.bytes = 0; state.rotations++;
+  }
+  fs.appendFileSync(filename, batch); state.bytes += size;
+}
+
 
 function procSnapshot(rootPid, extraPids = []) {
   const all = new Map();
@@ -83,7 +100,9 @@ async function run(scenario, ticksPerSecond) {
     if (!ready) throw new Error('Server did not start: ' + output);
     const login = await request('/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password }) });
     if (!login.ok) throw new Error('Fixture login failed');
-    const cookie = login.headers.get('set-cookie').split(';')[0];
+    // The workload can exceed browser sessions' eight-hour lifetime. The
+    // isolated API credential remains valid for the entire measurement.
+    const headers = {Authorization:`Bearer ${password}`};
     const latencies = [];
     let errors = 0;
     let requests = 0;
@@ -93,7 +112,7 @@ async function run(scenario, ticksPerSecond) {
       busy = true;
       try { await Promise.all(Array.from({ length: 5 }, async () => {
         const start = performance.now();
-        try { const res = await request('/api/v2/system/snapshot', { headers: { cookie } });
+        try { const res = await request('/api/v2/system/snapshot', { headers });
           await res.arrayBuffer(); requests++; if (!res.ok) errors++;
         } catch { errors++; }
         latencies.push(performance.now() - start);
@@ -102,21 +121,21 @@ async function run(scenario, ticksPerSecond) {
     if (scenario === 'viewers') viewers = setInterval(view, 5000);
     let lines = 0;
     let rotated = false;
+    const logState = { bytes: 0, rotations: 0 };
     if (['traffic', 'rotation'].includes(scenario)) traffic = setInterval(() => {
-      if (scenario === 'rotation' && !rotated && lines >= 5000) {
-        fs.renameSync(log, log + '.1'); fs.writeFileSync(log, ''); rotated = true;
-      }
+      const forceRotate = scenario === 'rotation' && !rotated && lines >= 5000;
       const batch = Array.from({ length: 1000 }, (_, i) => {
         const id = lines + i;
         return `10.${Math.floor(id / 65536) % 256}.${Math.floor(id / 256) % 256}.${id % 256} - - [10/Oct/2026:12:00:00 +0000] "GET /path/${id} HTTP/1.1" 200 128 "-" "baseline-agent/${id}" "baseline.local"\n`;
       }).join('');
-      fs.appendFileSync(log, batch); lines += 1000;
+      appendBaselineLog(log, batch, logState, logMaxBytes, forceRotate);
+      rotated = logState.rotations > 0; lines += 1000;
     }, 1000);
     await sleep(warmup * 1000);
-    const initial = await (await request('/api/v2/ops/diagnostics', { headers: { cookie } })).json();
+    const initial = await (await request('/api/v2/ops/diagnostics', { headers })).json();
     const samples = [];
     if (goMode) {
-      const res = await request('/api/v2/ops/diagnostics', { headers: { cookie } });
+      const res = await request('/api/v2/ops/diagnostics', { headers });
       if (!(await res.json()).goCollector.available) throw new Error('Go comparison would silently measure fallback; sidecar must be available');
     }
     let previous = procSnapshot(child.pid, goChild ? [goChild.pid] : []);
@@ -130,12 +149,18 @@ async function run(scenario, ticksPerSecond) {
       const deltaTicks = current.reduce((sum, proc) => sum + Math.max(0, proc.ticks - (old.get(proc.pid)?.ticks ?? proc.ticks)), 0);
       samples.push({ time: new Date().toISOString(), rssBytes: current.reduce((sum, proc) => sum + proc.rssBytes, 0),
         cpuOneCorePercent: 100 * deltaTicks / ticksPerSecond / ((now - previousTime) / 1000), processes: current });
+      if (process.env.BASELINE_PROGRESS_OUTPUT && samples.length % 60 === 0) {
+        const progressFile = path.resolve(process.env.BASELINE_PROGRESS_OUTPUT);
+        fs.mkdirSync(path.dirname(progressFile), {recursive:true});
+        fs.writeFileSync(progressFile + '.tmp', JSON.stringify({scenario,time:new Date().toISOString(),measuredSeconds:(now-start)/1000,samples:samples.length,generatedLogLines:lines,logRotations:logState.rotations}), {mode:0o600});
+        fs.renameSync(progressFile + '.tmp', progressFile);
+      }
       previous = current; previousTime = now;
     }
-    const final = await (await request('/api/v2/ops/diagnostics', { headers: { cookie } })).json();
-    const finalTraffic = await (await request('/api/v2/traffic/analytics', { headers: { cookie } })).json();
-    return { scenario, durationSeconds: (performance.now() - start) / 1000, generatedLogLines: lines, rotated,
-      summary: { rssMedianBytes: quantile(samples.map(s => s.rssBytes), .5), rssPeakBytes: Math.max(...samples.map(s => s.rssBytes)),
+    const final = await (await request('/api/v2/ops/diagnostics', { headers })).json();
+    const finalTraffic = await (await request('/api/v2/traffic/analytics', { headers })).json();
+    return { scenario, durationSeconds: (performance.now() - start) / 1000, generatedLogLines: lines, rotated, logRotations: logState.rotations,
+      summary: { rssMedianBytes: quantile(samples.map(s => s.rssBytes), .5), rssPeakBytes: samples.reduce((peak,s) => Math.max(peak,s.rssBytes),0),
         cpuAverageOneCorePercent: samples.reduce((sum, s) => sum + s.cpuOneCorePercent, 0) / samples.length,
         apiRequests: requests, apiErrors: errors, apiP95Ms: quantile(latencies, .95) },
       initialDiagnostics: initial, finalDiagnostics: final, traffic: { summary: finalTraffic.summary,
@@ -154,6 +179,7 @@ async function run(scenario, ticksPerSecond) {
 async function main() {
   if (process.platform !== 'linux') throw new Error('Run this benchmark on Linux; Windows results cannot stand in for Ubuntu.');
   if (!Number.isFinite(seconds) || seconds < 1 || !Number.isFinite(warmup) || warmup < 0) throw new Error('Invalid measurement duration');
+  if (!Number.isFinite(logMaxBytes) || logMaxBytes < 1024 * 1024) throw new Error('Baseline log limit must be at least 1 MiB');
   const allowed = new Set(['idle', 'viewers', 'traffic', 'rotation', 'failing-integrations']);
   if (scenarios.some(name => !allowed.has(name))) throw new Error('Unknown workload');
   const report = { schemaVersion: 1, startedAt: new Date().toISOString(),
@@ -161,7 +187,7 @@ async function main() {
     machine: { platform: process.platform, release: os.release(), arch: os.arch(), cpus: os.cpus().map(cpu => cpu.model),
       totalMemoryBytes: os.totalmem(), node: process.version, osRelease: fs.readFileSync('/etc/os-release', 'utf8') },
     configuration: { collector: process.env.BASELINE_COLLECTOR === 'go' ? 'node-and-go' : 'node-only', seconds, warmup, viewers: 5, trafficLinesPerSecond: 1000,
-      geoip: process.env.TRAFFIC_GEOIP === 'true', userAgent: process.env.TRAFFIC_PARSE_USER_AGENT === 'true' }, results: [] };
+      geoip: process.env.TRAFFIC_GEOIP === 'true', userAgent: process.env.TRAFFIC_PARSE_USER_AGENT === 'true', logMaxBytes }, results: [] };
   const ticks = Number(execFileSync('getconf', ['CLK_TCK'], { encoding: 'utf8' }).trim());
   for (const scenario of scenarios) { console.log('Measuring ' + scenario); report.results.push(await run(scenario, ticks)); }
   report.completedAt = new Date().toISOString();
@@ -172,4 +198,4 @@ async function main() {
 }
 
 if (require.main === module) main().catch(error => { console.error(error); process.exitCode = 1; });
-module.exports = { procSnapshot, quantile };
+module.exports = { procSnapshot, quantile, appendBaselineLog };

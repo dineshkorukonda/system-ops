@@ -1,141 +1,75 @@
-# system-ops
+# System Ops
 
-Self-hosted operations console for a single Ubuntu VPS. Resource use depends on enabled integrations and enrichment; reproduce measurements using [the Linux workload runner](docs/RESOURCE-BASELINE.md).
+**A clearer view of your VPS.** Self-hosted operations console for a single Ubuntu host: resources, runtime inventory, logs, availability checks, and optional integrations in one place.
 
-**Full docs and feature tour:** [system-ops.dineshkorukonda.online](https://system-ops.dineshkorukonda.online/)
+[Website](https://system-ops.dineshkorukonda.online/) · [Documentation](docs/README.md) · [Get started](docs/getting-started/QUICKSTART.md) · [Support](.github/SUPPORT.md) · [Contribute](.github/CONTRIBUTING.md)
 
----
+[![CI](https://github.com/dineshkorukonda/system-ops/actions/workflows/ci.yml/badge.svg)](https://github.com/dineshkorukonda/system-ops/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-55d889)](LICENSE)
+[![Node: 24](https://img.shields.io/badge/node-24-55d889)](package.json)
 
-## Features
+![System Ops console with disposable demonstration data](web/assets/console.png)
 
-| Area | What you get |
-|------|----------------|
-| **System health** | CPU/RAM/swap sparklines, disk meters, listening ports, TLS expiry |
-| **Services** | systemd fleet + live journalctl logs |
-| **Security** | UFW firewall rules and fail2ban banned IPs in plain language |
-| **Databases** | PostgreSQL, Redis, and MySQL reachability probes |
-| **Certbot** | Let's Encrypt certificate inventory and renewal hints |
-| **OS updates** | Pending apt package count banner |
-| **Backups** | PostgreSQL dump listing and log tailing (when configured) |
-| **Traffic** | Nginx access log analytics with GeoIP map |
-| **PM2 / Docker** | Optional fleet views when those runtimes are present |
-| **Self-update** | Pull latest from Settings, or run `deploy.sh` / `recover.sh` over SSH |
+*Actual interface with demonstration data, not a production health or performance claim.*
 
----
+## What you get
 
-## Install (recommended)
+- **Host visibility:** resources, processes, systemd inventory/journals, storage, and TLS expiry.
+- **Runtime monitoring:** optional PM2, Docker, Ollama, and database health views; detection and permissions remain visible.
+- **Traffic and backups:** bounded Nginx analytics, optional GeoIP enrichment, configured backup files/logs.
+- **Checks and alerts:** HTTP/TCP/external observations, persisted incidents/history, webhook delivery, and protected Prometheus metrics.
+- **Operator workflow:** detected sources, optional monitoring, diagnostics, themes, and staged native updates with readiness-gated rollback.
 
-One command on Ubuntu / Debian as root:
+Integration availability depends on your host and configuration. The console uses a shared administrator password. Backup listings do not prove restorability, and local checks cannot observe a complete outage of their own host. Resource use depends on enabled integrations; see [reproducible measurements](docs/releases/RESOURCE-BASELINE.md).
 
-```bash
-curl -sSL https://raw.githubusercontent.com/dineshkorukonda/system-ops/main/scripts/install.sh | bash
-```
+## Get started
 
-The installer prompts for your admin password, detects running services, generates secrets, builds the dashboard, and installs systemd units.
-
-Custom subdomain + HTTPS:
+Native Ubuntu/systemd is the primary host-monitoring deployment. The installer needs administrator access and an interactive terminal, installs Node.js 24, and configures the service account and selected read permissions. Review it before execution:
 
 ```bash
-sudo bash /opt/system-ops/scripts/setup-domain.sh ops.yourdomain.com admin@yourdomain.com
+curl -fsSL https://raw.githubusercontent.com/dineshkorukonda/system-ops/main/scripts/install.sh -o /tmp/system-ops-install.sh
+less /tmp/system-ops-install.sh
+sudo bash /tmp/system-ops-install.sh
 ```
 
----
+The console binds to `127.0.0.1:9080` by default. Use an SSH tunnel or configure an HTTPS hostname. Follow the [quick start](docs/getting-started/QUICKSTART.md) for access and verification.
 
-## Update
-
-From the server:
-
-```bash
-sudo bash /opt/system-ops/scripts/deploy.sh
-```
-
-Or use **Settings → Update now** in the dashboard.
-
-If the dashboard update fails or the site is down:
-
-```bash
-sudo bash /opt/system-ops/scripts/recover.sh
-```
-
----
-
-## Docker (optional)
-
-Native Ubuntu/systemd is recommended for host monitoring. Docker packages the console and mounted log/backup access. Its CPU/process metrics describe the container's `/proc`; mounting `/host/proc` does not make the current collectors sample the host. Host systemd, package/security commands, the Go sidecar, and in-dashboard native updates are unavailable in the default image.
+### Docker
 
 ```bash
 cp .env.docker.example .env.docker
-# set APP_PASSWORD, a random SESSION_SECRET of at least 32 bytes, and paths:
+# Set APP_PASSWORD, a random SESSION_SECRET of at least 32 bytes, and mounted paths.
 docker compose --env-file .env.docker up -d --build
 ```
 
-Notes:
+Docker includes the built UI and persistent data volume, with narrower host visibility. Its process metrics describe container `/proc`; host systemd/security commands, the Go sidecar, and native self-update are unavailable by default. Socket mounts alone do not install a Docker CLI. Read the [deployment comparison](docs/getting-started/INSTALLATION.md).
 
-- The image runs a multi-stage build so the React UI is included.
-- Settings persist in the `system-ops-data` named volume. Configuration comes from `.env.docker`; shell interpolation does not override its credentials.
-- The default image does not include the Docker CLI. Socket mounting alone does not enable Docker monitoring; a custom image also needs the CLI and appropriate socket permissions (see security comment in `docker-compose.yml`).
-- Set `BACKUPS_DIR` and add a volume mount when backup files live on the host.
-- Production startup rejects empty/example passwords and session secrets. Before upgrading a native install, check `/opt/system-ops/.env` and replace example credentials; use a randomly generated `SESSION_SECRET` of at least 32 bytes. Credential values are never included in startup errors.
+## Update and recover
 
----
+```bash
+sudo bash /opt/system-ops/scripts/deploy.sh
+sudo bash /opt/system-ops/scripts/recover.sh  # If an update needs recovery.
+```
+
+The native updater follows `main`. Settings → Update now uses a separate background worker where configured. Keep SSH access and data backups; see [updates and recovery](docs/operations/UPDATES.md) and [release validation](docs/releases/RELIABILITY-EVIDENCE.md).
 
 ## Development
 
-Use Node.js 24.x (also used by CI, Docker, and the native installer).
+Use Node.js 24.x. Linux is required for native host/deployment verification.
 
 ```bash
-git clone https://github.com/dineshkorukonda/system-ops.git
-cd system-ops
-npm install
-cp .env.example .env   # set APP_PASSWORD and SESSION_SECRET
-npm run build          # produces dist/
-npm start              # http://127.0.0.1:9080
+npm ci
+cp .env.example .env  # Set APP_PASSWORD and SESSION_SECRET.
+npm run build
+npm start             # http://127.0.0.1:9080
 ```
 
-Run tests:
+For checks and frontend hot reload, see [CONTRIBUTING.md](.github/CONTRIBUTING.md). Build the public docs with `npm run docs:build`; preview with `npm run site:dev`. Source documentation lives in `docs/`, and the marketing site lives in `web/`.
 
-```bash
-npm test
-```
+## Community
 
-After building, `npm run test:smoke` starts a temporary production instance with
-random credentials and isolated settings. It verifies built assets, login,
-authenticated snapshots, diagnostics, and settings writes. CI also runs
-`bash scripts/docker-smoke.sh` to check image startup, Compose configuration,
-and settings persistence after container recreation.
+Ask questions in [Discussions](https://github.com/dineshkorukonda/system-ops/discussions), report reproducible defects with the [issue forms](https://github.com/dineshkorukonda/system-ops/issues/new/choose), and report vulnerabilities [privately](.github/SECURITY.md). Support is best effort. Contributions follow the [contribution guide](.github/CONTRIBUTING.md), [Code of Conduct](.github/CODE_OF_CONDUCT.md), and [governance policy](docs/community/GOVERNANCE.md).
 
-Frontend hot reload (proxies API to port 9080):
+[Changelog](docs/releases/CHANGELOG.md) · [Reliability roadmap](https://github.com/dineshkorukonda/system-ops/issues/33) · [Third-party notices](docs/community/THIRD_PARTY_NOTICES.md)
 
-```bash
-npm run dev & npx vite
-```
-
-Configuration reference: [`.env.example`](.env.example)
-
-Monitoring health: `/health` and `/api/health` report HTTP liveness only. `/ready`
-returns 200 only while enabled critical collectors have recent successful
-samples, otherwise 503. It exposes only `{ "ok": true/false }`. Readiness means
-collection is working, not that every monitored service is available.
-
-Authenticated `/api/v2/ops/health` and diagnostics expose per-collector status,
-source, last successful sample, age, freshness limit, and last error. By default,
-samples expire after three collection intervals, with a minimum of 15 seconds.
-System/process snapshots carry collection metadata alongside their existing
-fields. A failed refresh keeps the last good snapshot with its original success
-time and an error/stale status; a failed initial collection returns 503. Optional
-missing integrations do not fail global readiness. The dashboard distinguishes
-CPU utilization from load average and displays missing samples as unknown.
-
-Troubleshooting: [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)
-
-Changelog: [`CHANGELOG.md`](CHANGELOG.md)
-
----
-
-## Marketing site
-
-Static landing page source lives in [`web/`](web/). Sync `web/` to your static host (e.g. the nginx vhost for `system-ops.dineshkorukonda.online`) after changes.
-
----
-
-MIT © 2026 Dinesh Korukonda
+MIT © 2026 Dinesh Korukonda. Dependencies retain their own licenses. See [LICENSE](LICENSE).

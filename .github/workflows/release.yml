@@ -1,0 +1,60 @@
+name: Prepare draft release
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing merged tag matching package.json, such as v2.2.0
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  validate-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Validate tag and merged commit
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          node -e 'const p=require("./package.json");if(process.env.RELEASE_TAG!=="v"+p.version)throw new Error("Tag must match package version")'
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$(git rev-parse HEAD)"
+          git merge-base --is-ancestor HEAD origin/main
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm audit --audit-level=moderate
+      - run: npm run build
+      - run: npm run test:smoke
+      - run: npm run docs:build && npm run docs:check
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:site
+      - run: npm run release:pack
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-package
+          path: release-artifacts/
+          if-no-files-found: error
+  draft:
+    needs: validate-and-package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-package
+          path: release-artifacts
+      - name: Create draft for maintainer review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: gh release create "$RELEASE_TAG" release-artifacts/* --verify-tag --draft --generate-notes

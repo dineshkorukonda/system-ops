@@ -1,0 +1,18 @@
+{
+  "revision": "1a8ed289849d6104b70a7b0421825d8daec2034d",
+  "node": "v24.21.0",
+  "osRelease": "PRETTY_NAME=\"Ubuntu 24.04.5 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"24.04\"\nVERSION=\"24.04.5 LTS (Noble Numbat)\"\nVERSION_CODENAME=noble\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=noble\nLOGO=ubuntu-logo\n",
+  "verified": [
+    "clean interactive installer",
+    "ops account and environment permissions",
+    "validated exact sudoers launcher",
+    "authenticated dashboard background update",
+    "actual systemd activation and readiness rollback",
+    "interrupted journal recovery",
+    "recovery preserves working files, stashes, environment and shared data"
+  ],
+  "limitations": [
+    "Disposable GitHub Ubuntu VM; no production host changed.",
+    "No 24-hour soak or independent uptime claim."
+  ]
+}

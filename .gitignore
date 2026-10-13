@@ -10,3 +10,7 @@ artifacts/
 playwright-report/
 .release-revision
 test-results/
+web/docs/
+web/search-index.json
+web/sitemap.xml
+release-artifacts/

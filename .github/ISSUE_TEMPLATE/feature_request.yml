@@ -1,0 +1,28 @@
+name: Feature request
+description: Propose an improvement within the single-host operations scope.
+title: "feature: "
+labels: [enhancement, needs-triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: Describe the operator task and what prevents it today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and tradeoffs
+      description: Consider existing integrations, permissions, resource use, and deployment methods.
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Would you like to contribute?
+      options: [I can help test, I can help implement, I am sharing an idea]

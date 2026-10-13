@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# system-ops: Zero-Friction Interactive Installer for Ubuntu / Debian
-# Standardizes on native Linux systemd with 0MB extra RAM overhead.
+# System Ops interactive installer for Ubuntu / Debian.
+# Resource use depends on enabled integrations; see docs/releases/RESOURCE-BASELINE.md.
 #
 # Run with:
 #   curl -sSL https://raw.githubusercontent.com/dineshkorukonda/system-ops/main/scripts/install.sh | bash
@@ -17,12 +17,22 @@ REPO_URL="https://github.com/dineshkorukonda/system-ops.git"
 
 echo "=========================================================="
 echo "    SYSTEM-OPS: Self-Hosted VPS Operations Console        "
-echo "    Architecture: Native Linux Systemd (<35MB RAM)       "
+echo "    Deployment: Native Linux Systemd                    "
 echo "=========================================================="
 echo ""
 
 if [ "$EUID" -ne 0 ]; then
   echo "Error: Please run as root or with sudo."
+  exit 1
+fi
+
+# Re-installation must preserve configuration, working files, stashes, and data.
+if [ -d "$INSTALL_DIR/.git" ]; then
+  echo "Existing installation found; using the staged updater."
+  exec bash "$INSTALL_DIR/scripts/deploy.sh"
+fi
+if [ -e "$INSTALL_DIR" ]; then
+  echo "Error: $INSTALL_DIR already exists without a Git installation. Inspect it before installing."
   exit 1
 fi
 
@@ -127,27 +137,16 @@ if [ -S /var/run/docker.sock ] || command -v docker &>/dev/null; then
   echo "  -> Added $OPS_USER to docker group (if docker is installed)"
 fi
 
-# Stop existing service if running
-systemctl stop system-ops.service 2>/dev/null || true
-
-# Clone or update repository
-if [ -d "$INSTALL_DIR/.git" ]; then
-  echo "  -> Updating existing repository at $INSTALL_DIR..."
-  cd "$INSTALL_DIR"
-  git fetch --all --prune
-  git reset --hard origin/main
+# Clone committed source only. Do not copy local secrets, dependencies, or a
+# worktree .git pointer into the installed tree.
+CURRENT_DIR=$(pwd)
+if [ -f "$CURRENT_DIR/package.json" ] && git -C "$CURRENT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+  echo "  -> Installing committed source from local repository..."
+  git clone --no-hardlinks "$CURRENT_DIR" "$INSTALL_DIR"
+  git -C "$INSTALL_DIR" remote set-url origin "$REPO_URL"
 else
-  # If running inside the repo already, copy files; else git clone
-  CURRENT_DIR=$(pwd)
-  if [ -f "$CURRENT_DIR/package.json" ] && [ "$CURRENT_DIR" != "$INSTALL_DIR" ]; then
-    echo "  -> Installing from local repository..."
-    mkdir -p "$INSTALL_DIR"
-    cp -r "$CURRENT_DIR"/* "$CURRENT_DIR"/.* "$INSTALL_DIR"/ 2>/dev/null || cp -r "$CURRENT_DIR"/* "$INSTALL_DIR"/
-  else
-    echo "  -> Cloning latest system-ops from GitHub..."
-    rm -rf "$INSTALL_DIR"
-    git clone "$REPO_URL" "$INSTALL_DIR"
-  fi
+  echo "  -> Cloning system-ops from GitHub..."
+  git clone "$REPO_URL" "$INSTALL_DIR"
 fi
 
 cd "$INSTALL_DIR"

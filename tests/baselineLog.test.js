@@ -1,0 +1,20 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs'),os = require('node:os'),path = require('node:path');
+const {appendBaselineLog} = require('../scripts/resource-baseline');
+test('long-running synthetic traffic retains a bounded active and previous log',t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(),'ops-baseline-log-'));
+  t.after(()=>fs.rmSync(directory,{recursive:true,force:true}));
+  const filename = path.join(directory,'access.log');fs.writeFileSync(filename,'');
+  const state = {bytes:0,rotations:0};
+  for(let i=0;i<100;i++)appendBaselineLog(filename,`${String(i).padStart(3,'0')}\n`,state,16);
+  assert.equal(fs.statSync(filename).size,16);
+  assert.equal(fs.statSync(filename+'.1').size,16);
+  assert.equal(state.rotations,24);
+  assert.equal(fs.readFileSync(filename,'utf8'),'096\n097\n098\n099\n');
+  assert.deepEqual(fs.readdirSync(directory).sort(),['access.log','access.log.1']);
+  appendBaselineLog(filename,'x\n',state,16,true);
+  assert.equal(state.rotations,25);
+  assert.equal(fs.readFileSync(filename,'utf8'),'x\n');
+  assert.throws(()=>appendBaselineLog(filename,'x'.repeat(17),state,16),/Invalid/);
+});

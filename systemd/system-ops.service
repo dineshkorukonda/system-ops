@@ -1,5 +1,5 @@
 [Unit]
-Description=System Ops Dashboard (Subdomain Ops Mini-Site)
+Description=System Ops self-hosted operations console
 After=network.target
 
 [Service]
