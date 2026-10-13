@@ -12,6 +12,8 @@ All notable changes to system-ops are documented here.
 - Static-host configuration and grouped documentation/configuration directories.
 
 ### Changed
+- Match the public site and documentation to the console’s dark monochrome theme, with square controls and text-only navigation.
+- Batch routine dependency updates monthly per ecosystem; reserve major upgrades for manual review and keep security alerts enabled.
 - Redesigned the public site with a light product-led layout, warm gradients, interactive console screenshots, installation tabs, resource navigation, and matching documentation styling.
 - Group community policies under `.github/`, documentation by purpose under `docs/`, and build/test/type configuration under `config/`; preserve public documentation URLs.
 - Standardized maintainer/package metadata and Node 24 version files.

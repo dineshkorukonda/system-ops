@@ -41,6 +41,10 @@ Fork the project, create a focused branch, and use the PR template. Include the 
 
 Maintainers review correctness, permissions, compatibility, resource bounds, accessibility, and test evidence. Address feedback with commits on the same branch. Issues close after the implementation is merged and acceptance evidence exists; referencing an issue does not by itself complete it. See [governance](../docs/community/GOVERNANCE.md).
 
+## Dependency updates
+
+Dependabot batches minor and patch updates monthly, with at most one routine PR per ecosystem (npm, GitHub Actions, and Go). React and React DOM travel in the same npm batch. Major upgrades require a deliberate maintainer PR with migration, compatibility, and license review. Version-update limits do not disable security updates or alerts. Keep the required CI checks passing before merging any dependency PR.
+
 ## Licensing and conduct
 
 Contributions are accepted under the project's MIT license. Retain third-party notices and check dependency licenses before adding or upgrading packages. No CLA is currently required. Follow the [Code of Conduct](CODE_OF_CONDUCT.md). AI-assisted contributions follow the same review and validation requirements; contributors remain responsible for their changes.
