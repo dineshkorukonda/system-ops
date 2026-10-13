@@ -25,4 +25,7 @@ case "$TASK_ACTION" in
   *) echo 'Unsupported PM2 helper action' >&2; exit 2 ;;
 esac
 /usr/sbin/runuser -u "$TASK_USER" -- /usr/bin/test -S "$TASK_HOME/rpc.sock" || { echo 'PM2 daemon absent or inaccessible' >&2; exit 1; }
-exec /usr/sbin/runuser -u "$TASK_USER" -- /usr/bin/env "PATH=$TASK_NODE_DIR:/usr/bin:/bin" "PM2_HOME=$TASK_HOME" "$TASK_BINARY" "$@"
+# runuser retains the caller's cwd (often /root), which other accounts cannot
+# traverse. Node child-process spawning then fails with EACCES despite an
+# executable Node binary. Change directory after switching to the target user.
+exec /usr/sbin/runuser -u "$TASK_USER" -- /usr/bin/env --chdir="$TASK_HOME" "PATH=$TASK_NODE_DIR:/usr/bin:/bin" "PM2_HOME=$TASK_HOME" "$TASK_BINARY" "$@"
