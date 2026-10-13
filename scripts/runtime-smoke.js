@@ -64,7 +64,7 @@ async function smoke() {
     assert.ok(available, 'Production HTTP liveness did not respond');
 
     const home = await request('/');
-    assert.equal(home.status, 200);
+    assert.equal(home.status, 200, 'Built dashboard entrypoint missing');
     const html = await home.text();
     const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map(match => match[1]);
     assert.ok(assets.some(asset => asset.endsWith('.js')), 'Built React entrypoint missing');

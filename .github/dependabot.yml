@@ -10,6 +10,8 @@ updates:
       - dependency-name: ua-parser-js
         versions: [">=2.0.0"]
     groups:
+      react-runtime:
+        patterns: [react, react-dom]
       development:
         dependency-type: development
         update-types: [minor, patch]
