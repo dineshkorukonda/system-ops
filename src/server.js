@@ -495,7 +495,7 @@ app.get('/', (req, res) => {
 });
 
 // Fallback for SPA routing
-app.get('*', (req, res) => {
+app.get(/.*/, (req, res) => {
   res.sendFile(path.join(staticDir, 'index.html'));
 });
 

@@ -15,7 +15,18 @@ npm run site:dev
 
 Open http://127.0.0.1:4174. Keep documentation sources in `docs/` and root community files; update the explicit catalog in `web/pages.json` when adding a guide. Generated HTML/search/sitemap files are ignored by Git and must be built before deployment. Marketing HTML/CSS/JS and the demonstration screenshot are tracked in `web/`.
 
-## Vercel
+## Refreshing product screenshots
+
+Build the console, install a Playwright browser, then explicitly run the capture fixture:
+
+```bash
+npm run build
+CAPTURE_MARKETING=true npm run test:ui -- marketing-capture.spec.js
+```
+
+This renders the real Resources and Availability views with sanitized demonstration responses into `artifacts/marketing/`. Review those images before copying them to `web/assets/resources.png` and `web/assets/checks.png`. Normal browser tests skip this capture fixture. Screenshots do not establish production health, uptime, or resource claims.
+
+## Vercel hosting
 
 Set the project's Root Directory to the repository root. The tracked `vercel.json` selects a static build, runs documentation generation/checks, and publishes `web/`. The [official configuration reference](https://vercel.com/docs/project-configuration/vercel-json) documents the build/output overrides. A project configured with `web/` as its root must be changed to the repository root so the generator can read all Markdown sources.
 

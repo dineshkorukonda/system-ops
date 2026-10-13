@@ -7,3 +7,5 @@ The runtime uses MIT/BSD/Apache-licensed libraries including Express, React, Lea
 The release source archive includes package-lock.json for an exact dependency inventory. Run `npm run licenses:report` after `npm ci` to generate a versioned installed-package license report. That report inventories declared licenses; inspect package LICENSE/NOTICE files for redistribution terms. It is not an assertion that all dependency obligations disappear under MIT.
 
 Public-site screenshots are generated from this project's interface with disposable fixture data. No production credentials or operator data should be included.
+
+The public site self-hosts the [Inter typeface](https://github.com/rsms/inter), licensed under the SIL Open Font License 1.1. Its license is retained at `web/assets/fonts/OFL.txt`. Product layouts and illustrations are original System Ops assets; third-party marketing artwork is not bundled.

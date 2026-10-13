@@ -12,12 +12,14 @@ All notable changes to system-ops are documented here.
 - Static-host configuration and grouped documentation/configuration directories.
 
 ### Changed
+- Redesigned the public site with a light product-led layout, warm gradients, interactive console screenshots, installation tabs, resource navigation, and matching documentation styling.
 - Group community policies under `.github/`, documentation by purpose under `docs/`, and build/test/type configuration under `config/`; preserve public documentation URLs.
 - Standardized maintainer/package metadata and Node 24 version files.
 - Replaced unverified installer/marketing memory promises with reproducible measurement guidance.
 - Use the MIT-licensed UA Parser v1 line; dependency automation excludes its AGPL v2 line.
 
 ### Fixed
+- Compatible SPA fallback routing after the Express 5 upgrade, which otherwise prevented the console from starting.
 - Recovery now uses staged validation instead of resetting the checkout or clearing Git stashes.
 - Re-running the installer delegates to staged updates; local installs clone committed source instead of copying secrets or worktree pointers.
 - Synthetic benchmark logs rotate at a bounded byte limit during long runs.

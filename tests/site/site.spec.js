@@ -7,15 +7,38 @@ for (const width of [1440,390]) test(`public site: navigation, docs search, acce
   const errors = [];page.on('pageerror',error => errors.push(error.message));
   await context.grantPermissions(['clipboard-read','clipboard-write']);
   await page.goto('/');
-  await expect(page.getByRole('heading',{level:1})).toContainText('your VPS');
+  await expect(page.getByRole('heading',{level:1})).toContainText('Your VPS.');
   await expect(page.locator('.console-image')).toHaveJSProperty('naturalWidth',1440);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('tab',{name:'Overview',exact:true}).click();
+  await expect(page.locator('.console-image')).toHaveAttribute('src','assets/console.png');
+  await page.getByRole('tab',{name:'Availability',exact:true}).click();
+  await expect(page.locator('.console-image')).toHaveAttribute('src','assets/checks.png');
+  await expect(page.locator('.tour-caption')).toContainText('coverage');
+  await page.getByRole('tab',{name:'Availability',exact:true}).press('Home');
+  await expect(page.getByRole('tab',{name:'Resources',exact:true})).toBeFocused();
+  await expect(page.locator('.console-image')).toHaveAttribute('src','assets/resources.png');
+  await page.getByRole('tab',{name:'Docker Compose',exact:true}).click();
+  await expect(page.getByRole('tabpanel',{name:'Docker Compose',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Copy Docker Compose command'}).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('docker compose');
+  await page.getByRole('tab',{name:'Docker Compose',exact:true}).press('ArrowLeft');
+  await expect(page.getByRole('tab',{name:'Ubuntu / systemd',exact:true})).toBeFocused();
   await page.getByRole('button',{name:'Copy installer download command'}).click();
   await expect(page.getByRole('button',{name:'Copy installer download command'})).toHaveText('Copied');
   expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('curl -fsSL');
   const homeAudit = await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
   expect(homeAudit.violations).toEqual([]);
+  if(width<800) {
+    await page.getByRole('button',{name:'Menu',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Menu',exact:true})).toHaveAttribute('aria-expanded','true');
+    await page.getByRole('navigation',{name:'Main',exact:true}).getByText('Resources',{exact:true}).click();
+    await expect(page.locator('.nav-panel').getByRole('link',{name:/Quick start/})).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('button',{name:'Menu',exact:true})).toHaveAttribute('aria-expanded','false');
+  }
   await page.evaluate(() => {document.activeElement?.blur();window.scrollTo({top:0,behavior:'instant'});});
+  await page.screenshot({path:`artifacts/site/hero-${width}.png`});
   await page.screenshot({path:`artifacts/site/home-${width}.png`,fullPage:true});
   await page.getByRole('link',{name:'Read the docs',exact:true}).click();
   await expect(page).toHaveURL(/docs\/index.html$/);
@@ -56,4 +79,15 @@ test('search failure preserves usable documentation navigation',async({page}) =>
   await page.getByRole('searchbox',{name:'Search documentation'}).fill('Docker');
   await expect(page.locator('.search-results')).toContainText('Search could not load');
   await expect(page.getByRole('navigation',{name:'Documentation guides'})).toBeVisible();
+});
+
+test('marketing content and documentation links remain available without JavaScript',async({browser}) => {
+  const context=await browser.newContext({javaScriptEnabled:false,viewport:{width:390,height:844}});
+  const page=await context.newPage();await page.goto('/');
+  await expect(page.getByRole('heading',{level:1})).toContainText('Your VPS.');
+  await expect(page.locator('.console-image')).toBeVisible();
+  await page.getByRole('navigation',{name:'Main',exact:true}).getByText('Resources',{exact:true}).click();
+  await page.locator('.nav-panel').getByRole('link',{name:/Quick start/}).click();
+  await expect(page.getByRole('heading',{level:1})).toHaveText('Quick start');
+  await context.close();
 });

@@ -3,81 +3,104 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>System Ops — A clearer view of your VPS</title>
-  <meta name="description" content="A self-hosted operations console for a single Ubuntu VPS. Inspect resources, runtimes, logs, and availability with optional integrations and open-source code.">
+  <title>System Ops — Your VPS. One clear view.</title>
+  <meta name="description" content="Bring your VPS resources, applications, logs, and availability into one self-hosted operations console. Open source, optional integrations, and clear documentation.">
   <link rel="canonical" href="https://system-ops.dineshkorukonda.online/">
-  <meta property="og:title" content="System Ops — A clearer view of your VPS">
-  <meta property="og:description" content="Your host, services, and signals. One self-hosted operations console.">
+  <meta property="og:title" content="System Ops — Your VPS. One clear view.">
+  <meta property="og:description" content="Host resources. Application runtimes. Logs and availability. One open-source console on your own server.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://system-ops.dineshkorukonda.online/">
-  <meta property="og:image" content="https://system-ops.dineshkorukonda.online/assets/console.png">
+  <meta property="og:image" content="https://system-ops.dineshkorukonda.online/assets/resources.png">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="theme-color" content="#080c0b">
+  <meta name="theme-color" content="#ffffff">
   <link rel="icon" href="favicon.svg">
-  <link rel="stylesheet" href="assets/site.css">
+  <link rel="preload" href="assets/fonts/inter-variable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/base.css">
+  <link rel="stylesheet" href="assets/marketing.css">
   <script src="assets/site.js" defer></script>
 </head>
-<body>
+<body class="marketing-page">
   <a class="skip" href="#main">Skip to content</a>
-  <header class="site-header">
+  <div class="announcement">Open source. Your infrastructure. Your rules.<a href="docs/contributing.html">Meet the project <span aria-hidden="true">→</span></a></div>
+  <header class="site-header marketing-header">
     <div class="container header-inner">
       <a class="brand" href="index.html" aria-label="System Ops home"><b aria-hidden="true">&gt;_</b>system-ops</a>
-      <nav class="site-nav" aria-label="Main">
-        <a href="#features">Features</a><a href="docs/index.html">Docs</a><a href="#support">Support</a><a href="docs/contributing.html">Contribute</a><a class="nav-github" href="https://github.com/dineshkorukonda/system-ops">GitHub ↗</a>
+      <button class="menu-toggle" aria-controls="marketing-nav" aria-expanded="false">Menu</button>
+      <nav class="site-nav marketing-nav" id="marketing-nav" aria-label="Main" data-open="false">
+        <details class="nav-dropdown"><summary>Product</summary><div class="nav-panel"><a href="#product">Explore the console<small>Resources, sources, and availability</small></a><a href="#features">Capabilities<small>Host visibility and application signals</small></a><a href="docs/integrations.html">Integrations<small>Connect the services you run</small></a></div></details>
+        <a href="docs/index.html">Documentation</a>
+        <details class="nav-dropdown"><summary>Resources</summary><div class="nav-panel"><a href="docs/quickstart.html">Quick start<small>From installation to your first view</small></a><a href="docs/support.html">Support<small>Guides and community questions</small></a><a href="docs/changelog.html">Changelog<small>See what’s changed</small></a></div></details>
+        <a href="#open-source">Open source</a>
+        <a class="nav-github" href="https://github.com/dineshkorukonda/system-ops">GitHub <span aria-hidden="true">↗</span></a>
+        <a class="nav-cta" href="docs/quickstart.html">Get started</a>
       </nav>
     </div>
   </header>
   <main id="main" tabindex="-1">
-    <div class="container">
-      <section class="hero" aria-labelledby="hero-title">
+    <section class="hero-shell" aria-labelledby="hero-title">
+      <div class="container">
+        <div class="hero">
+          <div class="hero-badge"><span aria-hidden="true"></span>OPEN SOURCE · SELF HOSTED</div>
+          <h1 id="hero-title">Your VPS.<br><span>One clear view.</span></h1>
+          <p>Bring host resources, applications, logs, and availability together. Understand what’s running on your server—and what needs your attention.</p>
+          <div class="actions"><a class="button primary" href="docs/quickstart.html">Get started <span aria-hidden="true">→</span></a><a class="button" href="#product">Explore the console <span aria-hidden="true">↓</span></a></div>
+          <div class="hero-note"><span>MIT licensed</span><span>Runs on your server</span><span>Ubuntu + systemd</span></div>
+        </div>
+        <div class="product-tour" id="product">
+          <div class="tour-tabs" role="tablist" aria-label="Product preview">
+            <button id="tour-resources" role="tab" aria-selected="true" aria-controls="product-preview" data-preview="resources" data-image="assets/resources.png" data-alt="System Ops Resources view with demo CPU trends, memory, storage, and services" data-caption="Resources — CPU, memory, storage, and system services." tabindex="0"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M2 13h3l2-7 4 11 2-8 2 4h3"/></svg>Resources</button>
+            <button id="tour-overview" role="tab" aria-selected="false" aria-controls="product-preview" data-preview="overview" data-image="assets/console.png" data-alt="System Ops overview with detected integration sources and monitoring preferences" data-caption="Overview — detected sources and a focused workspace." tabindex="-1"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 3h5v5H3zM12 3h5v5h-5zM3 12h5v5H3zM12 12h5v5h-5z"/></svg>Overview</button>
+            <button id="tour-checks" role="tab" aria-selected="false" aria-controls="product-preview" data-preview="checks" data-image="assets/checks.png" data-alt="System Ops availability checks showing demo healthy and failing endpoints with observation coverage" data-caption="Availability — check outcomes, coverage, and incidents." tabindex="-1"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M10 2v3m0 10v3M2 10h3m10 0h3"/><circle cx="10" cy="10" r="5"/><path d="m8 10 1.5 1.5L12 8"/></svg>Availability</button>
+          </div>
+          <div class="preview-window">
+            <div class="preview-toolbar" aria-hidden="true"><i></i><i></i><i></i><span>system-ops / your workspace</span><small>PRODUCT PREVIEW</small></div>
+            <div id="product-preview" class="preview-panel" role="tabpanel" aria-labelledby="tour-resources" tabindex="0"><img class="console-image" src="assets/resources.png" alt="System Ops Resources view with demo CPU trends, memory, storage, and services" width="1440" height="960" fetchpriority="high"></div>
+          </div>
+          <div class="preview-caption"><span><span class="tour-caption" role="status">Resources — CPU, memory, storage, and system services.</span><br>Actual console screens · Demonstration data, not a live server.</span><a href="docs/discovery.html">How the workspace works <span aria-hidden="true">↗</span></a></div>
+        </div>
+      </div>
+    </section>
+    <section class="integration-band" aria-label="Supported integrations">
+      <div class="container"><p>Works with the services you already run. Detected when available, enabled when you choose.</p><div class="integration-list"><span><b aria-hidden="true">D</b>Docker</span><span><b aria-hidden="true">pm</b>PM2</span><span><b aria-hidden="true">N</b>Nginx</span><span><b aria-hidden="true">pg</b>PostgreSQL</span><span><b aria-hidden="true">R</b>Redis</span><span><b aria-hidden="true">O</b>Ollama</span></div></div>
+    </section>
+    <section class="section" id="features" aria-labelledby="features-title">
+      <div class="container">
+        <div class="section-head"><div class="eyebrow">Bring the signals together</div><h2 id="features-title">Less jumping between tools.<br>More understanding.</h2><p>From a resource spike to a failing endpoint, start with a shared view of your host and the services around it.</p></div>
+        <div class="capability-grid">
+          <article class="capability"><div class="capability-visual visual-host" aria-hidden="true"><div class="mini-chart"><header><span>CPU UTILIZATION</span><strong>23%</strong></header><svg viewBox="0 0 240 50"><path d="M0 45H240M0 25H240M0 5H240" stroke="#eadbd7" stroke-width="1" fill="none"/><path d="m0 39 12-5 12 3 12-13 12 6 12-14 12 8 12-12 12 7 12 12 12-10 12 14 12-16 12 7 12-11 12 5 12 15 12-4 12 8 12-7 12 9" stroke="#bf562e" stroke-width="2" fill="none"/></svg></div><span class="demo-label">Example signal</span></div><div class="capability-copy"><h3>Understand your host</h3><p>See CPU, memory, storage, and process usage. Follow systemd journals and inspect the services behind your applications.</p><a class="text-link" href="docs/api.html">Host visibility <span aria-hidden="true">→</span></a></div></article>
+          <article class="capability"><div class="capability-visual visual-apps" aria-hidden="true"><div class="mini-stack"><span>nginx.service <small>ACTIVE</small></span><span>PM2 applications <small>DETECTED</small></span><span>Docker containers <small>DETECTED</small></span></div><span class="demo-label">Example inventory</span></div><div class="capability-copy"><h3>Follow your applications</h3><p>Discover PM2 and Docker runtimes, inspect logs, and check database availability. Keep optional sources out of the way until you need them.</p><a class="text-link" href="docs/integrations.html">Explore integrations <span aria-hidden="true">→</span></a></div></article>
+          <article class="capability"><div class="capability-visual visual-checks" aria-hidden="true"><div class="mini-incident"><header><strong>Application API</strong><small>DOWN</small></header><p>HTTP check returned 503</p><p>Incident recorded</p><p>Webhook notification queued</p></div><span class="demo-label">Example incident</span></div><div class="capability-copy"><h3>Keep outages in context</h3><p>Configure HTTP and TCP checks, track incidents, and send webhook alerts. See observation coverage alongside the outcome.</p><a class="text-link" href="docs/checks-alerts-metrics.html">Checks and alerts <span aria-hidden="true">→</span></a></div></article>
+        </div>
+      </div>
+    </section>
+    <section class="section focus-section" aria-labelledby="focus-title">
+      <div class="container split">
+        <div class="host-map" role="img" aria-label="PM2, Docker, Nginx logs, and databases connect to a System Ops workspace on one Ubuntu host"><svg viewBox="0 0 500 360" preserveAspectRatio="none" aria-hidden="true"><path d="M100 95 250 180 400 95M95 265 250 180 405 265" stroke-dasharray="5 5"/></svg><span class="map-node first">PM2 apps</span><span class="map-node second">Docker</span><span class="map-node third">Nginx logs</span><span class="map-node fourth">Databases</span><div class="map-center"><b aria-hidden="true">&gt;_</b><strong>system-ops</strong><small>One Ubuntu host</small></div></div>
+        <div><div class="eyebrow">A workspace for your server</div><h2 id="focus-title">Built for the VPS<br>you actually have.</h2><p class="body-copy">Start with the sources detected on your host. Choose what to monitor, inspect the evidence, and build a workspace that fits your setup.</p><ul class="benefit-list"><li>Host monitoring with native Ubuntu and systemd</li><li>Optional integrations with visible permission and source errors</li><li>Freshness and unknown states kept alongside the data</li><li>Protected metrics for optional Prometheus and Grafana</li></ul><a class="text-link" href="docs/installation.html">Choose your deployment <span aria-hidden="true">→</span></a></div>
+      </div>
+    </section>
+    <section class="section guides-section" id="learn" aria-labelledby="guides-title">
+      <div class="container"><div class="section-head"><div class="eyebrow">A clear path from here</div><h2 id="guides-title">Get it running.<br>Make it yours.</h2><p>Practical guides for your first install, the integrations you need, and the moments something doesn’t work.</p></div><div class="guide-grid"><a class="guide-card" href="docs/quickstart.html"><span class="guide-symbol" aria-hidden="true">&gt;_</span><h3>Your first install</h3><p>Install the console, open it securely, and verify your first collection.</p><span class="text-link">Follow the quick start →</span></a><a class="guide-card" href="docs/configuration.html"><span class="guide-symbol" aria-hidden="true">{ }</span><h3>Your configuration</h3><p>Set credentials, select data sources, and enable optional integrations.</p><span class="text-link">Configuration guide →</span></a><a class="guide-card" href="docs/troubleshooting.html"><span class="guide-symbol" aria-hidden="true">? /</span><h3>Your next answer</h3><p>Find help with discovery, permissions, updates, and empty data.</p><span class="text-link">Troubleshooting guide →</span></a></div></div>
+    </section>
+    <section class="section install-section" id="setup" aria-labelledby="install-title">
+      <div class="container split">
+        <div><div class="eyebrow">Start on your own infrastructure</div><h2 id="install-title">From a terminal<br>to a clearer picture.</h2><p class="body-copy">Use the native installer for host monitoring, or run the console in Docker with explicit mounts and a narrower host view.</p><div class="install-tabs" role="tablist" aria-label="Installation method"><button id="install-native" role="tab" aria-selected="true" aria-controls="native-panel" data-install="native" tabindex="0">Ubuntu / systemd</button><button id="install-docker" role="tab" aria-selected="false" aria-controls="docker-panel" data-install="docker" tabindex="-1">Docker Compose</button></div><p class="install-note">Review the installer before execution. Node.js 24 is used by the project.</p><a class="text-link" href="docs/index.html">Read the docs <span aria-hidden="true">→</span></a></div>
         <div>
-          <div class="eyebrow">Open source · Self hosted · Single VPS</div>
-          <h1 id="hero-title">A clearer view<br>of <span>your VPS.</span></h1>
-          <p>Your host, services, and signals in one place. Inspect what’s running, follow the logs, and see when a source needs your attention.</p>
-          <div class="actions"><a class="button primary" href="docs/quickstart.html">Get started <span aria-hidden="true">→</span></a><a class="button" href="docs/index.html">Read the docs</a></div>
-          <div class="metadata"><span>Ubuntu + systemd</span><span>Optional integrations</span><span>MIT licensed</span></div>
-        </div>
-        <aside class="hero-aside" aria-label="Project approach">
-          <strong>Built around your host</strong>
-          <p>Start with detected sources.<br>Enable the monitoring you need.<br>Keep failures and missing data visible.</p>
-          <a class="text-link" href="docs/installation.html">Choose your deployment ↗</a>
-        </aside>
-      </section>
-      <figure class="console-figure">
-        <div class="console-chrome" aria-hidden="true"><i></i><i></i><i></i><span>system-ops / operations console</span></div>
-        <img class="console-image" src="assets/console.png" alt="System Ops overview showing detected services and optional monitoring sources" width="1440" height="1000" fetchpriority="high">
-        <figcaption><span>The actual console, shown with disposable demo data.</span><a href="docs/discovery.html">Explore the workspace ↗</a></figcaption>
-      </figure>
-      <section class="section" id="features" aria-labelledby="features-title">
-        <div class="eyebrow">01 / Visibility</div><h2 id="features-title">Know what’s running.<br>Understand what changed.</h2>
-        <p class="section-intro">Bring the essentials of a single host together. Integrations stay optional, and detection is kept separate from health.</p>
-        <div class="feature-grid">
-          <article class="feature"><span class="number">01</span><h3>Host &amp; processes</h3><p>CPU, memory, disks, processes, and systemd journals. See freshness and source errors alongside your data.</p><a href="docs/api.html">Host visibility →</a></article>
-          <article class="feature"><span class="number">02</span><h3>Application runtimes</h3><p>Inspect PM2, Docker, Ollama, and database availability where those sources exist and permissions allow access.</p><a href="docs/integrations.html">Integration setup →</a></article>
-          <article class="feature"><span class="number">03</span><h3>Checks &amp; incidents</h3><p>Configure HTTP and TCP checks, retain observations, and track outage/recovery transitions with coverage shown.</p><a href="docs/checks-alerts-metrics.html">Availability checks →</a></article>
-          <article class="feature"><span class="number">04</span><h3>Logs &amp; traffic</h3><p>Follow service and runtime logs. Explore bounded Nginx analytics with optional geolocation enrichment.</p><a href="docs/traffic-retention.html">Traffic and retention →</a></article>
-          <article class="feature"><span class="number">05</span><h3>Alerts &amp; metrics</h3><p>Send webhook alerts with visible delivery state. Export protected metrics to optional Prometheus and Grafana.</p><a href="docs/checks-alerts-metrics.html">Connect monitoring →</a></article>
-          <article class="feature"><span class="number">06</span><h3>Recovery workflow</h3><p>Review configured backup files and logs. Stage native updates with readiness gates and rollback.</p><a href="docs/updates.html">Updates and recovery →</a></article>
-        </div>
-      </section>
-      <section class="section split" id="setup" aria-labelledby="setup-title">
-        <div><div class="eyebrow">02 / Get started</div><h2 id="setup-title">Your server.<br>Your console.</h2><p>Native Ubuntu/systemd gives the console its host view. Review the installer, choose your credentials, and open the dashboard through an SSH tunnel or HTTPS.</p><p>Prefer Docker? The image includes the console with a narrower view of host services. Check the deployment comparison before choosing.</p><div class="actions"><a class="text-link" href="docs/quickstart.html">Native quick start →</a><a class="text-link" href="docs/installation.html#docker-compose">Docker setup →</a></div></div>
-        <div class="terminal"><div class="terminal-head">Ubuntu / interactive installation</div><pre tabindex="0" role="region" aria-label="Installation commands"><code><span class="comment"># Download, inspect, then install</span>
+          <div class="terminal install-panel" id="native-panel" role="tabpanel" aria-labelledby="install-native"><div class="terminal-head"><span>Ubuntu / interactive installation</span><span aria-hidden="true">&gt;_</span></div><pre tabindex="0" role="region" aria-label="Native installation commands"><code><span class="comment"># Download, inspect, then install</span>
 <span class="prompt">$</span> <span id="install-command">curl -fsSL https://raw.githubusercontent.com/dineshkorukonda/system-ops/main/scripts/install.sh -o /tmp/system-ops-install.sh</span>
 <span class="prompt">$</span> less /tmp/system-ops-install.sh
-<span class="prompt">$</span> sudo bash /tmp/system-ops-install.sh</code></pre><div class="terminal-foot"><span>Node 24 · loopback by default</span><button class="copy" data-copy="#install-command" aria-label="Copy installer download command">Copy</button></div></div>
-      </section>
-      <section class="section split" aria-labelledby="principles-title">
-        <div><div class="eyebrow">03 / Project principles</div><h2 id="principles-title">Built to be inspected.<br>Documented to be useful.</h2><p>The code, configuration, and operating guides are open. Start with the sources you have, understand the permissions they need, and keep a recovery path outside the dashboard.</p><a class="text-link" href="docs/architecture.html">Read the architecture →</a></div>
-        <ul class="principles"><li><strong>Clear deployment boundaries</strong>Single-host administration, with native and Docker capabilities explained.</li><li><strong>Measurements with context</strong>Resource use depends on configuration. Reproduce workloads and inspect their conditions.</li><li><strong>Unknown stays unknown</strong>Missing and stale observations should not be counted as healthy.</li><li><strong>Optional tools, explicit costs</strong>External monitoring and metrics systems have their own resource requirements.</li></ul>
-      </section>
-      <section class="section" id="support" aria-labelledby="support-title">
-        <div class="eyebrow">04 / Community</div><h2 id="support-title">A place to learn.<br>A way to contribute.</h2><p class="section-intro">Community support is best effort. Share a reproducible problem, improve a guide, or help test an integration.</p>
-        <div class="support-grid"><article class="support-card"><h3>Find your answer</h3><p>Start with installation, configuration, and symptom-based troubleshooting. Ask usage questions in Discussions.</p><a href="docs/support.html">Documentation and support →</a></article><article class="support-card"><h3>Report a problem</h3><p>Use the bug form with your version and sanitized diagnostics. Report security vulnerabilities privately.</p><a href="https://github.com/dineshkorukonda/system-ops/issues/new/choose">Open an issue →</a></article><article class="support-card"><h3>Make it better</h3><p>Code, docs, accessibility, and test evidence all help. Read the contribution guide before your first PR.</p><a href="docs/contributing.html">Contributor guide →</a></article></div>
-      </section>
-      <section class="closing" aria-labelledby="closing-title"><div><h2 id="closing-title">Bring your host into view.</h2><p>Start with a single VPS and the sources you need.</p></div><div class="actions"><a class="button primary" href="docs/quickstart.html">Get started →</a><a class="button" href="https://github.com/dineshkorukonda/system-ops">Explore the source ↗</a></div></section>
-    </div>
+<span class="prompt">$</span> sudo bash /tmp/system-ops-install.sh</code></pre><div class="terminal-foot"><span>Loopback binding by default</span><button class="copy" data-copy="#install-command" aria-label="Copy installer download command">Copy</button></div></div>
+          <div class="terminal install-panel" id="docker-panel" role="tabpanel" aria-labelledby="install-docker" hidden><div class="terminal-head"><span>Docker / from the repository checkout</span><span aria-hidden="true">&gt;_</span></div><pre tabindex="0" role="region" aria-label="Docker installation commands"><code><span class="prompt">$</span> cp .env.docker.example .env.docker
+<span class="comment"># Set credentials and mounted paths in .env.docker</span>
+<span class="prompt">$</span> <span id="docker-command">docker compose --env-file .env.docker up -d --build</span></code></pre><div class="terminal-foot"><a href="docs/installation.html#deployment-comparison">Read the deployment limits</a><button class="copy" data-copy="#docker-command" aria-label="Copy Docker Compose command">Copy</button></div></div>
+          <noscript><p><a href="docs/installation.html#docker-compose">Read the Docker Compose installation guide.</a></p></noscript>
+        </div>
+      </div>
+    </section>
+    <section class="community-section" id="open-source" aria-labelledby="community-title"><div class="container community-content"><div><div class="eyebrow">Open source, from the first command</div><h2 id="community-title">Your infrastructure.<br>A project we build together.</h2><p>Inspect the code. Improve a guide. Help test an integration. System Ops is MIT licensed and community maintained, with a clear place to ask questions and contribute.</p><div class="actions"><a class="button primary" href="https://github.com/dineshkorukonda/system-ops">Explore the source <span aria-hidden="true">↗</span></a><a class="button" href="docs/contributing.html">Start contributing</a></div></div><div class="community-points"><div><strong>Readable code. Reviewable changes.</strong><p>A contribution guide, project rules, and validation requirements.</p></div><div><strong>Help where you need it.</strong><p>Practical docs and best-effort community support.</p></div><div><strong>Clear ownership.</strong><p>You operate your host, control your credentials, and choose your integrations.</p></div></div></div></section>
+    <section class="container faq-section" id="support" aria-labelledby="faq-title"><div><div class="eyebrow">Before you get started</div><h2 id="faq-title">A few things<br>worth knowing.</h2><p>More questions? Start with the guides or ask the community.</p><a class="text-link" href="docs/support.html">Find support <span aria-hidden="true">→</span></a></div><div class="faq-list"><details><summary>Is System Ops free and open source?</summary><p>Yes. The project’s source is MIT licensed. Dependencies retain their own licenses, and support is community maintained on a best-effort basis.</p></details><details><summary>Which installation should I choose?</summary><p>Native Ubuntu/systemd is the primary deployment for host monitoring. Docker includes the console with a narrower view of host services. The <a href="docs/installation.html">installation guide</a> explains the differences.</p></details><details><summary>Does it replace an external monitoring service?</summary><p>Local checks cannot observe a complete outage of their own host. Use an independent observer when you need off-host availability evidence. Optional Prometheus and Grafana have their own resource costs.</p></details><details><summary>Can I control all my services from the console?</summary><p>Most integration views provide monitoring and log inspection. System Ops supports its own native updater and configuration workflows; it is not a general-purpose remote shell or service-control panel.</p></details></div></section>
+    <section class="closing" aria-labelledby="closing-title"><div class="container"><h2 id="closing-title">Bring your VPS into view.</h2><p>Start with one host. Connect the sources you need.</p><div class="actions"><a class="button primary" href="docs/quickstart.html">Get started <span aria-hidden="true">→</span></a><a class="button" href="docs/index.html">Explore the documentation</a></div></div></section>
   </main>
-  <footer class="site-footer"><div class="container footer-inner"><span>System Ops · MIT © 2026 Dinesh Korukonda</span><div class="footer-links"><a href="docs/changelog.html">Changelog</a><a href="docs/security.html">Security</a><a href="docs/code-of-conduct.html">Code of Conduct</a><a href="docs/third-party-notices.html">Notices</a></div></div></footer>
+  <footer class="marketing-footer"><div class="container"><div class="footer-grid"><div class="footer-brand"><a class="brand" href="index.html"><b aria-hidden="true">&gt;_</b>system-ops</a><p>A self-hosted operations console for a single Ubuntu VPS.</p></div><div class="footer-column"><h3>Product</h3><a href="#product">Console preview</a><a href="#features">Capabilities</a><a href="docs/integrations.html">Integrations</a><a href="docs/installation.html">Deployment options</a></div><div class="footer-column"><h3>Learn</h3><a href="docs/quickstart.html">Quick start</a><a href="docs/index.html">Documentation</a><a href="docs/troubleshooting.html">Troubleshooting</a><a href="docs/changelog.html">Changelog</a></div><div class="footer-column"><h3>Community</h3><a href="https://github.com/dineshkorukonda/system-ops">GitHub</a><a href="https://github.com/dineshkorukonda/system-ops/discussions">Discussions</a><a href="docs/contributing.html">Contribute</a><a href="docs/support.html">Support</a></div></div><div class="footer-bottom"><span>MIT © 2026 Dinesh Korukonda · Dependencies retain their own licenses.</span><span><a href="docs/security.html">Security</a><a href="docs/code-of-conduct.html">Code of Conduct</a><a href="docs/third-party-notices.html">Notices</a></span></div></div></footer>
 </body>
 </html>
