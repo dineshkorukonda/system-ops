@@ -9,6 +9,8 @@ All notable changes to system-ops are documented here.
 - Public documentation generated from maintained Markdown, searchable navigation, and a refreshed marketing site.
 - Documentation/link validation and release preparation guidance.
 - Disposable Ubuntu/systemd release fixture covering the installer, account permissions, background updater, and recovery.
+- Static-host configuration and a manual reference-host 24-hour soak workflow.
+- Independent observer segments and a readiness-only lab gateway for off-host evidence.
 
 ### Changed
 - Standardized maintainer/package metadata and Node 24 version files.
@@ -18,6 +20,8 @@ All notable changes to system-ops are documented here.
 ### Fixed
 - Recovery now uses staged validation instead of resetting the checkout or clearing Git stashes.
 - Re-running the installer delegates to staged updates; local installs clone committed source instead of copying secrets or worktree pointers.
+- Synthetic benchmark logs rotate at a bounded byte limit during long runs.
+- Long workload requests remain authenticated beyond browser-session expiry.
 
 ## [2.1.0] - 2026-09-09
 

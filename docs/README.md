@@ -29,6 +29,7 @@ System Ops brings host resources, runtime inventory, logs, and optional monitori
 - [Collector ownership](COLLECTOR-OWNERSHIP.md)
 - [Collector scheduling](COLLECTOR-SCHEDULING.md)
 - [Release process](RELEASING.md)
+- [Publish the public site](PUBLIC-SITE.md)
 - [Resource measurements](RESOURCE-BASELINE.md)
 - [Reliability evidence](RELIABILITY-EVIDENCE.md)
 - [Support](../SUPPORT.md), [security](../SECURITY.md), and [governance](../GOVERNANCE.md)

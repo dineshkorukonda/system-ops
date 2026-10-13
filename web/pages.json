@@ -26,5 +26,6 @@
   {"slug":"code-of-conduct","source":"CODE_OF_CONDUCT.md","title":"Code of Conduct","group":"Community","description":"Participate respectfully and report conduct concerns."},
   {"slug":"governance","source":"GOVERNANCE.md","title":"Governance","group":"Community","description":"Understand maintainership, project scope, and decisions."},
   {"slug":"third-party-notices","source":"THIRD_PARTY_NOTICES.md","title":"Third-party notices","group":"Community","description":"Preserve dependency and geolocation data notices."},
-  {"slug":"changelog","source":"CHANGELOG.md","title":"Changelog","group":"Community","description":"Review release changes and work awaiting release."}
+  {"slug":"changelog","source":"CHANGELOG.md","title":"Changelog","group":"Community","description":"Review release changes and work awaiting release."},
+  {"slug":"public-site","source":"docs/PUBLIC-SITE.md","title":"Publish the public site","group":"Develop","description":"Build and publish complete static marketing and documentation assets."}
 ]

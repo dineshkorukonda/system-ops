@@ -1,0 +1,41 @@
+name: Independent availability observer
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Public HTTPS readiness URL without credentials
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  first:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/observer-chunk.yml
+    with:
+      target: ${{ inputs.target }}
+      segment: 1
+  second:
+    needs: first
+    uses: ./.github/workflows/observer-chunk.yml
+    with:
+      target: ${{ inputs.target }}
+      segment: 2
+  third:
+    needs: second
+    uses: ./.github/workflows/observer-chunk.yml
+    with:
+      target: ${{ inputs.target }}
+      segment: 3
+  fourth:
+    needs: third
+    uses: ./.github/workflows/observer-chunk.yml
+    with:
+      target: ${{ inputs.target }}
+      segment: 4
+  fifth:
+    needs: fourth
+    uses: ./.github/workflows/observer-chunk.yml
+    with:
+      target: ${{ inputs.target }}
+      segment: 5
