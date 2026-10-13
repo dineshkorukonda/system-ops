@@ -3,25 +3,40 @@ updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 3
+      interval: monthly
+    open-pull-requests-limit: 1
+    allow:
+      - dependency-name: '*'
+        update-types: [version-update:semver-minor, version-update:semver-patch]
     ignore:
       # v2 changes to AGPL; upgrades need a deliberate licensing decision.
       - dependency-name: ua-parser-js
         versions: [">=2.0.0"]
     groups:
-      react-runtime:
-        patterns: [react, react-dom]
-      development:
-        dependency-type: development
+      routine-npm:
+        patterns: ['*']
         update-types: [minor, patch]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 1
+    allow:
+      - dependency-name: '*'
+        update-types: [version-update:semver-minor, version-update:semver-patch]
+    groups:
+      routine-actions:
+        patterns: ['*']
+        update-types: [minor, patch]
   - package-ecosystem: gomod
     directory: /go-collector
     schedule:
       interval: monthly
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 1
+    allow:
+      - dependency-name: '*'
+        update-types: [version-update:semver-minor, version-update:semver-patch]
+    groups:
+      routine-go:
+        patterns: ['*']
+        update-types: [minor, patch]
