@@ -2,6 +2,23 @@
 
 All notable changes to system-ops are documented here.
 
+## [Unreleased]
+
+### Added
+- Contributor, support, security, conduct, and governance policies; issue forms, PR template, review routing, and agent instructions.
+- Public documentation generated from maintained Markdown, searchable navigation, and a refreshed marketing site.
+- Documentation/link validation and release preparation guidance.
+- Disposable Ubuntu/systemd release fixture covering the installer, account permissions, background updater, and recovery.
+
+### Changed
+- Standardized maintainer/package metadata and Node 24 version files.
+- Replaced unverified installer/marketing memory promises with reproducible measurement guidance.
+- Use the MIT-licensed UA Parser v1 line; dependency automation excludes its AGPL v2 line.
+
+### Fixed
+- Recovery now uses staged validation instead of resetting the checkout or clearing Git stashes.
+- Re-running the installer delegates to staged updates; local installs clone committed source instead of copying secrets or worktree pointers.
+
 ## [2.1.0] - 2026-09-09
 
 ### Added

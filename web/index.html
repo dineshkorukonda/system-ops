@@ -1,573 +1,83 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>system-ops - Lightweight Systemd VPS Operations Console</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      background-color: #000000;
-      color: #ffffff;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      padding: 2.5rem 1.25rem;
-      line-height: 1.6;
-      max-width: 860px;
-      margin: 0 auto;
-    }
-    header {
-      border-bottom: 1px solid #333333;
-      padding-bottom: 1.5rem;
-      margin-bottom: 2.5rem;
-    }
-    .ascii-logo {
-      color: #00ff66;
-      font-size: 0.75rem;
-      line-height: 1.2;
-      margin-bottom: 1.2rem;
-      white-space: pre;
-      overflow-x: auto;
-      user-select: none;
-    }
-    h1 {
-      font-size: 1.8rem;
-      font-weight: 600;
-      letter-spacing: -0.02em;
-      margin-bottom: 0.4rem;
-      color: #ffffff;
-    }
-    .subtitle {
-      color: #888888;
-      font-size: 0.95rem;
-      margin-bottom: 0.8rem;
-    }
-    .tagline {
-      display: inline-block;
-      background-color: #111111;
-      border: 1px solid #262626;
-      color: #00ff66;
-      padding: 0.2rem 0.6rem;
-      border-radius: 3px;
-      font-size: 0.8rem;
-      margin-bottom: 0.5rem;
-    }
-    section {
-      margin-bottom: 2.8rem;
-    }
-    h2 {
-      font-size: 1.15rem;
-      font-weight: 600;
-      border-bottom: 1px solid #222222;
-      padding-bottom: 0.4rem;
-      margin-bottom: 1rem;
-      color: #ffffff;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    h3 {
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #00ff66;
-      margin-top: 1.2rem;
-      margin-bottom: 0.5rem;
-    }
-    p {
-      color: #cccccc;
-      margin-bottom: 1rem;
-      font-size: 0.9rem;
-    }
-    .code-container {
-      position: relative;
-      margin-bottom: 1.2rem;
-    }
-    .code-block {
-      background-color: #0a0a0a;
-      border: 1px solid #262626;
-      padding: 0.9rem 1.1rem;
-      border-radius: 4px;
-      overflow-x: auto;
-      color: #00ff66;
-      font-size: 0.88rem;
-      line-height: 1.55;
-    }
-    .code-block.dim {
-      color: #aaaaaa;
-    }
-    .copy-btn {
-      position: absolute;
-      top: 0.5rem;
-      right: 0.5rem;
-      background-color: #1a1a1a;
-      border: 1px solid #333333;
-      color: #888888;
-      font-family: inherit;
-      font-size: 0.75rem;
-      padding: 0.2rem 0.5rem;
-      border-radius: 3px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-    .copy-btn:hover {
-      background-color: #262626;
-      color: #ffffff;
-      border-color: #555555;
-    }
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-      margin-bottom: 1.2rem;
-    }
-    @media (max-width: 640px) {
-      .grid-2 {
-        grid-template-columns: 1fr;
-      }
-    }
-    .card {
-      background-color: #0d0d0d;
-      border: 1px solid #222222;
-      border-radius: 4px;
-      padding: 1rem;
-    }
-    .card-title {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #ffffff;
-      margin-bottom: 0.4rem;
-    }
-    .card-desc {
-      font-size: 0.82rem;
-      color: #888888;
-      line-height: 1.45;
-      margin-bottom: 0;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 1.5rem;
-      font-size: 0.84rem;
-    }
-    th, td {
-      border: 1px solid #222222;
-      padding: 0.55rem 0.75rem;
-      text-align: left;
-    }
-    th {
-      background-color: #0d0d0d;
-      color: #ffffff;
-      font-weight: 600;
-    }
-    td {
-      color: #cccccc;
-    }
-    ul {
-      list-style-type: square;
-      padding-left: 1.2rem;
-      color: #cccccc;
-      font-size: 0.88rem;
-      margin-bottom: 1rem;
-    }
-    li {
-      margin-bottom: 0.45rem;
-    }
-    a {
-      color: #3399ff;
-      text-decoration: none;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
-    footer {
-      border-top: 1px solid #222222;
-      padding-top: 1.5rem;
-      margin-top: 3.5rem;
-      font-size: 0.82rem;
-      color: #666666;
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 0.8rem;
-    }
-  </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>System Ops — A clearer view of your VPS</title>
+  <meta name="description" content="A self-hosted operations console for a single Ubuntu VPS. Inspect resources, runtimes, logs, and availability with optional integrations and open-source code.">
+  <link rel="canonical" href="https://system-ops.dineshkorukonda.online/">
+  <meta property="og:title" content="System Ops — A clearer view of your VPS">
+  <meta property="og:description" content="Your host, services, and signals. One self-hosted operations console.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://system-ops.dineshkorukonda.online/">
+  <meta property="og:image" content="https://system-ops.dineshkorukonda.online/assets/console.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#080c0b">
+  <link rel="icon" href="favicon.svg">
+  <link rel="stylesheet" href="assets/site.css">
+  <script src="assets/site.js" defer></script>
 </head>
 <body>
-
-  <header>
-    <div class="ascii-logo">
- ____  _  _  ____  ____  ____  _  _       _____  ____  ____ 
-/ ___)( \/ )/ ___)(_  _)(  __)( \/ ) ___ (  _  )(  _ \/ ___)
-\___ \ )  / \___ \  )(   ) _) / \/ \(___) )(_)(  )___/\___ \
-(____/(__/  (____/ (__) (____)\_)(_/     (_____)(__)  (____/
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="index.html" aria-label="System Ops home"><b aria-hidden="true">&gt;_</b>system-ops</a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="#features">Features</a><a href="docs/index.html">Docs</a><a href="#support">Support</a><a href="docs/contributing.html">Contribute</a><a class="nav-github" href="https://github.com/dineshkorukonda/system-ops">GitHub ↗</a>
+      </nav>
     </div>
-    <h1>system-ops</h1>
-    <div class="tagline">ARCHITECTURE: NATIVE SYSTEMD + GO SIDECAR (&lt;35MB RAM)</div>
-    <p class="subtitle">Lightweight self-hosted operations console for single Ubuntu VPS deployments — system health, security, databases, backups, traffic, and one-click updates.</p>
   </header>
-
-  <section>
-    <h2>1-Command Zero-Friction Installation</h2>
-    <p>Run this single command on your Ubuntu/Debian VPS as root or with sudo:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">curl -sSL https://raw.githubusercontent.com/dineshkorukonda/system-ops/main/scripts/install.sh | bash</div>
+  <main id="main" tabindex="-1">
+    <div class="container">
+      <section class="hero" aria-labelledby="hero-title">
+        <div>
+          <div class="eyebrow">Open source · Self hosted · Single VPS</div>
+          <h1 id="hero-title">A clearer view<br>of <span>your VPS.</span></h1>
+          <p>Your host, services, and signals in one place. Inspect what’s running, follow the logs, and see when a source needs your attention.</p>
+          <div class="actions"><a class="button primary" href="docs/quickstart.html">Get started <span aria-hidden="true">→</span></a><a class="button" href="docs/index.html">Read the docs</a></div>
+          <div class="metadata"><span>Ubuntu + systemd</span><span>Optional integrations</span><span>MIT licensed</span></div>
+        </div>
+        <aside class="hero-aside" aria-label="Project approach">
+          <strong>Built around your host</strong>
+          <p>Start with detected sources.<br>Enable the monitoring you need.<br>Keep failures and missing data visible.</p>
+          <a class="text-link" href="docs/installation.html">Choose your deployment ↗</a>
+        </aside>
+      </section>
+      <figure class="console-figure">
+        <div class="console-chrome" aria-hidden="true"><i></i><i></i><i></i><span>system-ops / operations console</span></div>
+        <img class="console-image" src="assets/console.png" alt="System Ops overview showing detected services and optional monitoring sources" width="1440" height="1000" fetchpriority="high">
+        <figcaption><span>The actual console, shown with disposable demo data.</span><a href="docs/discovery.html">Explore the workspace ↗</a></figcaption>
+      </figure>
+      <section class="section" id="features" aria-labelledby="features-title">
+        <div class="eyebrow">01 / Visibility</div><h2 id="features-title">Know what’s running.<br>Understand what changed.</h2>
+        <p class="section-intro">Bring the essentials of a single host together. Integrations stay optional, and detection is kept separate from health.</p>
+        <div class="feature-grid">
+          <article class="feature"><span class="number">01</span><h3>Host &amp; processes</h3><p>CPU, memory, disks, processes, and systemd journals. See freshness and source errors alongside your data.</p><a href="docs/api.html">Host visibility →</a></article>
+          <article class="feature"><span class="number">02</span><h3>Application runtimes</h3><p>Inspect PM2, Docker, Ollama, and database availability where those sources exist and permissions allow access.</p><a href="docs/integrations.html">Integration setup →</a></article>
+          <article class="feature"><span class="number">03</span><h3>Checks &amp; incidents</h3><p>Configure HTTP and TCP checks, retain observations, and track outage/recovery transitions with coverage shown.</p><a href="docs/checks-alerts-metrics.html">Availability checks →</a></article>
+          <article class="feature"><span class="number">04</span><h3>Logs &amp; traffic</h3><p>Follow service and runtime logs. Explore bounded Nginx analytics with optional geolocation enrichment.</p><a href="docs/traffic-retention.html">Traffic and retention →</a></article>
+          <article class="feature"><span class="number">05</span><h3>Alerts &amp; metrics</h3><p>Send webhook alerts with visible delivery state. Export protected metrics to optional Prometheus and Grafana.</p><a href="docs/checks-alerts-metrics.html">Connect monitoring →</a></article>
+          <article class="feature"><span class="number">06</span><h3>Recovery workflow</h3><p>Review configured backup files and logs. Stage native updates with readiness gates and rollback.</p><a href="docs/updates.html">Updates and recovery →</a></article>
+        </div>
+      </section>
+      <section class="section split" id="setup" aria-labelledby="setup-title">
+        <div><div class="eyebrow">02 / Get started</div><h2 id="setup-title">Your server.<br>Your console.</h2><p>Native Ubuntu/systemd gives the console its host view. Review the installer, choose your credentials, and open the dashboard through an SSH tunnel or HTTPS.</p><p>Prefer Docker? The image includes the console with a narrower view of host services. Check the deployment comparison before choosing.</p><div class="actions"><a class="text-link" href="docs/quickstart.html">Native quick start →</a><a class="text-link" href="docs/installation.html#docker-compose">Docker setup →</a></div></div>
+        <div class="terminal"><div class="terminal-head">Ubuntu / interactive installation</div><pre tabindex="0" role="region" aria-label="Installation commands"><code><span class="comment"># Download, inspect, then install</span>
+<span class="prompt">$</span> <span id="install-command">curl -fsSL https://raw.githubusercontent.com/dineshkorukonda/system-ops/main/scripts/install.sh -o /tmp/system-ops-install.sh</span>
+<span class="prompt">$</span> less /tmp/system-ops-install.sh
+<span class="prompt">$</span> sudo bash /tmp/system-ops-install.sh</code></pre><div class="terminal-foot"><span>Node 24 · loopback by default</span><button class="copy" data-copy="#install-command" aria-label="Copy installer download command">Copy</button></div></div>
+      </section>
+      <section class="section split" aria-labelledby="principles-title">
+        <div><div class="eyebrow">03 / Project principles</div><h2 id="principles-title">Built to be inspected.<br>Documented to be useful.</h2><p>The code, configuration, and operating guides are open. Start with the sources you have, understand the permissions they need, and keep a recovery path outside the dashboard.</p><a class="text-link" href="docs/architecture.html">Read the architecture →</a></div>
+        <ul class="principles"><li><strong>Clear deployment boundaries</strong>Single-host administration, with native and Docker capabilities explained.</li><li><strong>Measurements with context</strong>Resource use depends on configuration. Reproduce workloads and inspect their conditions.</li><li><strong>Unknown stays unknown</strong>Missing and stale observations should not be counted as healthy.</li><li><strong>Optional tools, explicit costs</strong>External monitoring and metrics systems have their own resource requirements.</li></ul>
+      </section>
+      <section class="section" id="support" aria-labelledby="support-title">
+        <div class="eyebrow">04 / Community</div><h2 id="support-title">A place to learn.<br>A way to contribute.</h2><p class="section-intro">Community support is best effort. Share a reproducible problem, improve a guide, or help test an integration.</p>
+        <div class="support-grid"><article class="support-card"><h3>Find your answer</h3><p>Start with installation, configuration, and symptom-based troubleshooting. Ask usage questions in Discussions.</p><a href="docs/support.html">Documentation and support →</a></article><article class="support-card"><h3>Report a problem</h3><p>Use the bug form with your version and sanitized diagnostics. Report security vulnerabilities privately.</p><a href="https://github.com/dineshkorukonda/system-ops/issues/new/choose">Open an issue →</a></article><article class="support-card"><h3>Make it better</h3><p>Code, docs, accessibility, and test evidence all help. Read the contribution guide before your first PR.</p><a href="docs/contributing.html">Contributor guide →</a></article></div>
+      </section>
+      <section class="closing" aria-labelledby="closing-title"><div><h2 id="closing-title">Bring your host into view.</h2><p>Start with a single VPS and the sources you need.</p></div><div class="actions"><a class="button primary" href="docs/quickstart.html">Get started →</a><a class="button" href="https://github.com/dineshkorukonda/system-ops">Explore the source ↗</a></div></section>
     </div>
-    <p class="card-desc">
-      The interactive installer prompts for your desired password directly in the terminal, auto-detects running systemd services (Nginx, PostgreSQL, Ollama, Node apps), auto-generates cryptographic session tokens, and optionally sets up a custom subdomain with free Let's Encrypt SSL in seconds. No manual file editing required.
-    </p>
-  </section>
-
-  <section>
-    <h2>Core Capabilities</h2>
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-title">System Health &amp; Sparklines</div>
-        <p class="card-desc">Real-time CPU, RAM, and swap sparklines, load averages, disk meters, listening ports, TLS cert expiry countdowns, and pending OS package updates.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">Security at a Glance</div>
-        <p class="card-desc">Plain-language UFW firewall rules (which ports are open and why), fail2ban jails, and currently banned IPs — no security jargon required.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">Systemd Services Fleet</div>
-        <p class="card-desc">Unified inspection of tracked services with active state, memory, PID, and live streaming journalctl log viewer. PM2 fleet view when PM2 is present.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">Databases &amp; Certbot</div>
-        <p class="card-desc">PostgreSQL, Redis, and MySQL reachability probes. Let's Encrypt certificate inventory via certbot with renewal hints.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">PostgreSQL Backups</div>
-        <p class="card-desc">Configure BACKUPS_DIR and LOG_SOURCES when ready — setup checklist guides you. Log tailing with SUCCESS/FAILED parsing and .dump downloads.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">Traffic &amp; GeoIP Analytics</div>
-        <p class="card-desc">Streaming Nginx access log parser, mobile vs desktop meters, HTTP status distribution, top endpoints, and Leaflet GeoIP visitor map.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">Docker Containers</div>
-        <p class="card-desc">Optional container fleet view when Docker is installed. Diagnostics script checks socket permissions and group membership.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">In-Dashboard Updates</div>
-        <p class="card-desc">Settings → Update now pulls latest main, rebuilds the SPA, and restarts systemd. Recovery script fixes broken git/deploy state.</p>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <h2>Deploy at Custom Subdomain &amp; SSL (HTTPS)</h2>
-    <p>Deploy system-ops at any subdomain of your choice (e.g., <code>ops.yourdomain.com</code>):</p>
-
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">sudo bash /opt/system-ops/scripts/setup-domain.sh ops.yourdomain.com admin@yourdomain.com</div>
-    </div>
-    <p class="card-desc">
-      Automatically generates the Nginx reverse proxy configuration, verifies syntax, provisions a free Let's Encrypt SSL certificate with auto-renewal, and reloads Nginx.
-    </p>
-  </section>
-
-  <section>
-    <h2>Docker Deployment (Optional)</h2>
-    <p>For read-only host monitoring in a container. Native systemd install is recommended for full features (Go sidecar, security collectors, in-dashboard updates).</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">git clone https://github.com/dineshkorukonda/system-ops.git
-cd system-ops
-cp .env.docker.example .env.docker
-# edit APP_PASSWORD, then:
-docker compose --env-file .env.docker up -d --build</div>
-    </div>
-    <p class="card-desc">
-      The Docker image includes a multi-stage Vite build. Mount <code>/var/run/docker.sock</code> only if you need the Docker page (see security warning in docker-compose.yml).
-    </p>
-  </section>
-
-  <section>
-    <h2>Standardizing Node.js Apps on Systemd (0MB Overhead)</h2>
-    <p>To run your Node.js backend under systemd instead of PM2, create <code>/etc/systemd/system/myapp.service</code>:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block dim">[Unit]
-Description=My Node Production App
-After=network.target postgresql.service
-
-[Service]
-Type=simple
-User=deploy
-WorkingDirectory=/var/www/myapp
-ExecStart=/usr/bin/node src/server.js
-Restart=always
-RestartSec=5s
-Environment=NODE_ENV=production
-EnvironmentFile=/var/www/myapp/.env
-
-# Built-in resource caps (Protects VPS from OOM crashes)
-MemoryMax=600M
-CPUQuota=90%
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target</div>
-    </div>
-    <p>Enable and start the service:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">sudo systemctl daemon-reload &amp;&amp; sudo systemctl enable --now myapp.service</div>
-    </div>
-  </section>
-
-  <section>
-    <h2>Step-by-Step Manual Installation Walkthrough</h2>
-    <p>If you prefer setting up manually without running the automated installer script, follow these 5 steps:</p>
-
-    <h3>Step 1: Clone Repository &amp; Setup 'ops' User</h3>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">sudo useradd -r -s /bin/false -d /opt/system-ops ops 2>/dev/null || true
-sudo usermod -aG systemd-journal,adm ops 2>/dev/null || true
-sudo git clone https://github.com/dineshkorukonda/system-ops.git /opt/system-ops
-cd /opt/system-ops</div>
-    </div>
-
-    <h3>Step 2: Install Dependencies &amp; Build Frontend Assets</h3>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">cd /opt/system-ops
-npm install
-npm run build</div>
-    </div>
-
-    <h3>Step 3: Setup Configuration (.env)</h3>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">cat &lt;&lt; 'EOF' &gt; /opt/system-ops/.env
-APP_PASSWORD=YourSecureAdminPassword123!
-SESSION_SECRET=a8f9c3e21094857bcae91234567890ef
-PORT=9080
-HOST=127.0.0.1
-ENABLE_SYSTEM_COLLECTOR=true
-SYSTEMD_UNITS=nginx,postgresql,ollama,system-ops,docker
-DISK_PATHS=/,/var,/var/backups
-NGINX_LOG_PATH=/var/log/nginx/access.log
-TRACKED_DOMAINS=
-
-# Leave empty until backups are configured (Integrations page shows setup steps)
-BACKUPS_DIR=
-LOG_SOURCES=
-
-OLLAMA_URL=http://127.0.0.1:11434
-OLLAMA_SERVICE_NAME=ollama
-EOF
-chmod 600 /opt/system-ops/.env
-chown -R ops:ops /opt/system-ops</div>
-    </div>
-
-    <h3>Step 4: Grant Narrow Sudoers Access</h3>
-    <p class="card-desc">Install the bundled narrow sudoers file (journalctl, tail, ufw, fail2ban, docker, systemctl, certbot, deploy/recover scripts):</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">sudo cp /opt/system-ops/sudoers/system-ops-sudoers /etc/sudoers.d/system-ops
-sudo chmod 0440 /etc/sudoers.d/system-ops
-sudo visudo -c</div>
-    </div>
-
-    <h3>Step 5: Install &amp; Start Systemd Unit</h3>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">sudo cp /opt/system-ops/systemd/system-ops.service /etc/systemd/system/system-ops.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now system-ops.service
-sudo systemctl status system-ops.service</div>
-    </div>
-  </section>
-
-  <section>
-    <h2>Comprehensive Troubleshooting &amp; Diagnostics Guide</h2>
-    <p>Solutions and 1-click terminal commands for all common VPS configuration issues:</p>
-
-    <h3>1. PM2 Binary Not Found / 0 Discovered Processes</h3>
-    <p>When PM2 is installed via custom version managers (NVM, fnm, Volta) or systemd sandbox is blocking user home folders:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block"># 1. Run automated PM2 diagnostic tool
-sudo bash /opt/system-ops/scripts/debug-pm2.sh
-
-# 2. Ensure ProtectHome=false in systemd unit
-sudo sed -i 's/ProtectHome=true/ProtectHome=false/' /etc/systemd/system/system-ops.service
-sudo systemctl daemon-reload &amp;&amp; sudo systemctl restart system-ops.service
-
-# 3. (Optional) Explicitly pin paths in .env if using custom NVM paths
-echo "PM2_PATH_ROOT=$(which pm2)" >> /opt/system-ops/.env
-echo "PM2_PATH_DEPLOY=/home/deploy/.nvm/versions/node/$(sudo -u deploy node -v 2>/dev/null || echo 'current')/bin/pm2" >> /opt/system-ops/.env
-sudo systemctl restart system-ops.service</div>
-    </div>
-
-    <h3>2. Sudo Password Required / Permission Denied</h3>
-    <p>If you see <code>Sudo password required for user 'ops'</code>, reinstall the bundled sudoers file from the repo (do not use <code>NOPASSWD: ALL</code> in production):</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">sudo cp /opt/system-ops/sudoers/system-ops-sudoers /etc/sudoers.d/system-ops
-sudo chmod 0440 /etc/sudoers.d/system-ops
-sudo visudo -c</div>
-    </div>
-
-    <h3>3. Service Fails to Start (status=1/FAILURE)</h3>
-    <p>Diagnose and fix service restart loops and missing frontend assets:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block"># View live crash output
-sudo journalctl -u system-ops.service -n 50 --no-pager
-
-# Re-build production React assets
-cd /opt/system-ops &amp;&amp; npm run build &amp;&amp; sudo systemctl restart system-ops.service
-
-# Check for port collisions (default 9080)
-sudo ss -tulpn | grep 9080</div>
-    </div>
-
-    <h3>4. Traffic Analytics Shows "No Data"</h3>
-    <p>Grant read permissions to Nginx access log file:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block">sudo usermod -aG adm ops
-sudo chmod 644 /var/log/nginx/access.log
-sudo systemctl restart system-ops.service</div>
-    </div>
-
-    <h3>5. Updating system-ops to Latest Version</h3>
-    <p>Use the dashboard (Settings → Update now), or run deploy/recover from SSH:</p>
-    <div class="code-container">
-      <button class="copy-btn" onclick="copyCode(this)">COPY</button>
-      <div class="code-block"># Normal update
-sudo bash /opt/system-ops/scripts/deploy.sh
-
-# If update failed or git state is broken
-sudo bash /opt/system-ops/scripts/recover.sh</div>
-    </div>
-  </section>
-
-  <section>
-    <h2>REST API Reference</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Method</th>
-          <th>Route</th>
-          <th>Auth</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>GET</td>
-          <td>/health / /api/health</td>
-          <td>No</td>
-          <td>Unauthenticated liveness probe</td>
-        </tr>
-        <tr>
-          <td>POST</td>
-          <td>/api/login</td>
-          <td>No</td>
-          <td>Session authentication</td>
-        </tr>
-        <tr>
-          <td>POST</td>
-          <td>/api/logout</td>
-          <td>No</td>
-          <td>Session invalidation</td>
-        </tr>
-        <tr>
-          <td>GET</td>
-          <td>/api/v2/system/snapshot</td>
-          <td>Yes</td>
-          <td>Host health (CPU, RAM, swap, disk, ports, TLS, OS updates)</td>
-        </tr>
-        <tr>
-          <td>GET</td>
-          <td>/api/v2/security/snapshot</td>
-          <td>Yes</td>
-          <td>UFW firewall rules and fail2ban status</td>
-        </tr>
-        <tr>
-          <td>GET</td>
-          <td>/api/v2/databases/snapshot</td>
-          <td>Yes</td>
-          <td>PostgreSQL, Redis, MySQL probes</td>
-        </tr>
-        <tr>
-          <td>GET</td>
-          <td>/api/v2/certbot/snapshot</td>
-          <td>Yes</td>
-          <td>Let's Encrypt certificate inventory</td>
-        </tr>
-        <tr>
-          <td>GET</td>
-          <td>/api/v2/system/processes</td>
-          <td>Yes</td>
-          <td>Top process table (sort by cpu/mem)</td>
-        </tr>
-        <tr>
-          <td>GET</td>
-          <td>/api/v2/services/snapshot</td>
-          <td>Yes</td>
-          <td>All tracked systemd units &amp; memory metrics</td>
-        </tr>
-        <tr>
-          <td>GET</td>
-          <td>/api/v2/services/logs</td>
-          <td>Yes</td>
-          <td>Tail live journalctl logs for any service</td>
-        </tr>
-        <tr>
-          <td>GET</td>
-          <td>/api/status</td>
-          <td>Yes</td>
-          <td>Ollama service status &amp; host summary</td>
-        </tr>
-        <tr>
-          <td>GET</td>
-          <td>/api/v2/backups/files</td>
-          <td>Yes</td>
-          <td>List PostgreSQL dump files</td>
-        </tr>
-        <tr>
-          <td>POST</td>
-          <td>/api/v2/system/update</td>
-          <td>Yes</td>
-          <td>Trigger in-dashboard deploy (systemd installs)</td>
-        </tr>
-        <tr>
-          <td>GET</td>
-          <td>/api/v2/traffic/analytics</td>
-          <td>Yes</td>
-          <td>Traffic analytics with GeoIP and device breakdown</td>
-        </tr>
-      </tbody>
-    </table>
-  </section>
-
-  <footer>
-    <div>Developed by <a href="https://dineshkorukonda.in" target="_blank">dineshkorukonda.in</a></div>
-    <div><a href="https://github.com/dineshkorukonda/system-ops" target="_blank">GitHub Repository</a> | MIT License</div>
-  </footer>
-
-  <script>
-    function copyCode(btn) {
-      const codeBlock = btn.nextElementSibling;
-      const text = codeBlock.innerText;
-      navigator.clipboard.writeText(text).then(() => {
-        btn.textContent = 'COPIED!';
-        setTimeout(() => { btn.textContent = 'COPY'; }, 1500);
-      });
-    }
-  </script>
-
+  </main>
+  <footer class="site-footer"><div class="container footer-inner"><span>System Ops · MIT © 2026 Dinesh Korukonda</span><div class="footer-links"><a href="docs/changelog.html">Changelog</a><a href="docs/security.html">Security</a><a href="docs/code-of-conduct.html">Code of Conduct</a><a href="docs/third-party-notices.html">Notices</a></div></div></footer>
 </body>
 </html>

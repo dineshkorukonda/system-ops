@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://system-ops.dineshkorukonda.online/sitemap.xml
